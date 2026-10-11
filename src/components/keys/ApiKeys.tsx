@@ -118,7 +118,7 @@ export function ApiKeysDialog({
           <motion.section
             ref={panelRef}
             tabIndex={-1}
-            className="jb-dialog-panel flex max-h-[calc(100dvh-24px)] w-[min(600px,calc(100vw-24px))] flex-col rounded-2xl border border-[var(--line)] bg-[var(--bg)] shadow-2xl"
+            className="jb-dialog-panel flex max-h-[calc(100dvh-24px)] w-[min(720px,calc(100vw-24px))] flex-col rounded-2xl border border-[var(--line)] bg-[var(--bg)] shadow-2xl"
             initial={{ y: 20, scale: 0.98 }}
             animate={{ y: 0, scale: 1 }}
             exit={{ y: 12, scale: 0.98 }}
@@ -150,16 +150,16 @@ export function ApiKeysDialog({
             )}
 
             {/* Clustered by kind of service (setup/api-keys.json groups), alphabetical inside each. */}
-            <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-2.5 py-2.5">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
               {groupedServices().map(({ group, services }) => (
                 <section key={group.id} aria-labelledby={`api-group-${group.id}`}>
                   <h3
                     id={`api-group-${group.id}`}
-                    className="mb-1 px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]"
+                    className="mb-2 px-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]"
                   >
                     {group.name}
                   </h3>
-                  <ul className="space-y-1">
+                  <ul className="space-y-2">
                     {services.map((s) => (
                       <ServiceRow
                         key={s.id}
@@ -229,19 +229,19 @@ function ServiceRow({
         onClick={onToggle}
         aria-expanded={open}
         aria-controls={open ? bodyId : undefined}
-        className="flex w-full items-center gap-2.5 px-2.5 py-1.5 text-left"
+        className="flex w-full items-center gap-3 px-3.5 py-3 text-left"
       >
         <span
-          className="grid h-6 w-6 shrink-0 place-items-center rounded-lg"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px]"
           style={{ background: ready ? `linear-gradient(135deg, ${service.color}, ${hexToRgba(service.color, 0.65)})` : hexToRgba(QUIET, 0.18) }}
         >
-          {ready ? <CheckIcon size={10} color="#fff" /> : <KeyIcon size={10} color={QUIET} />}
+          {ready ? <CheckIcon size={12} color="#fff" /> : <KeyIcon size={12} color={QUIET} />}
         </span>
-        <span className="flex min-w-0 flex-1 items-baseline gap-2">
-          <span className="shrink-0 text-[13px] font-bold" style={{ color: ready ? service.color : 'var(--ink-soft)' }}>
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2.5">
+          <span className="shrink-0 text-[14px] font-bold" style={{ color: ready ? service.color : 'var(--ink-soft)' }}>
             {service.name}
           </span>
-          <span className="min-w-0 truncate text-[11px] text-[var(--muted)]" title={service.details}>
+          <span className="min-w-0 text-[12px] leading-snug text-[var(--muted)] [text-wrap:pretty]" title={service.details}>
             {service.why}
           </span>
         </span>
@@ -255,7 +255,7 @@ function ServiceRow({
           />
         )}
         <span
-          className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold"
+          className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold"
           style={{ color: pill.color, background: hexToRgba(pill.color, 0.12), border: `1px solid ${hexToRgba(pill.color, 0.4)}` }}
         >
           {pill.text}
@@ -272,19 +272,25 @@ function ServiceRow({
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.18 }}
           >
-            <div className="space-y-1.5 border-t px-2.5 pb-2 pt-1.5" style={{ borderColor: hexToRgba(color, 0.2) }}>
-              <p className="text-[11.5px] leading-snug text-[var(--ink-soft)]">{service.details}</p>
-              <p className="flex flex-wrap items-center gap-1 text-[10.5px] leading-snug text-[var(--muted)]">
+            <div className="space-y-4 border-t px-3.5 pb-4 pt-3.5" style={{ borderColor: hexToRgba(color, 0.2) }}>
+              <p className="text-[12.5px] leading-relaxed text-[var(--ink-soft)] [text-wrap:pretty]">{service.details}</p>
+              <div className="space-y-2.5 text-[11.5px] leading-snug text-[var(--muted)]">
+              <p className="flex flex-wrap items-center gap-1.5">
                 <span className="font-semibold">Used by</span>
                 {service.usedBy.map((u) => (
                   <span
                     key={u}
-                    className="rounded px-1.5 py-px font-medium"
+                    className="rounded-md px-2 py-0.5 font-medium"
                     style={{ color: service.color, background: hexToRgba(service.color, 0.08), border: `1px solid ${hexToRgba(service.color, 0.3)}` }}
                   >
                     {u}
                   </span>
                 ))}
+              </p>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span className="min-w-0 flex-1 [text-wrap:pretty]">
+                  <span className="font-semibold">Get it:</span> {service.getIt}
+                </span>
                 <motion.button
                   type="button"
                   onClick={onTest}
@@ -295,7 +301,7 @@ function ServiceRow({
                   aria-label={`Test ${service.name} connection`}
                   aria-busy={busy || undefined}
                   title={blocker ?? `Check the saved ${service.name} key against its host`}
-                  className="ml-auto h-5 shrink-0 rounded-md border px-1.5 text-[10.5px] font-bold disabled:cursor-default disabled:opacity-45"
+                  className="h-8 shrink-0 rounded-lg border px-3.5 text-[12px] font-bold disabled:cursor-default disabled:opacity-45"
                   style={{
                     color: blocker ? QUIET : service.color,
                     borderColor: hexToRgba(blocker ? QUIET : service.color, 0.45),
@@ -304,9 +310,7 @@ function ServiceRow({
                 >
                   {busy ? 'Testing…' : 'Test'}
                 </motion.button>
-                <span className="basis-full">
-                  <span className="font-semibold">Get it:</span> {service.getIt}
-                </span>
+              </div>
                 {/* The live region is always mounted (so a result is announced) but sr-only — absolutely
                     positioned, it is no flex item, so an empty one adds no row gap. The visible pill is a
                     separate, aria-hidden line that exists only when there is a result. */}
@@ -314,17 +318,17 @@ function ServiceRow({
                   {view?.text ?? ''}
                 </span>
                 {view && (
-                  <span className="basis-full" aria-hidden="true">
+                  <p aria-hidden="true">
                     <span
-                      className="inline-block max-w-full truncate rounded px-1.5 py-px align-middle font-semibold"
+                      className="inline-block max-w-full rounded-md px-2 py-1 align-middle font-semibold [overflow-wrap:anywhere]"
                       title={view.title}
                       style={{ color: viewColor, background: hexToRgba(viewColor, 0.08), border: `1px solid ${hexToRgba(viewColor, 0.35)}` }}
                     >
                       {view.text}
                     </span>
-                  </span>
+                  </p>
                 )}
-              </p>
+              </div>
               {service.keys.map((k) => (
                 <KeyField key={k.env} field={k} saved={status?.[k.env] ?? UNSET} color={service.color} onSave={onSave} />
               ))}
@@ -333,6 +337,15 @@ function ServiceRow({
         )}
       </AnimatePresence>
     </li>
+  )
+}
+
+/** Small quiet tag beside a field label (optional · not used yet). */
+function Tag({ text }: { text: string }) {
+  return (
+    <span className="rounded-full border px-2 py-px text-[10.5px] font-medium" style={{ color: QUIET, borderColor: hexToRgba(QUIET, 0.4), background: hexToRgba(QUIET, 0.08) }}>
+      {text}
+    </span>
   )
 }
 
@@ -388,16 +401,17 @@ function KeyField({
   const hint = field.hint ?? ''
 
   return (
-    <div className="grid grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0.5">
-      <label htmlFor={inputId} className="min-w-0 leading-tight" title={field.env}>
-        <span className="block truncate text-[11.5px] font-semibold text-[var(--ink-soft)]">{field.label}</span>
-        <span className="block truncate font-mono text-[9.5px] text-[var(--muted)]">
-          {field.env}
-          {field.optional ? ' · optional' : ''}
-          {field.planned ? ' · not used yet' : ''}
-        </span>
-      </label>
-      <div className="relative min-w-0">
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <label htmlFor={inputId} className="text-[12.5px] font-semibold text-[var(--ink-soft)]">
+          {field.label}
+        </label>
+        {field.optional && <Tag text="optional" />}
+        {field.planned && <Tag text="not used yet" />}
+        <code className="ml-auto font-mono text-[10.5px] text-[var(--muted)]">{field.env}</code>
+      </div>
+      <div className="flex items-center gap-2">
+      <div className="relative min-w-0 flex-1">
         <input
           id={inputId}
           type={secret && !reveal ? 'password' : field.kind === 'email' ? 'email' : 'text'}
@@ -415,8 +429,8 @@ function KeyField({
           }}
           onKeyDown={(e) => e.key === 'Enter' && enabled && void submit(draft.trim())}
           // A saved secret's mask sits in the placeholder; drawn in ink, it reads as the value.
-          className={`jb-key-input h-7 w-full rounded-lg border border-[var(--line)] bg-[var(--surface-solid)] px-2 font-mono text-[11.5px] text-[var(--ink)] outline-none focus:border-[var(--muted)] ${
-            secret ? 'pr-7' : ''
+          className={`jb-key-input h-9 w-full rounded-lg border border-[var(--line)] bg-[var(--surface-solid)] px-3 font-mono text-[12.5px] transition-[border-color,box-shadow] duration-150 focus:shadow-[0_0_0_3px_rgba(127,127,127,0.12)] text-[var(--ink)] outline-none focus:border-[var(--muted)] ${
+            secret ? 'pr-10' : ''
           } ${saved.set && secret ? 'placeholder:text-[var(--ink-soft)]' : 'placeholder:text-[var(--muted)]'}`}
         />
         {secret && draft && (
@@ -425,13 +439,13 @@ function KeyField({
             onClick={() => setReveal((r) => !r)}
             aria-label={reveal ? 'Hide key' : 'Show key'}
             aria-pressed={reveal}
-            className="absolute right-1 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded text-[var(--muted)] hover:text-[var(--ink)]"
+            className="absolute right-1 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-[var(--muted)] hover:text-[var(--ink)]"
           >
-            {reveal ? <EyeOffIcon size={10} /> : <EyeIcon size={10} />}
+            {reveal ? <EyeOffIcon size={12} /> : <EyeIcon size={12} />}
           </button>
         )}
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1.5">
         <motion.button
           type="button"
           whileHover={enabled ? { scale: 1.04 } : undefined}
@@ -440,7 +454,7 @@ function KeyField({
           onClick={() => void submit(draft.trim())}
           aria-label={`Save ${field.label}`}
           aria-busy={busy || undefined}
-          className="h-7 rounded-lg px-2.5 text-[11.5px] font-bold text-white transition-opacity disabled:cursor-default disabled:opacity-35"
+          className="h-9 rounded-lg px-4 text-[12.5px] font-bold text-white transition-opacity disabled:cursor-default disabled:opacity-35"
           style={{ background: enabled ? `linear-gradient(135deg, ${color}, ${hexToRgba(color, 0.75)})` : QUIET }}
           title={enabled ? `Save ${field.env}` : saved.set ? 'Type a new value to replace the saved one' : 'Paste a value first'}
         >
@@ -452,7 +466,7 @@ function KeyField({
             disabled={busy}
             onClick={() => (confirmRemove ? void submit('') : setConfirmRemove(true))}
             onBlur={() => setConfirmRemove(false)}
-            className="h-7 rounded-lg border px-1.5 text-[11px] font-semibold"
+            className="h-9 rounded-lg border px-3 text-[12px] font-semibold"
             style={{ color: '#e11d48', borderColor: hexToRgba('#e11d48', confirmRemove ? 0.6 : 0.3), background: hexToRgba('#e11d48', confirmRemove ? 0.1 : 0.03) }}
             aria-label={confirmRemove ? `Confirm removing ${field.env}` : `Remove ${field.env}`}
           >
@@ -460,8 +474,9 @@ function KeyField({
           </button>
         )}
       </div>
+      </div>
       {hint && !note && (
-        <p id={hintId} className="col-start-2 col-end-4 text-[10.5px] leading-snug text-[var(--muted)]">
+        <p id={hintId} className="text-[11.5px] leading-snug text-[var(--muted)] [text-wrap:pretty]">
           {hint}
         </p>
       )}
@@ -472,7 +487,7 @@ function KeyField({
         {note?.text ?? ''}
       </span>
       {note?.text && (
-        <p className="col-start-2 col-end-4 text-[10.5px] font-semibold leading-snug" aria-hidden="true" style={{ color: note.error ? '#e11d48' : color }}>
+        <p className="text-[11.5px] font-semibold leading-snug" aria-hidden="true" style={{ color: note.error ? '#e11d48' : color }}>
           {note.text}
         </p>
       )}
