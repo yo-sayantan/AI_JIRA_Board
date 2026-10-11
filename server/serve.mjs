@@ -54,6 +54,10 @@
 //                                          · 413 'too large' · 415 · 500 'save failed'
 //
 // AI intern (proxied to AI_INTERN_URL; 503 { ok:false, down:true } when it is unreachable)
+//   GET  /api/keys                         200 { ok, keys:{ ENV:{ set, masked } } } — masked, never a full secret
+//   POST /api/keys       body: { name, value } ≤ 8 KB; name from setup/api-keys.json, '' removes it
+//                                          200 { ok, keys, cleared:[ENV] } · 400 { error } · 413 · 415
+//                                          (a new *_URL clears its service's tokens → listed in cleared)
 //   GET  /api/ai-status                    200 intern status + { queuedKeys:[K], queued }
 //   GET  /api/ai-models                    200 intern /api/models, or { ok:false, down:true, catalog, installed, ollamaOk:false }
 //   GET  /api/cloud-models                 200 intern /api/cloud-models
@@ -67,8 +71,9 @@
 // ───────────────────────────────────────────────────────────────────────────────────────────────
 import { createServer } from 'node:http'
 import { stat } from 'node:fs/promises'
-import { ALLOWED_HOSTS, BOARD_PATH, HELP_PATH, DATE_RE, HOST, KEY_RE, PATHS, PORT, ROOT, YEAR_RE } from './config.mjs'
-import { SECURITY_HEADERS, createStaticHandler, json, readBody } from './http.mjs'
+import { ALLOWED_HOSTS, BOARD_PATH, HELP_PATH, DATE_RE, HOST, KEY_RE, PATHS, PORT, ROOT, STATIC_ALLOW, YEAR_RE } from './config.mjs'
+import { createSecretsStore } from './secrets.mjs'
+import { SECURITY_HEADERS, createStaticHandler, json, readBody, readJson } from './http.mjs'
 import { MOVE_TARGETS, moveTicket, runStatus, startArchive, startDaily, startRaised, stopArchive, ticketRefresh } from './jobs.mjs'
 import { externalGenerating, readReport, reportQueue, reportsIndex, resolveReportKeys, stopReports } from './reports.mjs'
 import { aiStatus, enrichingKeys, localCatalog, proxyAi } from './ai.mjs'
@@ -76,22 +81,11 @@ import { readBoardSettings, updateBoardSettings } from './settings.mjs'
 import { startScheduler } from './schedule.mjs'
 import { MODELS_DIR_LABEL, ensureOllamaReady, ollamaInfo, ollamaWanted, reconcileOllama } from './ollama.mjs'
 
-const serveStatic = createStaticHandler(
-  ROOT,
-  [
-    /^\/dist\//,
-    // The help guide (plain pages that also open from disk) and the markdown it renders from docs/.
-    /^\/help\//,
-    /^\/docs\//,
-    /^\/setup\//,
-    /^\/ai-intern\/(models|cursor-prices|cloud-models)\.json$/,
-    /^\/jira-intern\/data\.js(on)?$/,
-    /^\/jira-intern\/reports\/index\.js$/,
-    // Demo mode's sample board, kept beside the real dump so it can be read and edited by hand.
-    /^\/jira-intern\/demo\/[\w.-]+\.json$/,
-  ],
-  { noStore: [/^\/jira-intern\//] },
-)
+const serveStatic = createStaticHandler(ROOT, STATIC_ALLOW, { noStore: [/^\/jira-intern\//] })
+
+// One store (it owns the write queue). The registry is read once, like the board's bundled copy:
+// after editing setup/api-keys.json, rebuild and restart so the two agree.
+const secrets = createSecretsStore({ file: PATHS.secrets, registry: await readJson(PATHS.apiKeys, { services: [] }) })
 
 const param = (url, name) => (url.searchParams.get(name) || '').trim()
 
@@ -272,6 +266,37 @@ const routes = {
     }
   },
 
+  'GET /api/keys': async (req, res) => {
+    try {
+      json(res, 200, { ok: true, keys: await secrets.status() })
+    } catch (e) {
+      console.error('[keys] read failed', e.code || e.message)
+      json(res, 500, { ok: false, error: 'could not read setup/.env' })
+    }
+  },
+
+  'POST /api/keys': async (req, res) => {
+    const body = await readBody(req, 8192)
+    if (body === undefined) return json(res, 400, { ok: false, error: 'aborted' })
+    if (body === null) return json(res, 413, { ok: false, error: 'too large' })
+    let parsed
+    try {
+      parsed = JSON.parse(body || '{}')
+    } catch {
+      return json(res, 400, { ok: false, error: 'bad json' })
+    }
+    try {
+      const { status, error, cleared } = await secrets.save(parsed?.name, parsed?.value)
+      if (error) return json(res, 400, { ok: false, error })
+      // Names only — never a value — so the log shows what changed.
+      console.log(`[keys] ${parsed.value?.trim() ? 'saved' : 'removed'} ${parsed.name}${cleared.length ? ` (cleared ${cleared.join(', ')})` : ''}`)
+      json(res, 200, { ok: true, keys: status, cleared })
+    } catch (e) {
+      console.error('[keys] save failed', e.code || e.message)
+      json(res, 500, { ok: false, error: 'could not write setup/.env' })
+    }
+  },
+
   'GET /api/ai-status': async (req, res) => {
     const [ai, settings] = await Promise.all([aiStatus(), readBoardSettings()])
     json(res, 200, { ...ai, container: await ollamaInfo(settings) })
@@ -326,7 +351,7 @@ const WILDCARD_BINDS = new Set(['', '0.0.0.0', '::', '[::]'])
 // A specific bind address is as good as a loopback name: a rebinding page cannot make the
 // browser send our IP literal as its Host.
 const BIND_NAME = WILDCARD_BINDS.has(HOST) ? null : HOST.includes(':') ? `[${HOST.toLowerCase()}]` : HOST.toLowerCase()
-const JSON_BODY_ROUTES = new Set(['POST /api/settings', 'POST /api/ai-models/pull', 'POST /api/ai-jobs'])
+const JSON_BODY_ROUTES = new Set(['POST /api/settings', 'POST /api/keys', 'POST /api/ai-models/pull', 'POST /api/ai-jobs'])
 const warnedHosts = new Set()
 
 const hostName = (host) => host.replace(/:\d+$/, '')

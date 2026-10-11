@@ -27,7 +27,28 @@ export const PATHS = {
   moveTargets: join(INTERN, 'move_targets.json'),
   raisedScript: join(RUNNER, 'refresh-raised.sh'),
   modelCatalog: join(ROOT, 'ai-intern', 'models.json'),
+  // API keys: the list (tracked) and the values (git-ignored). JB_SECRETS_FILE moves the values.
+  apiKeys: join(ROOT, 'setup', 'api-keys.json'),
+  secrets: process.env.JB_SECRETS_FILE || join(ROOT, 'setup', '.env'),
 }
+
+/**
+ * The only static paths the server opens. No pattern may match a dot-segment: setup/ holds the
+ * API keys (setup/.env) next to the templates the guide links to.
+ */
+export const STATIC_ALLOW = [
+  /^\/dist\//,
+  // The help guide (plain pages that also open from disk) and the markdown it renders from docs/.
+  /^\/help\//,
+  /^\/docs\//,
+  // Templates and the key list only — never a filled-in copy (setup/.env, secrets.env, *.bak…).
+  /^\/setup\/\w[\w .-]*\.(template|json)$/,
+  /^\/ai-intern\/(models|cursor-prices|cloud-models)\.json$/,
+  /^\/jira-intern\/data\.js(on)?$/,
+  /^\/jira-intern\/reports\/index\.js$/,
+  // Demo mode's sample board, kept beside the real dump so it can be read and edited by hand.
+  /^\/jira-intern\/demo\/[\w.-]+\.json$/,
+]
 
 export const KEY_RE = /^[A-Z][A-Z0-9]+-\d+$/i
 export const YEAR_RE = /^\d{4}$/
