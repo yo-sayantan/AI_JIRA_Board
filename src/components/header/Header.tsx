@@ -2,7 +2,7 @@ import { memo, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import type { JiraData } from '../../types'
 import { currentSprint, fmtDate, fmtDateShort, freshness, hexToRgba, sprintStatus } from '../../lib/format'
-import { CalendarIcon, GearIcon, QuestionIcon, RefreshIcon, SearchIcon, SunIcon, MoonIcon, TicketGlyph } from '../common/Icons'
+import { CalendarIcon, GearIcon, KeyIcon, QuestionIcon, RefreshIcon, SearchIcon, SunIcon, MoonIcon, TicketGlyph } from '../common/Icons'
 import { guideUrl, type ArchiveScope } from '../../lib/runner'
 import { ReportsMenu, type ReportsMenuProps } from './ReportsMenu'
 import { ArchiveMenu } from './ArchiveMenu'
@@ -142,6 +142,8 @@ export const Header = memo(function Header({
   onStopArchive,
   reports,
   onOpenSettings,
+  onOpenKeys,
+  keysMissing = false,
 }: {
   data: JiraData
   now: number
@@ -163,6 +165,10 @@ export const Header = memo(function Header({
   /** Bulk PR Readiness Report controls — grouped so the header keeps one prop, not five. */
   reports?: ReportsMenuProps
   onOpenSettings?: () => void
+  /** Served only — opens the API keys dialog. */
+  onOpenKeys?: () => void
+  /** A required key is missing: the key button carries an amber dot. */
+  keysMissing?: boolean
 }) {
   const fr = freshness(data.generatedAt, now)
   const name = data.user?.name?.split(',')[1]?.trim() || data.user?.name || 'you'
@@ -304,6 +310,23 @@ export const Header = memo(function Header({
           )}
 
           {reports && <ReportsMenu {...reports} />}
+
+          {onOpenKeys && (
+            <motion.button
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.9 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+              onClick={onOpenKeys}
+              aria-label={keysMissing ? 'API keys — a required key is missing' : 'API keys'}
+              title={keysMissing ? 'API keys — add your Jira token so the board can fetch' : 'API keys — Jira, Bitbucket, Cloud AI…'}
+              className="relative grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] card-shadow hover:border-[var(--muted)] hover:text-[var(--ink)]"
+            >
+              <KeyIcon size={16} />
+              {keysMissing && (
+                <span aria-hidden className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--bg)] bg-[#f59e0b]" />
+              )}
+            </motion.button>
+          )}
 
           {onOpenSettings && (
             <motion.button

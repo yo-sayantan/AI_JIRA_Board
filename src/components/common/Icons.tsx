@@ -400,6 +400,24 @@ export function EyeOffIcon({ size = 13, className = '', color = 'currentColor' }
   )
 }
 
+export function EyeIcon({ size = 13, className = '', color = 'currentColor' }: IP) {
+  return (
+    <svg {...svg(size, className)}>
+      <path d="M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z" {...line(color, 1.8)} />
+      <circle cx="12" cy="12" r="2.6" stroke={color} strokeWidth="1.8" />
+    </svg>
+  )
+}
+
+export function KeyIcon({ size = 16, className = '', color = 'currentColor' }: IP) {
+  return (
+    <svg {...svg(size, className)}>
+      <circle cx="8" cy="15" r="4.2" stroke={color} strokeWidth="1.9" />
+      <path d="M11 12l8.5-8.5M16.5 6.5l2.5 2.5M14.3 8.7l2 2" {...line(color, 1.9)} />
+    </svg>
+  )
+}
+
 export function TicketGlyph({ size = 18, className = '' }: IP) {
   return (
     <svg width={px(size)} height={px(size)} viewBox="0 0 24 24" className={className} aria-hidden>
