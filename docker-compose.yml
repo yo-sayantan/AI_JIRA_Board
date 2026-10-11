@@ -46,8 +46,8 @@ services:
       - BIND_HOST=0.0.0.0
       - PORT=4321
       - AI_INTERN_URL=http://jira-ai:4322
-      # Bare names are pass-throughs: set in your shell or .env → set in the container,
-      # otherwise absent (an empty string would mask the value in mcp-secrets.env).
+      # Bare names are pass-throughs: set in your shell → set in the container, otherwise
+      # absent (an empty string would mask the value in setup/.env).
       # Extra Host headers the API accepts (comma-separated) when BIND_IP is not loopback.
       - ALLOWED_HOSTS
       # TLS to Jira/Bitbucket is verified by default. Private corporate CA: mount the PEM
@@ -66,14 +66,10 @@ services:
       # Docker socket, so the board can start and stop the AI-Ollama container on demand.
       # Remove this line to opt out: Ollama then simply follows compose (always on).
       - /var/run/docker.sock:/var/run/docker.sock
-      # Tokens: reuse your existing connector secrets, read-only. The file needs
-      # JIRA_PERSONAL_TOKEN (and optionally BITBUCKET_PAT / ATLASSIAN_TOKEN, plus
-      # CURSOR_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY for the intern).
-      # Mount the directory, not the file. A single-file bind stays pointed at the
-      # old inode after an editor replaces mcp-secrets.env, and open() then fails
-      # with ENOENT even though the host file is fine.
-      # The board runs as `node`, so its home is /home/node (the AI intern below is root).
-      - ${HOME:?HOME must be set}/.cursor:/home/node/.cursor:ro
+      # API keys: setup/.env, written by the board's API keys dialog — so read-write here.
+      # Mount the directory, not the file: saving replaces the file (temp + rename), and a
+      # single-file bind would stay pointed at the old inode.
+      - ./setup:/app/setup
       # Sparse personal overrides; project defaults live in config/jira-board.config.json.
       - ${HOME:?HOME must be set}/.ai:/home/node/.ai:ro
       - ./config:/app/config:ro
@@ -94,9 +90,9 @@ services:
     # dns:
     #   - 8.8.8.8
     #   - 1.1.1.1
-    # Alternative to the secrets mount above — pass tokens directly instead:
+    # Alternative to the API keys dialog — pass tokens directly (they win over setup/.env):
     # env_file:
-    #   - .env
+    #   - setup/.env
 
   ollama:
     image: ollama/ollama:latest
@@ -126,7 +122,6 @@ services:
       - OLLAMA_HOST=http://ollama:11434
       - HOST_OLLAMA_URL=http://host.docker.internal:11434
       # This image runs as root, so its mounts live under /root (unlike the board).
-      - AGENT_SECRETS=/root/.cursor/mcp-secrets.env
       # Pass-throughs (see jira-board above for what they mean).
       - JIRA_CA_BUNDLE
       - JIRA_INSECURE_TLS
@@ -138,7 +133,9 @@ services:
     volumes:
       - ./jira-intern:/app/jira-intern
       - ${HOME:?HOME must be set}/.ai:/root/.ai:ro
-      - ${HOME:?HOME must be set}/.cursor:/root/.cursor:ro
+      # API keys (setup/.env), read-only: the worker re-reads it on every cloud call, so a key
+      # saved in the board works without a restart. It sits beside /app/jira-intern, as on the host.
+      - ./setup:/app/setup:ro
       - ./config:/app/config:ro
       # Model catalogue: edit it, then `docker compose restart jira-ai` — no rebuild.
       - ./ai-intern/models.json:/app/models.json:ro

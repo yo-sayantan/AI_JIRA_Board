@@ -33,7 +33,7 @@ fi
 #    (load_env() uses setdefault). Nothing is exported into the Node server's
 #    environment; this only checks whether a Jira token exists so the boot fetch can be
 #    skipped with a clear message instead of a failed run.
-SECRETS="${AGENT_SECRETS:-$HOME/.cursor/mcp-secrets.env}"
+SECRETS="${JB_SECRETS_FILE:-/app/setup/.env}"
 have_token() {
   [ -n "${JIRA_PERSONAL_TOKEN:-}" ] && return 0
   [ -f "$SECRETS" ] && grep -qE '^(export[[:space:]]+)?JIRA_PERSONAL_TOKEN=[^[:space:]#]+' "$SECRETS"
@@ -41,7 +41,7 @@ have_token() {
 if [ -f "$SECRETS" ]; then
   log "secrets file present at $SECRETS"
 else
-  log "no secrets file at $SECRETS (mount ~/.cursor or pass JIRA_PERSONAL_TOKEN with -e)"
+  log "no API keys yet at $SECRETS — open the board and add them with the key button (or pass JIRA_PERSONAL_TOKEN with -e)"
 fi
 
 config_get() {

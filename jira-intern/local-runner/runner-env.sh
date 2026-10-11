@@ -17,10 +17,14 @@ LOG_DIR="$INTERN_DIR/logs"; mkdir -p "$LOG_DIR"
 # Fallbacks for a machine without node; config.mjs shellenv overrides every one of them.
 AGENT_CONNECTOR=cursor; AGENT_BIN=cursor-agent; AGENT_BIN_FALLBACKS="$HOME/.local/bin/cursor-agent"
 AGENT_PROMPT_FLAG='-p'; AGENT_EXTRA_ARGS='--output-format text --force'; AGENT_MODEL_FLAG='--model'
-AGENT_SECRETS="$HOME/.cursor/mcp-secrets.env"; AGENT_API_KEY_ENV='CURSOR_API_KEY'
+AGENT_API_KEY_ENV='CURSOR_API_KEY'
 AGENT_INSTALL_HINT='curl https://cursor.com/install -fsS | bash'
 MODEL_MAIN=auto; TIMEOUT_DAILY=1800; TIMEOUT_WEEKLY=7200; TIMEOUT_REFRESH=600; REQUIRED_APPROVALS=2
 command -v node >/dev/null 2>&1 && eval "$(node "$HERE/config.mjs" shellenv 2>/dev/null)"
+
+# The board's own secrets file (written by its API keys dialog): setup/.env at the repo root.
+# The same path as jira-intern/_config.py secrets_path(); JB_SECRETS_FILE moves both.
+APP_SECRETS="${JB_SECRETS_FILE:-$(cd "$INTERN_DIR/.." && pwd)/setup/.env}"
 
 # coreutils timeout (Linux) or Homebrew gtimeout; empty on a stock Mac — see run_with_timeout.
 TIMEOUT_BIN="$(command -v timeout || command -v gtimeout || true)"
@@ -32,7 +36,7 @@ TIMEOUT_BIN="$(command -v timeout || command -v gtimeout || true)"
 # keys. Mirrors jira-intern/_config.py load_secrets(): blank lines and #-comments are
 # skipped, a leading "export " and a trailing CR are dropped, one layer of surrounding
 # quotes is removed. Values are taken literally — $(…), backticks and $VARS never expand,
-# so a hostile or merely odd line in ~/.cursor/mcp-secrets.env cannot run code here.
+# so a hostile or merely odd line in setup/.env cannot run code here.
 #   export_secrets_from_file FILE KEY...
 export_secrets_from_file() {
   local file="$1" line key value k
@@ -56,16 +60,16 @@ export_secrets_from_file() {
     esac
     [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
     for k in "$@"; do
-      if [ "$k" = "$key" ]; then export "$key=$value"; break; fi
+      # A variable already in the environment wins (docker -e / env_file), like Python's setdefault.
+      if [ "$k" = "$key" ]; then [ -n "${!key+x}" ] || export "$key=$value"; break; fi
     done
   done < "$file"
 }
 
 # Jira / Bitbucket / connector tokens, exported to child processes. Only the variables the
-# fetch scripts and the agent CLI actually read leave the file (same list as the AI intern);
-# whatever else the user keeps in mcp-secrets.env for other tools stays there.
+# fetch scripts and the agent CLI actually read leave the file (same list as the AI intern).
 load_agent_secrets() {
-  export_secrets_from_file "$AGENT_SECRETS" \
+  export_secrets_from_file "$APP_SECRETS" \
     JIRA_URL CONFLUENCE_URL BITBUCKET_URL \
     JIRA_PERSONAL_TOKEN CONFLUENCE_PERSONAL_TOKEN BITBUCKET_PAT ATLASSIAN_TOKEN \
     JIRA_CA_BUNDLE JIRA_INSECURE_TLS \
