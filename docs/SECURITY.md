@@ -117,7 +117,7 @@ read-only, authenticated request to the service the key belongs to — nothing e
 | Service | Goes to | Credential sent as |
 |---|---|---|
 | Jira · Confluence · Bitbucket | the saved `*_URL`, else `endpoints.*Base` — `/rest/api/2/myself`, `/rest/api/user/current`, `/rest/api/1.0/projects?limit=1` | `Authorization: Bearer` (Bitbucket falls back to `ATLASSIAN_TOKEN`) |
-| Atlassian Cloud | `ATLASSIAN_SITE_URL/rest/api/3/myself` | HTTP Basic email + token |
+| Atlassian Cloud | `ATLASSIAN_SITE_URL/rest/api/3/myself`; on a 401 also an anonymous `…/_edge/tenant_info` (the public cloud id) and `api.atlassian.com/ex/jira/<cloudId>/rest/api/3/myself` | HTTP Basic email + token |
 | Jenkins | the first https job URL in `jenkins.jobs` + `api/json?tree=name` | HTTP Basic user + token |
 | Checkmarx One | its token URL (as `checkmarx.py`) | the key in the POST body only (refresh-token grant) |
 | Claude · Cursor · Gemini · OpenAI | the vendor's fixed `/models` URL | `x-api-key` · Basic · `x-goog-api-key` · Bearer — never in a URL |

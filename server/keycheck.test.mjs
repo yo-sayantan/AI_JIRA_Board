@@ -133,6 +133,42 @@ describe('request shapes, one per service', () => {
     expect(r.detail).toMatch(/your-org\.atlassian\.net/)
   })
 
+  it('atlassian: a scoped token (401 on the site) is retried through api.atlassian.com with the cloud id', async () => {
+    const { c, http } = checker({
+      reply: (opts) => {
+        if (opts.url === 'https://me.atlassian.net/rest/api/3/myself') return { status: 401, body: '{}' }
+        if (opts.url === 'https://me.atlassian.net/_edge/tenant_info') return { status: 200, body: JSON.stringify({ cloudId: '11111111-2222-3333-4444-555555555555' }) }
+        if (opts.url === 'https://api.atlassian.com/ex/jira/11111111-2222-3333-4444-555555555555/rest/api/3/myself') return { status: 200, body: JSON.stringify({ displayName: 'Ada' }) }
+        return { status: 500, body: '{}' }
+      },
+    })
+    const r = await c.test('atlassian')
+    expect(r.status).toBe('ok')
+    expect(r.detail).toMatch(/Signed in as Ada/)
+    expect(r.detail).toMatch(/scoped/i)
+    const tenant = http.calls.find((x) => x.url.endsWith('/_edge/tenant_info'))
+    expect(tenant.headers?.Authorization).toBeUndefined() // the discovery call is anonymous
+    const gw = http.calls.find((x) => x.url.startsWith('https://api.atlassian.com/'))
+    expect(gw.headers.Authorization).toMatch(/^Basic /)
+  })
+
+  it('atlassian: still 401 through the gateway → key rejected, with the email hint', async () => {
+    const { c } = checker({
+      reply: (opts) =>
+        opts.url.endsWith('/_edge/tenant_info') ? { status: 200, body: JSON.stringify({ cloudId: '11111111-2222-3333-4444-555555555555' }) } : { status: 401, body: '{}' },
+    })
+    const r = await c.test('atlassian')
+    expect(r.status).toBe('auth-failed')
+    expect(r.detail).toMatch(/email/i)
+    expect(r.detail).toMatch(/scoped/i)
+  })
+
+  it('atlassian: a 401 whose cloud id cannot be found stays a plain key rejection', async () => {
+    const { c } = checker({ reply: { status: 401, body: '{}' } })
+    const r = await c.test('atlassian')
+    expect(r.status).toBe('auth-failed')
+  })
+
   it('atlassian: a 401 says the email must be the Atlassian account email, and never echoes it', async () => {
     const { c } = checker({ reply: { status: 401, body: '{}' } })
     const r = await c.test('atlassian')
