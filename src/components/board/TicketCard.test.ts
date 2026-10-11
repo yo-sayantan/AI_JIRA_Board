@@ -45,3 +45,76 @@ describe('dragging a card', () => {
     expect(ghost.isConnected).toBe(false) // and it never lingers in the page
   })
 })
+
+describe('build chips', () => {
+  const render = (t: Ticket) => {
+    host = document.createElement('div')
+    document.body.appendChild(host)
+    root = createRoot(host)
+    act(() => root!.render(createElement(TicketCard, { ticket: t, now: Date.parse('2026-10-11T10:00:00Z'), onOpen: () => {} })))
+    return host.querySelector('[aria-label="Latest builds"]')
+  }
+
+  it('shows one chip per environment, in one row, with result and number', () => {
+    const row = render({
+      ...ticket,
+      branch: 'feature/ABC-1',
+      builds: [
+        { env: 'qa', repo: 'svc', branch: 'feature/ABC-1', number: 412, result: 'SUCCESS', at: '2026-10-11T08:00:00Z' },
+        { env: 'uat', repo: 'svc', branch: 'feature/ABC-1', number: 9, result: 'FAILURE', at: '2026-10-11T09:00:00Z', failedStage: 'Deploy' },
+      ],
+    })
+    expect(row).not.toBeNull()
+    const chips = [...row!.children] as HTMLElement[]
+    expect(chips.map((c) => c.textContent)).toEqual(['QA✓Passed#412', 'UAT✗Failed#9'])
+    expect(chips[1].title).toContain("Failed at stage 'Deploy'")
+  })
+
+  it('renders nothing for a dump without builds', () => {
+    expect(render(ticket)).toBeNull()
+  })
+})
+
+describe('vulnerability chip', () => {
+  const render = (t: Ticket) => {
+    host = document.createElement('div')
+    document.body.appendChild(host)
+    root = createRoot(host)
+    act(() => root!.render(createElement(TicketCard, { ticket: t, now: Date.parse('2026-10-11T10:00:00Z'), onOpen: () => {} })))
+    return host.querySelector('[aria-label^="Checkmarx:"]') as HTMLElement | null
+  }
+  const vulnFixes = {
+    scannedAt: '2026-10-11T06:00:00Z',
+    project: 'svc',
+    branch: 'feature/ABC-1',
+    baseBranch: 'develop',
+    branchScanAt: '2026-10-09T08:00:00Z',
+    baseScanAt: '2026-10-01T07:00:00Z',
+    items: [
+      { target: 'CVE-2021-44228', kind: 'cve' as const, status: 'fixed' as const, severity: 'CRITICAL' },
+      { target: 'log4j-core 2.14.1', kind: 'package' as const, status: 'fixed' as const },
+      { target: 'SQL_Injection', kind: 'sast' as const, status: 'open' as const, severity: 'HIGH' },
+    ],
+  }
+
+  it('shows one compact chip with fixed / total and lists every target in its tooltip', () => {
+    const chip = render({ ...ticket, vulnFixes })
+    expect(chip).not.toBeNull()
+    expect(chip!.textContent).toBe('2/3 fixed')
+    expect(chip!.getAttribute('aria-label')).toBe('Checkmarx: 2 of 3 vulnerabilities fixed')
+    expect(chip!.title).toContain('✗ SQL_Injection · Open · HIGH')
+    expect(chip!.title).toContain('✓ CVE-2021-44228 · Fixed · CRITICAL')
+  })
+
+  it('sits on the build row without changing the build chips', () => {
+    render({ ...ticket, vulnFixes, branch: 'feature/ABC-1', builds: [{ env: 'qa', repo: 'svc', branch: 'feature/ABC-1', number: 1, result: 'SUCCESS' }] })
+    const builds = host!.querySelector('[aria-label="Latest builds"]')!
+    expect(builds.children.length).toBe(1)
+    expect(builds.parentElement!.firstElementChild!.getAttribute('aria-label')).toMatch(/^Checkmarx:/)
+  })
+
+  it('renders nothing without results', () => {
+    expect(render(ticket)).toBeNull()
+    expect(render({ ...ticket, vulnFixes: { ...vulnFixes, items: [] } })).toBeNull()
+  })
+})

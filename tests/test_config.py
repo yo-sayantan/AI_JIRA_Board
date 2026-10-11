@@ -99,6 +99,35 @@ class ConfigParityTest(unittest.TestCase):
         self.assertEqual(py, node)
         self.assertEqual(py["version"], 1)
 
+    def test_jenkins_jobs_override_merges_in_both(self):
+        jobs = {"payments-service": {"qa": "https://jenkins.example.com/job/pay-qa/", "uat": "https://jenkins.example.com/job/pay-uat/"}}
+        py, node = self.merged({"jenkins": {"jobs": jobs}})
+        self.assertEqual(py, node)
+        self.assertEqual(py["jenkins"]["jobs"], jobs)
+        self.assertEqual(list(py["jenkins"]["jobs"]["payments-service"]), ["qa", "uat"])  # env order kept
+
+    def test_schema_rejects_a_malformed_jenkins_section(self):
+        for bad in ({"jenkins": {"jobs": {"svc": "https://x"}}}, {"jenkins": {"jobs": {"svc": {"qa": 1}}}}, {"jenkins": {"servers": {}}}):
+            with self.subTest(bad=bad):
+                with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+                    json.dump(bad, f)
+                    path = f.name
+                old = os.environ.get("AI_CONFIG_FILE")
+                os.environ["AI_CONFIG_FILE"] = path
+                try:
+                    with self.assertRaisesRegex(RuntimeError, "jenkins"):
+                        _config.load_config(str(INTERN))
+                    result = subprocess.run(["node", str(INTERN / "local-runner" / "config.mjs"), "validate"], cwd=ROOT,
+                                            env={**os.environ}, text=True, capture_output=True)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("jenkins", result.stderr)
+                finally:
+                    if old is None:
+                        os.environ.pop("AI_CONFIG_FILE", None)
+                    else:
+                        os.environ["AI_CONFIG_FILE"] = old
+                    os.unlink(path)
+
     def test_schema_rejects_invalid_runtime_controls(self):
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
             json.dump({"refresh": {"intervalSec": -1}, "unexpected": True}, f)

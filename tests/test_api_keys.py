@@ -93,6 +93,22 @@ class RegistryContractTest(unittest.TestCase):
                     f"{name} is in setup/api-keys.json but nothing reads it",
                 )
 
+    def test_jenkins_tls_opt_out_passes_through_wherever_jira_one_does(self):
+        """JENKINS_INSECURE_TLS is Jenkins' own switch (JIRA_INSECURE_TLS never applies to it), so it
+        must reach every place JIRA_INSECURE_TLS reaches: both compose services, the runner, the worker."""
+        compose = (ROOT / "docker-compose.yml").read_text()
+        bare = lambda name: len(re.findall(rf"^\s*- {name}\s*$", compose, re.M))
+        self.assertGreaterEqual(bare("JIRA_INSECURE_TLS"), 2)
+        self.assertEqual(bare("JENKINS_INSECURE_TLS"), bare("JIRA_INSECURE_TLS"))
+        runner = (INTERN / "local-runner" / "runner-env.sh").read_text()
+        exported = re.search(r"load_agent_secrets\(\) \{(.*?)\n\}", runner, re.S).group(1)
+        self.assertIn("JIRA_INSECURE_TLS", exported)
+        self.assertIn("JENKINS_INSECURE_TLS", exported)
+        worker = (ROOT / "ai-intern" / "worker.py").read_text()
+        env_export = re.search(r"_ENV_EXPORT = \((.*?)\)", worker, re.S).group(1)
+        if '"JIRA_INSECURE_TLS"' in env_export:
+            self.assertIn('"JENKINS_INSECURE_TLS"', env_export)
+
     def test_registry_shape(self):
         ids = [s["id"] for s in REGISTRY["services"]]
         self.assertEqual(len(ids), len(set(ids)))

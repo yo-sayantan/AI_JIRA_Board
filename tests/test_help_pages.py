@@ -68,8 +68,8 @@ PARSED = {name: parse(name) for name in ALL}
 
 
 class Files(unittest.TestCase):
-    def test_the_numbered_pages_run_00_to_10_without_a_gap(self):
-        self.assertEqual([n[:2] for n in NUMBERED], [f"{i:02d}" for i in range(11)])
+    def test_the_numbered_pages_run_00_to_11_without_a_gap(self):
+        self.assertEqual([n[:2] for n in NUMBERED], [f"{i:02d}" for i in range(12)])
         self.assertEqual(NUMBERED[0], "00-start-here.html")
 
     def test_names_are_plain_lowercase_words(self):
