@@ -106,7 +106,8 @@ Zero-dependency Node. `server/serve.mjs` is the route table; `server/` holds the
 | `ai.mjs` | JIRA-AI-Intern status (1 s shared cache), its file queue, and the `/api/ai-*` proxy. |
 | `settings.mjs` · `schedule.mjs` | Machine-wide settings and the refresh / report scheduler. |
 | `secrets.mjs` | The API keys store: `GET /api/keys` (masked values only) and `POST /api/keys` (only names in `setup/api-keys.json`; temp file + rename into `setup/.env`, mode 0600). |
-| `keycheck.mjs` | The API keys dialog's Test button: `POST /api/keys/test` makes one authenticated read per service with the saved key (no redirects, 10 s, verified TLS, injectable HTTP layer for tests). |
+| `health.mjs` | The latest real outcome per service (`jira-intern/.health/<id>.json`, the same files `jira-intern/_health.py` writes): `GET /api/keys/health` reads them all; the Test button writes one (source `test`). Drives the API keys dialog's permanent dots and the header key button's badge. |
+| `keycheck.mjs` | The API keys dialog's Test button (its result is also recorded in `.health/`): `POST /api/keys/test` makes one authenticated read per service with the saved key (no redirects, 10 s, verified TLS, injectable HTTP layer for tests). |
 
 ## API keys — one store, many readers
 

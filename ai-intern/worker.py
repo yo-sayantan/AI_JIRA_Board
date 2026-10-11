@@ -36,6 +36,7 @@ INTERN = Path(os.environ.get("INTERN_DIR") or str(HERE.parent / "jira-intern")).
 sys.path.insert(0, str(INTERN))
 
 import ai_queue  # noqa: E402
+import _health  # noqa: E402  (per-service health files for the API keys dialog)
 import checkmarx  # noqa: E402  (the ONE Checkmarx One client — shared with the daily fetch)
 from _config import endpoints, load_config, load_secrets as load_config_secrets  # noqa: E402
 
@@ -174,9 +175,18 @@ def http_json(url, payload=None, headers=None, timeout=120, method=None):
         method=method or ("POST" if body is not None else "GET"),
         headers={"Content-Type": "application/json", **(headers or {})},
     )
-    with urllib.request.urlopen(req, context=CTX, timeout=timeout) as r:
-        raw = r.read()
-        return json.loads(raw.decode("utf-8")) if raw else {}
+    service = _health.service_for_url(url)  # a cloud AI host → claude / cursor / gemini / openai; Ollama → None
+    try:
+        with urllib.request.urlopen(req, context=CTX, timeout=timeout) as r:
+            raw = r.read()
+            result = json.loads(raw.decode("utf-8")) if raw else {}
+    except Exception as e:
+        if service:
+            _health.record_exception(service, e, source="worker", host=_health.host_of(url))
+        raise
+    if service:
+        _health.record_ok(service, source="worker")
+    return result
 
 
 _RETRY_DELAYS = (2.0, 8.0)
@@ -776,9 +786,19 @@ def mcp_get(url, token, timeout=20):
     if not url or not token:
         raise RuntimeError("missing url or token")
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"})
-    with urllib.request.urlopen(req, context=MCP_SSL, timeout=timeout) as r:
-        raw = r.read()
-        return json.loads(raw.decode("utf-8")) if raw else {}
+    # Bitbucket REST lives under /rest/api/1.0 and /rest/build-status; Jira's under /rest/api/2 and /rest/agile.
+    service = "bitbucket" if ("/rest/api/1.0/" in url or "/rest/build-status/" in url) else "jira" if "/rest/" in url else None
+    try:
+        with urllib.request.urlopen(req, context=MCP_SSL, timeout=timeout) as r:
+            raw = r.read()
+            result = json.loads(raw.decode("utf-8")) if raw else {}
+    except Exception as e:
+        if service:  # a 404 on one lookup is skipped by classify_exception
+            _health.record_exception(service, e, source="worker", host=_health.host_of(url))
+        raise
+    if service:
+        _health.record_ok(service, source="worker")
+    return result
 
 
 def parse_pr_url(url):
@@ -1017,11 +1037,17 @@ def _cloud_json(url, payload=None, headers=None, timeout=30):
         method="POST" if body is not None else "GET",
         headers={"Accept": "application/json", **(headers or {})},
     )
+    service = _health.service_for_url(url)
     try:
         with urllib.request.urlopen(req, context=CLOUD_SSL, timeout=timeout) as r:
             raw = r.read()
-            return json.loads(raw.decode("utf-8")) if raw else {}
+            result = json.loads(raw.decode("utf-8")) if raw else {}
+        if service:
+            _health.record_ok(service, source="worker")
+        return result
     except urllib.error.HTTPError as e:
+        if service:
+            _health.record_exception(service, e, source="worker", host=_health.host_of(url))
         detail = ""
         try:
             detail = e.read().decode("utf-8", "replace")[:180]

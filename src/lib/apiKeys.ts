@@ -2,6 +2,7 @@
 // is setup/api-keys.json — the same file the server validates names against. Values live in
 // setup/.env and only ever reach the browser masked (server/secrets.mjs).
 import registry from '../../setup/api-keys.json'
+import { dtf, relTime } from './format'
 
 /** secret: masked except its first and last characters (the default). url / email / text: shown in full. */
 export type KeyKind = 'secret' | 'url' | 'email' | 'text'
@@ -144,4 +145,144 @@ export function testResultView(r: KeyTestResult): { tone: TestTone; text: string
     default:
       return { tone: 'bad', text: `✗ ${r.detail || 'Test failed'}`, title }
   }
+}
+
+// ── Health: the permanent dot per service (GET /api/keys/health) ────────────────────────────────
+//
+// The latest REAL outcome of each service's calls, whoever made them (the fetch, the AI worker, the
+// Test button): jira-intern/.health/<id>.json, written by jira-intern/_health.py and
+// server/health.mjs. No secret is ever in a record.
+
+export type HealthStatus = 'auth-failed' | 'forbidden' | 'unreachable' | 'tls' | 'not-found' | 'error'
+
+export interface HealthRecord {
+  service: string
+  state: 'ok' | 'attention'
+  /** ISO, UTC (…Z). */
+  checkedAt: string
+  lastOkAt?: string
+  failingSince?: string
+  status?: HealthStatus
+  httpStatus?: number
+  detail: string
+  source: 'fetch' | 'worker' | 'test'
+}
+
+export type HealthMap = Record<string, HealthRecord>
+
+/** green working · red the KEY is the problem · orange needs attention (URL, network, server) · none never called. */
+export type HealthTone = 'ok' | 'key' | 'attention' | 'none'
+
+export const HEALTH_COLOR = { ok: '#17c47a', key: '#e11d48', attention: '#ff8a1f' } as const
+
+/** ONE mapping, mirrored by `_health.tone_of` (Python) and `toneOf` (server/health.mjs): both tests pin it. */
+export function healthTone(rec: HealthRecord | null | undefined): HealthTone {
+  if (!rec) return 'none'
+  if (rec.state === 'ok') return 'ok'
+  if (rec.state === 'attention') return rec.status === 'auth-failed' || rec.status === 'forbidden' ? 'key' : 'attention'
+  return 'none'
+}
+
+/** "09:14" for today, "Jan 3, 09:14" for another day — in the board's configured zone. */
+function sinceText(iso: string, now: number): string {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const sameDay = dtf('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(d) === dtf('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now))
+  const time = dtf('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(d)
+  return sameDay ? time : `${dtf('en-US', { month: 'short', day: 'numeric' }).format(d)}, ${time}`
+}
+
+function failureLabel(rec: HealthRecord): string {
+  const code = rec.httpStatus ? ` (${rec.httpStatus})` : ''
+  switch (rec.status) {
+    case 'auth-failed':
+      return `Key rejected${code}`
+    case 'forbidden':
+      return `Access denied${code}`
+    case 'unreachable':
+      return "Can't reach host"
+    case 'tls':
+      return 'Certificate not trusted'
+    case 'not-found':
+      return `Not found${code} — check the base URL`
+    default:
+      return rec.httpStatus ? `Server error (${rec.httpStatus})` : 'Request failed'
+  }
+}
+
+export interface HealthView {
+  tone: HealthTone
+  /** Short, for the panel line. */
+  label: string
+  /** Longer, for tooltips and screen readers. */
+  detail: string
+  /** The dot colour, or null when there is nothing to show (reserve the space, draw no dot). */
+  color: string | null
+}
+
+/** A health record → how the dialog words and colours it. `now` is injected (tests, stable renders). */
+export function healthView(rec: HealthRecord | null | undefined, now: number = Date.now()): HealthView {
+  const tone = healthTone(rec)
+  if (!rec || tone === 'none') return { tone: 'none', label: 'Not called yet', detail: 'Not called yet — no request has been made with this key', color: null }
+  if (tone === 'ok') {
+    const when = relTime(rec.lastOkAt ?? rec.checkedAt, now)
+    return { tone, label: 'Working', detail: when ? `Working · last OK ${when}` : 'Working', color: HEALTH_COLOR.ok }
+  }
+  const label = failureLabel(rec)
+  const since = rec.failingSince ? sinceText(rec.failingSince, now) : ''
+  const lastOk = rec.lastOkAt ? relTime(rec.lastOkAt, now) : ''
+  const core = tone === 'key' ? label : `Needs attention · ${label.charAt(0).toLowerCase()}${label.slice(1)}`
+  const detail = [since ? `${core} since ${since}` : core, lastOk ? `last OK ${lastOk}` : ''].filter(Boolean).join(' · ')
+  return { tone, label, detail, color: HEALTH_COLOR[tone] }
+}
+
+/**
+ * A Test the user just ran → the same record shape, so it shows at once (the server records it too,
+ * a moment later). 'not-configured' made no call, so it is nothing.
+ */
+export function recordFromTest(r: KeyTestResult, at: number = Date.now()): HealthRecord | null {
+  if (r.status === 'not-configured') return null
+  const iso = new Date(at).toISOString().replace(/\.\d{3}Z$/, 'Z')
+  if (r.status === 'ok') return { service: r.service, state: 'ok', checkedAt: iso, lastOkAt: iso, detail: '', source: 'test' }
+  return { service: r.service, state: 'attention', checkedAt: iso, failingSince: iso, status: r.status as HealthStatus, httpStatus: r.httpStatus, detail: '', source: 'test' }
+}
+
+/** The newer of two records for one service (the server's, and this session's Test). */
+export function latestHealth(server: HealthRecord | undefined, test: HealthRecord | null | undefined): HealthRecord | undefined {
+  if (!test) return server
+  if (!server) return test
+  return Date.parse(test.checkedAt) >= Date.parse(server.checkedAt) ? test : server
+}
+
+/**
+ * The records worth showing: only services whose keys are saved (a stale record of a removed key
+ * would mislead), and nothing before the saved-key status has loaded. Demo mode shows its constant
+ * sample whatever is saved.
+ */
+export function visibleHealth(health: HealthMap, status: KeyStatus | null, demo: boolean): HealthMap {
+  if (demo) return health
+  if (!status) return {}
+  const out: HealthMap = {}
+  for (const service of API_SERVICES) {
+    const rec = health[service.id]
+    if (rec && testBlocker(service, status) === null) out[service.id] = rec
+  }
+  return out
+}
+
+/** The header key button's dot: red when any key is rejected, else orange when any needs attention. */
+export function keysBadge(health: HealthMap): { key: number; attention: number; color: string; label: string } | null {
+  let key = 0
+  let attention = 0
+  for (const rec of Object.values(health)) {
+    const tone = healthTone(rec)
+    if (tone === 'key') key++
+    else if (tone === 'attention') attention++
+  }
+  if (!key && !attention) return null
+  const parts = [
+    key ? `${key} ${key === 1 ? 'key' : 'keys'} rejected` : '',
+    attention ? `${attention} ${attention === 1 ? 'needs' : 'need'} attention` : '',
+  ].filter(Boolean)
+  return { key, attention, color: key ? HEALTH_COLOR.key : HEALTH_COLOR.attention, label: parts.join(', ') }
 }

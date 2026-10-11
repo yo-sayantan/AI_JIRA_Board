@@ -29,7 +29,8 @@ import { PrReportOverlay } from './components/reports/PrReport'
 import { SettingsPanel } from './components/settings/Settings'
 import { ApiKeysDialog } from './components/keys/ApiKeys'
 import { useApiKeys } from './hooks/useApiKeys'
-import { missingRequired } from './lib/apiKeys'
+import { useKeyHealth } from './hooks/useKeyHealth'
+import { keysBadge, missingRequired, visibleHealth } from './lib/apiKeys'
 import { Toasts } from './components/common/Toast'
 import { NoticesDock } from './components/common/NoticesDock'
 import { Footer } from './components/common/Footer'
@@ -71,6 +72,19 @@ export default function App() {
   const [keysOpen, setKeysOpen] = useState(false)
   const apiKeys = useApiKeys(served)
   const keysMissing = missingRequired(apiKeys.status).length > 0
+  // The latest real outcome per service (any call, anywhere): the dialog's dots and the key button's badge.
+  const keyHealth = useKeyHealth(served, keysOpen, demo)
+  const keyHealthShown = useMemo(() => visibleHealth(keyHealth.health, apiKeys.status, demo), [keyHealth.health, apiKeys.status, demo])
+  const keyBadge = useMemo(() => keysBadge(keyHealthShown), [keyHealthShown])
+  const refreshKeyHealth = keyHealth.refresh
+  const testKey = useCallback(
+    async (service: string) => {
+      const result = await testApiKey(service)
+      void refreshKeyHealth() // the server just recorded this test; show it at once
+      return result
+    },
+    [refreshKeyHealth],
+  )
   const [completedOpen, setCompletedOpen] = useState(false)
   const [raisedOpen, setRaisedOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -165,7 +179,7 @@ export default function App() {
   // keeps its state when a first fetch turns the empty state into the board.
   const keysDialog = (
     <ErrorBoundary label="API keys" overlay onClose={closeKeys}>
-      <ApiKeysDialog open={keysOpen} status={apiKeys.status} failed={apiKeys.failed} onClose={closeKeys} onRefresh={apiKeys.refresh} onSave={apiKeys.save} onTest={testApiKey} />
+      <ApiKeysDialog open={keysOpen} status={apiKeys.status} failed={apiKeys.failed} onClose={closeKeys} onRefresh={apiKeys.refresh} onSave={apiKeys.save} onTest={testKey} health={keyHealthShown} />
     </ErrorBoundary>
   )
   const openCompleted = useCallback(() => setCompletedOpen(true), [])
@@ -235,6 +249,7 @@ export default function App() {
         onOpenSettings={openSettings}
         onOpenKeys={served ? openKeys : undefined}
         keysMissing={keysMissing}
+        keysBadge={keyBadge}
         reports={reportsMenu}
       />
       {keysDialog}

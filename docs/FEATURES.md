@@ -215,14 +215,14 @@ raised rows queue after active tickets. Render path heals JSON-wrapped model out
 - **Refresh board** — the quick daily fetch; the button IS its own progress bar (fill + x/y count
   from `.progress.json`). **Archive menu** — full/year/since/key rebuild with live progress and
   Stop. **Reports menu** — bulk PR-report generation with scope.
-- **API keys** (key button beside Settings; an amber dot while the required Jira token is missing) → the API keys
+- **API keys** (key button beside Settings; a dot on it: **red** when a saved key was rejected or denied, else **orange** when a service needs attention, else amber while the required Jira token is missing — hover or the aria-label says how many) → the API keys
   dialog, below.
 - Settings gear, help (?) → the help guide (`help/00-start-here.html`; plain pages, also open from disk), theme toggle.
 - `src/components/header/Header.tsx`, `ArchiveMenu.tsx`, `ReportsMenu.tsx`.
 
 ## API keys
 
-The one place to add tokens and keys — no file to edit by hand. One list, clustered by kind of service (`groups` in `setup/api-keys.json`: Atlassian · Code hosting · CI/CD & security · AI models) and alphabetical inside each cluster; the dialog is a Settings-style split — a sidebar of the groups (set/total per group; each service shows a one-line `why`, ≤ 44 characters, and a dot for its last Test) and a panel for the selected service with section cards: the full explanation (`details`) and **Test connection**, **Used by** / **Get it**, then one field per key. A service from
+The one place to add tokens and keys — no file to edit by hand. One list, clustered by kind of service (`groups` in `setup/api-keys.json`: Atlassian · Code hosting · CI/CD & security · AI models) and alphabetical inside each cluster; the dialog is a Settings-style split — a sidebar of the groups (set/total per group; each service shows a one-line `why`, ≤ 44 characters, and a **permanent health dot**, below) and a panel for the selected service with section cards: the full explanation (`details`) and **Test connection**, **Used by** / **Get it**, then one field per key. A service from
 `setup/api-keys.json` (Jira — required, Atlassian Cloud, Bitbucket, Confluence, Jenkins, Checkmarx One, Claude, Cursor, Gemini, OpenAI, GitHub): lit in the service's
 colour when its non-optional keys are set, greyed when not. Each key has a kind — `secret` (masked), `url`, `email` or
 `text` (shown in full) — and keys marked `planned` say **not used yet**: they can be saved before the integration that reads
@@ -237,11 +237,12 @@ once the service's non-URL keys are saved) checks the SAVED key and URL with one
 (`POST /api/keys/test`, `server/keycheck.mjs`) and shows the answer inline — green **✓ Connected · Signed in as … · 240 ms**,
 red **✗ Key rejected (401)** / **Access denied (403)** / **Not found (404)**, amber **Can't reach host** / **Certificate not trusted**,
 grey **Not configured: …** — plus a coloured dot on the collapsed row; saving one of the service's keys clears the stale answer.
+**Health dots** — every service in the sidebar carries a dot that follows its latest REAL calls, made anywhere (the fetch, the AI worker, Test) without pressing Test again: green **working** · orange **needs attention** (wrong or unreachable URL, network, certificate, server error) · red **key rejected / access denied** · no dot = never called. A service turns orange or red the moment a real call fails and green again the moment one succeeds (a 404 on a single ticket or branch lookup is not a failure). The dot's space is always reserved, so rows never shift; hover for *Working · last OK 2h ago* or *Key rejected (401) since 09:14*. Only services whose keys are saved show a dot; a group header shows a count when something in it needs attention; the panel has a fixed-height *Live status* line under the Test result. The records come from `jira-intern/.health/` via `GET /api/keys/health` (polled every 20 s while the dialog is open, 60 s otherwise, paused while the tab is hidden, re-read right after a Test); a Test run here refines the dot at once. Demo mode shows a constant sample (a few green, one orange, one red), never your real health. A key that is saved but never used stays dot-less until something calls it.
 GitHub (planned) is testable once its token is saved. The empty-state screen of a new install
 (no `data.json` yet) has an **Add API keys first** button. Values are written to `setup/.env` by the server
 (`GET`/`POST /api/keys`) — the browser never receives a full secret back. Hidden on `file://` (needs the server);
 works in demo mode (it configures the machine, like Settings).
-`src/components/keys/ApiKeys.tsx`, `src/hooks/useApiKeys.ts`, `src/lib/apiKeys.ts`, `server/secrets.mjs`, `server/keycheck.mjs`.
+`src/components/keys/ApiKeys.tsx`, `src/hooks/useApiKeys.ts`, `src/hooks/useKeyHealth.ts`, `src/lib/apiKeys.ts` (`healthTone`, `healthView`, `keysBadge`), `src/demo/health.ts`, `server/secrets.mjs`, `server/keycheck.mjs`, `server/health.mjs`, `jira-intern/_health.py`.
 
 ## Settings
 

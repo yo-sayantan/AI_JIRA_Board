@@ -9,6 +9,7 @@ import { bundledDemoDump } from './data'
 
 export { fetchDemoDump } from './data'
 export { demoMoveVerdict, evaluateMove, qaIssuesOf } from './gates'
+export { demoKeyHealth } from './health'
 export { demoReports } from './reports'
 
 /** Shown whenever an action that would hit Jira or the AI intern is refused. */

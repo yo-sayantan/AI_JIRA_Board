@@ -38,6 +38,7 @@ jira-intern/.settings.json
 jira-intern/.settings.json.*.tmp
 jira-intern/.schedule.json
 jira-intern/.ai-queue/
+jira-intern/.health/
 jira-intern/.ai-status.json
 jira-intern/.ai-cancel-report
 jira-intern/.report.lock

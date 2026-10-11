@@ -4,7 +4,7 @@ import type { JiraData } from '../types'
 import type { MoveTarget } from './columns'
 import { summarizeReport, type PrReport, type PrReportSummary } from './reportTypes'
 import type { ServerSettings } from './settings'
-import type { KeyStatus, KeyTestResult } from './apiKeys'
+import type { HealthMap, KeyStatus, KeyTestResult } from './apiKeys'
 
 export const RUN_COMMAND = 'bash jira-intern/local-runner/run-intern.sh'
 
@@ -270,6 +270,22 @@ export async function getApiKeys(): Promise<KeyStatus | null> {
     if (!r.ok) return null
     const body = (await r.json()) as { keys?: KeyStatus }
     return body.keys ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The latest real outcome per service (jira-intern/.health, GET /api/keys/health). null when the
+ * server cannot be reached. Like the keys it describes the machine, so demo mode does not block it
+ * here — the hook swaps in the demo sample instead.
+ */
+export async function getKeyHealth(): Promise<HealthMap | null> {
+  try {
+    const r = await fetchWithTimeout('/api/keys/health', { cache: 'no-store' })
+    if (!r.ok) return null
+    const body = (await r.json()) as { health?: HealthMap }
+    return body.health && typeof body.health === 'object' ? body.health : null
   } catch {
     return null
   }

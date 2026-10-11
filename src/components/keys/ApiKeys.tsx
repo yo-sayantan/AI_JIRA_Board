@@ -1,17 +1,24 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
+  HEALTH_COLOR,
   TEST_TONE_COLOR,
   canSave,
+  healthTone,
+  healthView,
   keyCounts,
   kindOf,
   groupedServices,
+  latestHealth,
+  recordFromTest,
   servicePlanned,
   serviceReady,
   testBlocker,
   testResultView,
   type ApiKeyField,
   type ApiService,
+  type HealthMap,
+  type HealthRecord,
   type KeyStatus,
   type KeyTestResult,
 } from '../../lib/apiKeys'
@@ -23,7 +30,7 @@ import { CheckIcon, EyeIcon, EyeOffIcon, KeyIcon } from '../common/Icons'
 type SaveFn = (name: string, value: string) => Promise<ApiKeySave>
 type TestFn = (service: string) => Promise<KeyTestResult>
 /** One service's Test state: running, and the last answer (cleared when one of its keys is saved). */
-type TestState = { busy: boolean; result?: KeyTestResult }
+type TestState = { busy: boolean; result?: KeyTestResult; at?: number }
 const UNSET = { set: false, masked: '' }
 // The registry is static: group and order it once.
 const GROUPS = groupedServices()
@@ -35,10 +42,15 @@ const QUIET = '#8b94a8'
  * (setup/api-keys.json `groups`, services alphabetical inside each) — every service lit in its
  * colour when its keys are set, greyed when not — and the selected service in a panel: why it is
  * needed, what depends on it, a Test button, and one field per key.
+ *
+ * Every service carries a PERMANENT dot from its latest real outcome (jira-intern/.health, whoever
+ * made the call): green working · red key rejected / access denied · orange needs attention (URL,
+ * network, server) · no dot (space reserved) never called. A Test run here only refines it.
  */
 export function ApiKeysDialog({
   open,
   status,
+  health,
   failed,
   onClose,
   onRefresh,
@@ -49,6 +61,8 @@ export function ApiKeysDialog({
   status: KeyStatus | null
   /** The last read of setup/.env failed (server down, unreadable file). */
   failed: boolean
+  /** The latest real outcome per service (any call, anywhere), already limited to services with saved keys. */
+  health: HealthMap
   onClose: () => void
   onRefresh: () => void
   onSave: SaveFn
@@ -63,9 +77,9 @@ export function ApiKeysDialog({
   useDialogFocus(open, panelRef)
 
   const runTest = async (id: string) => {
-    setTests((t) => ({ ...t, [id]: { busy: true, result: t[id]?.result } }))
+    setTests((t) => ({ ...t, [id]: { busy: true, result: t[id]?.result, at: t[id]?.at } }))
     const result = await onTest(id)
-    setTests((t) => ({ ...t, [id]: { busy: false, result } }))
+    setTests((t) => ({ ...t, [id]: { busy: false, result, at: Date.now() } }))
   }
   // A saved key makes the last test stale: drop its answer (a running test keeps going).
   const saveFor = (id: string): SaveFn => async (name, value) => {
@@ -97,6 +111,11 @@ export function ApiKeysDialog({
     return () => document.removeEventListener('keydown', onKey, true)
   }, [open, onClose])
 
+  // The newer of the server's record and this session's Test, per service.
+  const healthOf = (id: string): HealthRecord | undefined => {
+    const t = tests[id]
+    return latestHealth(health[id], t?.result ? recordFromTest(t.result, t.at) : null)
+  }
   const counts = keyCounts(status)
   const current = ordered.find((s) => s.id === selected) ?? ordered[0]
   // Close on a click that started AND ended on the backdrop: a drag that begins in a key field and
@@ -159,11 +178,24 @@ export function ApiKeysDialog({
               <nav aria-label="Services" className="min-h-0 overflow-y-auto border-b border-[var(--line)] p-4 [scrollbar-gutter:stable] md:border-b-0 md:border-r">
                 {groups.map(({ group, services }) => {
                   const ready = services.filter((s) => serviceReady(s, status)).length
+                  const tones = services.map((s) => healthTone(healthOf(s.id)))
+                  const bad = tones.filter((t) => t === 'key' || t === 'attention').length
+                  const badTone = tones.includes('key') ? 'key' : 'attention'
+                  const badColor = HEALTH_COLOR[badTone]
                   return (
                     <div key={group.id} className="mb-4 last:mb-0">
                       <div className="mb-1.5 flex items-center px-2">
                         <h3 className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">{group.name}</h3>
-                        <span className="ml-auto text-[10.5px] font-semibold tabular-nums text-[var(--muted)]">
+                        {bad > 0 && (
+                          <span
+                            className="ml-auto rounded-full px-1.5 text-[10px] font-bold tabular-nums"
+                            style={{ color: badColor, background: hexToRgba(badColor, 0.12) }}
+                            title={`${bad} in this group ${bad === 1 ? 'needs' : 'need'} attention`}
+                          >
+                            {bad} ⚠
+                          </span>
+                        )}
+                        <span className={`${bad > 0 ? 'ml-2' : 'ml-auto'} text-[10.5px] font-semibold tabular-nums text-[var(--muted)]`}>
                           {ready}/{services.length}
                         </span>
                       </div>
@@ -174,7 +206,7 @@ export function ApiKeysDialog({
                             service={s}
                             status={status}
                             active={current?.id === s.id}
-                            test={tests[s.id]}
+                            record={healthOf(s.id)}
                             onSelect={() => setSelected(s.id)}
                           />
                         ))}
@@ -192,6 +224,7 @@ export function ApiKeysDialog({
                     status={status}
                     onSave={saveFor(current.id)}
                     test={tests[current.id]}
+                    record={healthOf(current.id)}
                     onTest={() => void runTest(current.id)}
                   />
                 )}
@@ -235,19 +268,19 @@ function ServiceNavItem({
   service,
   status,
   active,
-  test,
+  record,
   onSelect,
 }: {
   service: ApiService
   status: KeyStatus | null
   active: boolean
-  test: TestState | undefined
+  record: HealthRecord | undefined
   onSelect: () => void
 }) {
   const ready = serviceReady(service, status)
   const pill = statusPill(service, status)
-  const view = test?.result ? testResultView(test.result) : null
-  const dot = view ? TEST_TONE_COLOR[view.tone] : null
+  const health = healthView(record)
+  const dot = health.color
   return (
     <li>
       <button
@@ -275,16 +308,19 @@ function ServiceNavItem({
           </span>
           <span className="block text-[11px] leading-snug text-[var(--muted)] [text-wrap:pretty]">{service.why}</span>
         </span>
-        {dot ? (
-          <span
-            role="img"
-            aria-label={`Last test: ${view!.text}`}
-            className="h-2 w-2 shrink-0 rounded-full"
-            style={{ background: dot, boxShadow: `0 0 0 3px ${hexToRgba(dot, 0.18)}` }}
-          />
-        ) : (
-          <span className="sr-only">{pill.text}</span>
-        )}
+        {/* A fixed slot: the dot comes and goes, the row never shifts. No dot = never called. */}
+        <span className="grid h-4 w-4 shrink-0 place-items-center" title={health.detail}>
+          {dot ? (
+            <span
+              role="img"
+              aria-label={health.detail}
+              className="h-2 w-2 rounded-full"
+              style={{ background: dot, boxShadow: `0 0 0 3px ${hexToRgba(dot, 0.18)}` }}
+            />
+          ) : (
+            <span className="sr-only">{`${pill.text}. ${health.detail}`}</span>
+          )}
+        </span>
       </button>
     </li>
   )
@@ -296,14 +332,17 @@ function ServicePanel({
   status,
   onSave,
   test,
+  record,
   onTest,
 }: {
   service: ApiService
   status: KeyStatus | null
   onSave: SaveFn
   test: TestState | undefined
+  record: HealthRecord | undefined
   onTest: () => void
 }) {
+  const health = healthView(record)
   const ready = serviceReady(service, status)
   const pill = statusPill(service, status)
   const blocker = testBlocker(service, status)
@@ -370,6 +409,14 @@ function ServicePanel({
           }
         >
           <span className="min-w-0 truncate">{busy ? 'Testing…' : view ? view.text : blocker ? `Can't test yet — ${blocker}` : 'Not tested yet'}</span>
+        </p>
+        {/* The latest real call by anything (fetch, AI worker, Test) — a fixed one-line row, so it never resizes the card. */}
+        <p className="mt-2 flex h-7 items-center gap-2 px-1 text-[11.5px] font-semibold" title={health.detail} style={{ color: health.color ?? 'var(--muted)' }}>
+          <span className="grid h-3 w-3 shrink-0 place-items-center" aria-hidden="true">
+            {health.color && <span className="h-2 w-2 rounded-full" style={{ background: health.color, boxShadow: `0 0 0 3px ${hexToRgba(health.color, 0.18)}` }} />}
+          </span>
+          <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">Live status</span>
+          <span className="min-w-0 truncate">{health.tone === 'none' ? 'Not called yet' : health.detail}</span>
         </p>
       </section>
 

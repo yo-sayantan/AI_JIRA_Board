@@ -57,6 +57,10 @@
 //   GET  /api/keys                         200 { ok, keys:{ ENV:{ set, masked } } } — masked, never a full secret
 //   POST /api/keys       body: { name, value } ≤ 8 KB; name from setup/api-keys.json, '' removes it
 //                                          200 { ok, keys } · 400 { error } · 413 · 415 (only the named key changes)
+//   GET  /api/keys/health                  200 { ok, health:{ <serviceId>:{ service, state:'ok'|'attention', checkedAt, lastOkAt?,
+//                                                failingSince?, status?, httpStatus?, detail, source:'fetch'|'worker'|'test' } } }
+//                                          — the latest REAL outcome per service (jira-intern/.health/*.json, written by every
+//                                          fetch / worker call and by Test); no secret in it; Cache-Control: no-store
 //   POST /api/keys/test  body: { service } ≤ 1 KB; service = a setup/api-keys.json id
 //                                          200 { ok, service, status:'ok'|'auth-failed'|'forbidden'|'not-found'|
 //                                                'unreachable'|'tls'|'not-configured'|'error', httpStatus?, ms, detail }
@@ -80,6 +84,7 @@ import { ALLOWED_HOSTS, BOARD_PATH, HELP_PATH, DATE_RE, HOST, KEY_RE, PATHS, POR
 import { readFile } from 'node:fs/promises'
 import { createSecretsStore, parseEnv } from './secrets.mjs'
 import { createKeyChecker, mergeSettings } from './keycheck.mjs'
+import { HEALTH_DIR, readAllHealth, writeHealth } from './health.mjs'
 import { SECURITY_HEADERS, createStaticHandler, json, readBody, readJson } from './http.mjs'
 import { MOVE_TARGETS, moveTicket, runStatus, startArchive, startDaily, startRaised, stopArchive, ticketRefresh } from './jobs.mjs'
 import { externalGenerating, readReport, reportQueue, reportsIndex, resolveReportKeys, stopReports } from './reports.mjs'
@@ -99,6 +104,8 @@ const keyChecker = createKeyChecker({
   loadSettings: async () =>
     mergeSettings(parseEnv(await readFile(PATHS.secrets, 'utf8').catch((e) => (e.code === 'ENOENT' ? '' : Promise.reject(e))))),
   config: PROJECT_CONFIG,
+  // A finished test also lands in jira-intern/.health/<service>.json, like every real call (source 'test').
+  recordHealth: (service, outcome) => writeHealth(HEALTH_DIR, service, { ...outcome, source: 'test' }),
 })
 
 const param = (url, name) => (url.searchParams.get(name) || '').trim()
@@ -309,6 +316,11 @@ const routes = {
       console.error('[keys] save failed', e.code || e.message)
       json(res, 500, { ok: false, error: 'could not write setup/.env' })
     }
+  },
+
+  'GET /api/keys/health': async (req, res) => {
+    // Never throws: a missing folder just means nothing has been called yet.
+    json(res, 200, { ok: true, health: await readAllHealth(HEALTH_DIR) })
   },
 
   'POST /api/keys/test': async (req, res) => {

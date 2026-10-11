@@ -39,6 +39,7 @@ import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
+import _health
 import _safe_http
 from _config import load_config
 from _jira import INTERN, iso
@@ -214,8 +215,12 @@ def _get(url, what):
     headers = {"Authorization": f"Basic {auth}", "Accept": "application/json"}
     try:
         with _SLOTS:
-            return get_json(url, headers, timeout=TIMEOUT, retries=1), 200
+            data = get_json(url, headers, timeout=TIMEOUT, retries=1)
+        _health.record_ok("jenkins")
+        return data, 200
     except urllib.error.HTTPError as e:
+        # A 404 here is "no build for this branch" — not a service failure; record_exception skips it.
+        _health.record_exception("jenkins", e, host=host)
         if e.code in (401, 403):
             with _LOCK:
                 _STATE["down"].add(host)
@@ -224,6 +229,7 @@ def _get(url, what):
             sys.stderr.write(f"WARN jenkins {what}: HTTP {e.code}\n")
         return None, e.code
     except (urllib.error.URLError, OSError) as e:
+        _health.record_exception("jenkins", e, host=host)
         with _LOCK:
             _STATE["down"].add(host)
         sys.stderr.write(f"WARN jenkins {host} unreachable ({what}): {getattr(e, 'reason', e)} — builds carried forward\n")

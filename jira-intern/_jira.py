@@ -15,6 +15,7 @@ import urllib.request
 from datetime import datetime, timezone
 from html import escape
 
+import _health
 from _config import endpoints, load_config, load_secrets
 
 INTERN = os.path.dirname(os.path.abspath(__file__))
@@ -124,18 +125,25 @@ def _retry_after(err, attempt):
     return min(60, wait or 2 ** attempt)
 
 
-def get_json(url, headers, timeout, retries=4):
+def get_json(url, headers, timeout, retries=4, service=None):
     """GET with backoff — Docker DNS and corporate VPN flaps are common here.
 
     Retry policy: 429 waits Retry-After (capped at 60 s) and retries; any other 4xx (expired PAT,
     bad JQL, missing issue) raises at once — retrying cannot fix it and only hides the real
-    error behind a timeout; 5xx and network errors back off and retry."""
+    error behind a timeout; 5xx and network errors back off and retry.
+
+    `service` (jira | bitbucket | confluence) records the outcome in jira-intern/.health/ for the
+    API keys dialog: success → ok; the FINAL failure → attention (a 404 / 400 on one lookup is not a
+    service failure — _health.record_exception skips it)."""
     last = None
     for attempt in range(retries + 1):
         try:
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, context=ssl_context(), timeout=timeout) as r:
-                return json.loads(r.read())
+                data = json.loads(r.read())
+            if service:
+                _health.record_ok(service)
+            return data
         except urllib.error.HTTPError as e:
             last = e
             if e.code == 429:
@@ -144,6 +152,8 @@ def get_json(url, headers, timeout, retries=4):
                 time.sleep(_retry_after(e, attempt))
                 continue
             if e.code < 500:
+                if service:
+                    _health.record_exception(service, e, host=_health.host_of(url))
                 raise
             if attempt >= retries:
                 break
@@ -153,6 +163,8 @@ def get_json(url, headers, timeout, retries=4):
             if attempt >= retries:
                 break
             time.sleep(min(30, 2 ** attempt) if _is_transient_net(e) else 1 + attempt)
+    if service:
+        _health.record_exception(service, last, host=_health.host_of(url))
     raise last
 
 
@@ -163,6 +175,7 @@ def jira_get(path, timeout=60, retries=4):
         {"Authorization": f"Bearer {os.environ['JIRA_PERSONAL_TOKEN']}", "Accept": "application/json"},
         timeout=timeout,
         retries=retries,
+        service="jira",
     )
 
 
@@ -179,14 +192,19 @@ def jira_post(path, body, timeout=60):
             "Content-Type": "application/json",
         },
     )
-    with urllib.request.urlopen(req, context=ssl_context(), timeout=timeout) as r:
-        raw = r.read()
+    try:
+        with urllib.request.urlopen(req, context=ssl_context(), timeout=timeout) as r:
+            raw = r.read()
+    except Exception as e:
+        _health.record_exception("jira", e, host=_health.host_of(req.full_url))
+        raise
+    _health.record_ok("jira")
     return json.loads(raw) if raw else {}
 
 
 def bb_get(path, timeout=45):
     tok = os.environ.get("BITBUCKET_PAT") or os.environ.get("ATLASSIAN_TOKEN", "")
-    return get_json(BB_BASE + path, {"Authorization": f"Bearer {tok}", "Accept": "application/json"}, timeout=timeout, retries=1)
+    return get_json(BB_BASE + path, {"Authorization": f"Bearer {tok}", "Accept": "application/json"}, timeout=timeout, retries=1, service="bitbucket")
 
 
 def _legacy_status_jql(jql):
