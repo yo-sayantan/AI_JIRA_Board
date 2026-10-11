@@ -89,5 +89,39 @@
       "when": "2026-09-21",
       "text": "Opened"
     }
+  ],
+  "builds": [
+    {
+      "env": "qa",
+      "repo": "demo-service",
+      "branch": "feature/DEMO-242_export_history",
+      "number": 73,
+      "result": "SUCCESS",
+      "url": "https://jenkins.example.com/job/demo/job/demo-service-qa/job/feature%252FDEMO-242_export_history/73/",
+      "at": "2026-10-07T22:15:00Z",
+      "durationMs": 398000,
+      "deployTarget": "qa",
+      "tests": {
+        "total": 284,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "env": "uat",
+      "repo": "demo-service",
+      "branch": "feature/DEMO-242_export_history",
+      "number": 29,
+      "result": "SUCCESS",
+      "url": "https://jenkins.example.com/job/demo/job/demo-service-uat/job/feature%252FDEMO-242_export_history/29/",
+      "at": "2026-10-08T01:30:00Z",
+      "durationMs": 455000,
+      "deployTarget": "uat-eu",
+      "tests": {
+        "total": 284,
+        "failed": 0,
+        "skipped": 0
+      }
+    }
   ]
 }

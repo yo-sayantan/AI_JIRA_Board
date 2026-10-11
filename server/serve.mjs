@@ -14,7 +14,7 @@
 //   listed in ALLOWED_HOSTS (comma-separated host[:port])          → else 403 'forbidden host'
 //   Non-GET/HEAD: Origin (or Referer) host must equal Host, and Sec-Fetch-Site, when sent, must be
 //   same-origin or none                                             → else 403 'forbidden origin'
-//   POST /api/settings, /api/ai-models/pull, /api/ai-jobs need Content-Type: application/json
+//   POST /api/settings, /api/keys, /api/keys/test, /api/ai-models/pull, /api/ai-jobs need Content-Type: application/json
 //                                                                   → else 415 'unsupported media type'
 //   Undecodable path → 400 'bad url'. Unknown /api/* → 404. Non-GET on a static path → 405.
 //   HEAD behaves like GET without a body. Every response carries X-Content-Type-Options: nosniff
@@ -58,6 +58,12 @@
 //   POST /api/keys       body: { name, value } ≤ 8 KB; name from setup/api-keys.json, '' removes it
 //                                          200 { ok, keys, cleared:[ENV] } · 400 { error } · 413 · 415
 //                                          (a new *_URL clears its service's tokens → listed in cleared)
+//   POST /api/keys/test  body: { service } ≤ 1 KB; service = a setup/api-keys.json id
+//                                          200 { ok, service, status:'ok'|'auth-failed'|'forbidden'|'not-found'|
+//                                                'unreachable'|'tls'|'not-configured'|'error', httpStatus?, ms, detail }
+//                                          · 400 'bad json' | 'unknown service' · 409 'test already running' · 413 · 415
+//                                          One authenticated read with the SAVED key (server/keycheck.mjs); detail never
+//                                          holds a secret; redirects are not followed; 10 s timeout.
 //   GET  /api/ai-status                    200 intern status + { queuedKeys:[K], queued }
 //   GET  /api/ai-models                    200 intern /api/models, or { ok:false, down:true, catalog, installed, ollamaOk:false }
 //   GET  /api/cloud-models                 200 intern /api/cloud-models
@@ -71,8 +77,10 @@
 // ───────────────────────────────────────────────────────────────────────────────────────────────
 import { createServer } from 'node:http'
 import { stat } from 'node:fs/promises'
-import { ALLOWED_HOSTS, BOARD_PATH, HELP_PATH, DATE_RE, HOST, KEY_RE, PATHS, PORT, ROOT, STATIC_ALLOW, YEAR_RE } from './config.mjs'
-import { createSecretsStore } from './secrets.mjs'
+import { ALLOWED_HOSTS, BOARD_PATH, HELP_PATH, DATE_RE, HOST, KEY_RE, PATHS, PORT, PROJECT_CONFIG, ROOT, STATIC_ALLOW, YEAR_RE } from './config.mjs'
+import { readFile } from 'node:fs/promises'
+import { createSecretsStore, parseEnv } from './secrets.mjs'
+import { createKeyChecker, mergeSettings } from './keycheck.mjs'
 import { SECURITY_HEADERS, createStaticHandler, json, readBody, readJson } from './http.mjs'
 import { MOVE_TARGETS, moveTicket, runStatus, startArchive, startDaily, startRaised, stopArchive, ticketRefresh } from './jobs.mjs'
 import { externalGenerating, readReport, reportQueue, reportsIndex, resolveReportKeys, stopReports } from './reports.mjs'
@@ -86,6 +94,13 @@ const serveStatic = createStaticHandler(ROOT, STATIC_ALLOW, { noStore: [/^\/jira
 // One store (it owns the write queue). The registry is read once, like the board's bundled copy:
 // after editing setup/api-keys.json, rebuild and restart so the two agree.
 const secrets = createSecretsStore({ file: PATHS.secrets, registry: await readJson(PATHS.apiKeys, { services: [] }) })
+
+// The Test button: setup/.env re-read on every test (environment variables win, as in Python).
+const keyChecker = createKeyChecker({
+  loadSettings: async () =>
+    mergeSettings(parseEnv(await readFile(PATHS.secrets, 'utf8').catch((e) => (e.code === 'ENOENT' ? '' : Promise.reject(e))))),
+  config: PROJECT_CONFIG,
+})
 
 const param = (url, name) => (url.searchParams.get(name) || '').trim()
 
@@ -297,6 +312,27 @@ const routes = {
     }
   },
 
+  'POST /api/keys/test': async (req, res) => {
+    const body = await readBody(req, 1024)
+    if (body === undefined) return json(res, 400, { ok: false, error: 'aborted' })
+    if (body === null) return json(res, 413, { ok: false, error: 'too large' })
+    let parsed
+    try {
+      parsed = JSON.parse(body || '{}')
+    } catch {
+      return json(res, 400, { ok: false, error: 'bad json' })
+    }
+    try {
+      const result = await keyChecker.test(parsed?.service)
+      if (result.unknown) return json(res, 400, { ok: false, error: 'unknown service' })
+      if (result.busy) return json(res, 409, { ok: false, error: 'test already running' })
+      json(res, 200, result)
+    } catch (e) {
+      console.error('[keys] test failed', e.code || 'error')
+      json(res, 500, { ok: false, error: 'could not read setup/.env' })
+    }
+  },
+
   'GET /api/ai-status': async (req, res) => {
     const [ai, settings] = await Promise.all([aiStatus(), readBoardSettings()])
     json(res, 200, { ...ai, container: await ollamaInfo(settings) })
@@ -351,7 +387,7 @@ const WILDCARD_BINDS = new Set(['', '0.0.0.0', '::', '[::]'])
 // A specific bind address is as good as a loopback name: a rebinding page cannot make the
 // browser send our IP literal as its Host.
 const BIND_NAME = WILDCARD_BINDS.has(HOST) ? null : HOST.includes(':') ? `[${HOST.toLowerCase()}]` : HOST.toLowerCase()
-const JSON_BODY_ROUTES = new Set(['POST /api/settings', 'POST /api/keys', 'POST /api/ai-models/pull', 'POST /api/ai-jobs'])
+const JSON_BODY_ROUTES = new Set(['POST /api/settings', 'POST /api/keys', 'POST /api/keys/test', 'POST /api/ai-models/pull', 'POST /api/ai-jobs'])
 const warnedHosts = new Set()
 
 const hostName = (host) => host.replace(/:\d+$/, '')

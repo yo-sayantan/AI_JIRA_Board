@@ -3,9 +3,11 @@ import { motion } from 'motion/react'
 import type { Ticket } from '../../types'
 import { COLUMN_META } from '../../lib/columns'
 import { DONE_BOARD_DAYS } from '../../lib/appConfig'
-import { priorityMeta, typeMeta, effectiveType, isClosedPr, prListOf, primaryPrOf, branchesOf, cardBranches, relTime, hexToRgba } from '../../lib/format'
+import { priorityMeta, typeMeta, effectiveType, isClosedPr, prListOf, primaryPrOf, branchesOf, cardBranches, cardBuilds, vulnFixesOf, relTime, hexToRgba } from '../../lib/format'
 import { Pill, PriorityGlyph, PrBadge, Approvals, PointsTag } from '../common/ui'
 import { TypeIcon, RefreshIcon, TrophyIcon } from '../common/Icons'
+import { BuildChip } from '../common/Builds'
+import { VulnChip } from '../common/VulnFixes'
 
 /** Days until this Done card auto-retires from the board into the Completed archive. */
 function archivesInDays(t: Ticket, now: number): number | null {
@@ -129,6 +131,10 @@ export const TicketCard = memo(function TicketCard({
   // Parent cards say only what matters (cardBranches); a sub-task keeps its compact branch line.
   const subBranches = branchesOf(ticket)
   const branch = ticket.parentKey ? (subBranches[0] ? { shown: subBranches[0], more: subBranches.length - 1, all: subBranches } : null) : cardBranches(ticket)
+  // Latest Jenkins build per environment — one compact chip each, all on one row.
+  const builds = cardBuilds(ticket)
+  // Vulnerability-fix tickets: how many of the vulnerabilities they name Checkmarx shows as fixed.
+  const vulns = vulnFixesOf(ticket)
   const archiveIn = archivesInDays(ticket, now)
   const overflow = !!ticket.sprintOverflow
   // Sub-tasks carry little of their own (no points, rarely a PR or branch), so they get a compact card.
@@ -344,6 +350,19 @@ export const TicketCard = memo(function TicketCard({
           </Pill>
         )}
       </div>
+
+      {(builds.length > 0 || vulns) && (
+        <div className="relative mt-1 flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden">
+          {vulns && <VulnChip vf={vulns} />}
+          {builds.length > 0 && (
+            <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden" aria-label="Latest builds">
+              {builds.map((b) => (
+                <BuildChip key={b.env} build={b} now={now} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {branch && (
         <div className="relative mt-auto w-full pt-1 text-[var(--muted)]" title={branch.all.join('\n')}>

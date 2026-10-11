@@ -50,7 +50,7 @@
   "fixVersions": [
     "2026.11"
   ],
-  "description": "<p>Export downloads are currently unauthenticated URLs with a guessable path. Replace them with short-lived signed links scoped to the requesting user.</p>",
+  "description": "<p>Export downloads are currently unauthenticated URLs with a guessable path. Replace them with short-lived signed links scoped to the requesting user.</p><p>Security: this also closes what Checkmarx reported on the old download path — <code>Path_Traversal</code> in the download controller, and <code>CVE-2022-23529</code> through <code>jsonwebtoken@8.5.1</code>, upgraded to 9.0.2.</p>",
   "acceptanceCriteria": [
     "Links expire after 15 minutes",
     "A link issued for one user cannot be used by another",
@@ -108,5 +108,39 @@
       "when": "2026-09-22",
       "text": "Opened"
     }
-  ]
+  ],
+  "vulnFixes": {
+    "scannedAt": "2026-10-08T06:00:00Z",
+    "project": "demo-service",
+    "branch": "feature/DEMO-230_signed_links",
+    "baseBranch": "main",
+    "branchScanAt": "2026-10-07T22:00:00Z",
+    "baseScanAt": "2026-10-06T03:00:00Z",
+    "items": [
+      {
+        "target": "CVE-2022-23529",
+        "kind": "cve",
+        "status": "fixed",
+        "severity": "HIGH",
+        "location": "jsonwebtoken 8.5.1",
+        "detail": "Fixed — gone on feature/DEMO-230_signed_links (scan 2026-10-07) · was HIGH on main (scan 2026-10-06)."
+      },
+      {
+        "target": "Path_Traversal",
+        "kind": "sast",
+        "status": "open",
+        "severity": "HIGH",
+        "location": "/src/export/DownloadController.java:88",
+        "detail": "Open — still on feature/DEMO-230_signed_links (scan 2026-10-07)."
+      },
+      {
+        "target": "jsonwebtoken 8.5.1",
+        "kind": "package",
+        "status": "fixed",
+        "severity": "HIGH",
+        "location": "jsonwebtoken 8.5.1",
+        "detail": "Fixed — gone on feature/DEMO-230_signed_links (scan 2026-10-07) · was HIGH on main (scan 2026-10-06)."
+      }
+    ]
+  }
 }

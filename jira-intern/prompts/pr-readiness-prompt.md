@@ -58,6 +58,14 @@ may do — nothing else:
      metric back to baseline, log signature gone). Never "merge = done".
   2. FILL the two gate rows "CI green" and "Security scan (Checkmarx) clean" in the verdict tab's Gate checklist:
      State Pass|Fail (tone success|warning), Evidence = link/id. Leave "Not verified" if you cannot see them.
+     CI source order: when the ticket has `builds` (Jenkins, latest build per environment) the base report has
+     ALREADY filled "CI green" from them, with one "Jenkins · <env>" evidence row per build — keep that row as it
+     is and do not overwrite it from Bitbucket. Only without `builds` read the build status Bitbucket shows on
+     the PR's latest commit.
+     Security gate: when the ticket has `vulnFixes` (Checkmarx, vulnerability-fix tickets only) the base report has
+     ALREADY filled "Security scan (Checkmarx) clean" from them — Pass only when every target the ticket names is
+     fixed, Fail when any is still open, Not verified otherwise — with one "Checkmarx · <kind>" evidence row per
+     target. Keep both as they are. Judge only the targets the ticket names, never the scan's other findings.
   3. APPEND rows to the Evidence chain table (after the derived rows): diff-level evidence, CI, Confluence
      acceptance-criteria match, telemetry. Never edit or reorder existing rows.
   4. APPEND rows to the Open scope table with "Blocks closure?" = "No" (e.g. "Acceptance criterion X not evidenced").

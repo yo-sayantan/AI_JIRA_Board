@@ -19,6 +19,9 @@
     "projectMap": {},
     "repoHints": {}
   },
+  "jenkins": {
+    "jobs": {}
+  },
   "connector": {
     "active": "cursor",
     "cursor": {

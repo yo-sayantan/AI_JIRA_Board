@@ -320,6 +320,19 @@
           "when": "2026-09-30",
           "text": "Opened"
         }
+      ],
+      "builds": [
+        {
+          "env": "qa",
+          "repo": "demo-service",
+          "branch": "bugfix/DEMO-210_export_timeout",
+          "number": 1,
+          "result": "NOT_BUILT",
+          "url": "https://jenkins.example.com/job/demo/job/demo-service-qa/job/bugfix%252FDEMO-210_export_timeout/1/",
+          "at": "2026-10-06T10:00:00Z",
+          "durationMs": null,
+          "deployTarget": "qa"
+        }
       ]
     },
     {
@@ -647,6 +660,35 @@
           "when": "2026-09-27",
           "text": "Opened"
         }
+      ],
+      "builds": [
+        {
+          "env": "qa",
+          "repo": "demo-service",
+          "branch": "feature/DEMO-220_delivery_worker",
+          "number": 57,
+          "result": "SUCCESS",
+          "url": "https://jenkins.example.com/job/demo/job/demo-service-qa/job/feature%252FDEMO-220_delivery_worker/57/",
+          "at": "2026-10-08T06:40:00Z",
+          "durationMs": 412000,
+          "deployTarget": "qa",
+          "tests": {
+            "total": 318,
+            "failed": 0,
+            "skipped": 4
+          }
+        },
+        {
+          "env": "uat",
+          "repo": "demo-service",
+          "branch": "feature/DEMO-220_delivery_worker",
+          "number": 12,
+          "result": "BUILDING",
+          "url": "https://jenkins.example.com/job/demo/job/demo-service-uat/job/feature%252FDEMO-220_delivery_worker/12/",
+          "at": "2026-10-08T08:52:00Z",
+          "durationMs": null,
+          "deployTarget": "uat"
+        }
       ]
     },
     {
@@ -683,6 +725,19 @@
         {
           "when": "2026-08-23",
           "text": "Opened"
+        }
+      ],
+      "builds": [
+        {
+          "env": "qa",
+          "repo": "demo-service",
+          "branch": "feature/DEMO-221_cache_warmup",
+          "number": 19,
+          "result": "ABORTED",
+          "url": "https://jenkins.example.com/job/demo/job/demo-service-qa/job/feature%252FDEMO-221_cache_warmup/19/",
+          "at": "2026-10-07T04:30:00Z",
+          "durationMs": 95000,
+          "deployTarget": "qa"
         }
       ]
     },
@@ -901,7 +956,7 @@
       "fixVersions": [
         "2026.11"
       ],
-      "description": "<p>Export downloads are currently unauthenticated URLs with a guessable path. Replace them with short-lived signed links scoped to the requesting user.</p>",
+      "description": "<p>Export downloads are currently unauthenticated URLs with a guessable path. Replace them with short-lived signed links scoped to the requesting user.</p><p>Security: this also closes what Checkmarx reported on the old download path — <code>Path_Traversal</code> in the download controller, and <code>CVE-2022-23529</code> through <code>jsonwebtoken@8.5.1</code>, upgraded to 9.0.2.</p>",
       "acceptanceCriteria": [
         "Links expire after 15 minutes",
         "A link issued for one user cannot be used by another",
@@ -959,7 +1014,41 @@
           "when": "2026-09-22",
           "text": "Opened"
         }
-      ]
+      ],
+      "vulnFixes": {
+        "scannedAt": "2026-10-08T06:00:00Z",
+        "project": "demo-service",
+        "branch": "feature/DEMO-230_signed_links",
+        "baseBranch": "main",
+        "branchScanAt": "2026-10-07T22:00:00Z",
+        "baseScanAt": "2026-10-06T03:00:00Z",
+        "items": [
+          {
+            "target": "CVE-2022-23529",
+            "kind": "cve",
+            "status": "fixed",
+            "severity": "HIGH",
+            "location": "jsonwebtoken 8.5.1",
+            "detail": "Fixed — gone on feature/DEMO-230_signed_links (scan 2026-10-07) · was HIGH on main (scan 2026-10-06)."
+          },
+          {
+            "target": "Path_Traversal",
+            "kind": "sast",
+            "status": "open",
+            "severity": "HIGH",
+            "location": "/src/export/DownloadController.java:88",
+            "detail": "Open — still on feature/DEMO-230_signed_links (scan 2026-10-07)."
+          },
+          {
+            "target": "jsonwebtoken 8.5.1",
+            "kind": "package",
+            "status": "fixed",
+            "severity": "HIGH",
+            "location": "jsonwebtoken 8.5.1",
+            "detail": "Fixed — gone on feature/DEMO-230_signed_links (scan 2026-10-07) · was HIGH on main (scan 2026-10-06)."
+          }
+        ]
+      }
     },
     {
       "key": "DEMO-231",
@@ -1037,6 +1126,46 @@
           "when": "2026-09-28",
           "text": "Opened"
         }
+      ],
+      "builds": [
+        {
+          "env": "qa",
+          "repo": "demo-service",
+          "branch": "feature/DEMO-231_paginate_saved_reports",
+          "number": 88,
+          "result": "FAILURE",
+          "url": "https://jenkins.example.com/job/demo/job/demo-service-qa/job/feature%252FDEMO-231_paginate_saved_reports/88/",
+          "at": "2026-10-07T07:20:00Z",
+          "durationMs": 538000,
+          "deployTarget": "qa",
+          "tests": {
+            "total": 296,
+            "failed": 3,
+            "skipped": 0,
+            "failing": [
+              "reports.SavedReportPagingTest.lastPageIsPartial",
+              "reports.SavedReportPagingTest.cursorSurvivesRefresh",
+              "reports.ApiContractTest.pageSizeCapped"
+            ]
+          },
+          "failedStage": "Integration tests"
+        },
+        {
+          "env": "uat",
+          "repo": "demo-service",
+          "branch": "feature/DEMO-231_paginate_saved_reports",
+          "number": 31,
+          "result": "SUCCESS",
+          "url": "https://jenkins.example.com/job/demo/job/demo-service-uat/job/feature%252FDEMO-231_paginate_saved_reports/31/",
+          "at": "2026-10-06T15:05:00Z",
+          "durationMs": 602000,
+          "deployTarget": "uat",
+          "tests": {
+            "total": 296,
+            "failed": 0,
+            "skipped": 0
+          }
+        }
       ]
     },
     {
@@ -1081,7 +1210,7 @@
         "updatedAt": "2026-10-08T08:00:00Z",
         "title": "chore/DEMO-232_rotate_signing_key → main"
       },
-      "description": "<p>Quarterly rotation. Dual-key window so links issued under the old key stay valid until they expire. Raised an hour ago — no reviewer has opened it yet.</p>",
+      "description": "<p>Quarterly rotation. Dual-key window so links issued under the old key stay valid until they expire. Raised an hour ago — no reviewer has opened it yet.</p><p>Also removes the Checkmarx finding <code>Use_of_Hard_coded_Cryptographic_Key</code> in the signing module.</p>",
       "updateLog": [
         {
           "when": "2026-10-08",
@@ -1091,7 +1220,24 @@
           "when": "2026-10-03",
           "text": "Opened"
         }
-      ]
+      ],
+      "vulnFixes": {
+        "scannedAt": "2026-10-08T08:30:00Z",
+        "project": "demo-service",
+        "branch": "chore/DEMO-232_rotate_signing_key",
+        "baseBranch": "main",
+        "branchScanAt": null,
+        "baseScanAt": "2026-10-06T03:00:00Z",
+        "note": "chore/DEMO-232_rotate_signing_key has no completed Checkmarx scan yet",
+        "items": [
+          {
+            "target": "Use_of_Hard_coded_Cryptographic_Key",
+            "kind": "sast",
+            "status": "unknown",
+            "detail": "Unknown — chore/DEMO-232_rotate_signing_key has no completed Checkmarx scan yet."
+          }
+        ]
+      }
     },
     {
       "key": "DEMO-233",
@@ -1524,6 +1670,40 @@
           "when": "2026-09-21",
           "text": "Opened"
         }
+      ],
+      "builds": [
+        {
+          "env": "qa",
+          "repo": "demo-service",
+          "branch": "feature/DEMO-242_export_history",
+          "number": 73,
+          "result": "SUCCESS",
+          "url": "https://jenkins.example.com/job/demo/job/demo-service-qa/job/feature%252FDEMO-242_export_history/73/",
+          "at": "2026-10-07T22:15:00Z",
+          "durationMs": 398000,
+          "deployTarget": "qa",
+          "tests": {
+            "total": 284,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "env": "uat",
+          "repo": "demo-service",
+          "branch": "feature/DEMO-242_export_history",
+          "number": 29,
+          "result": "SUCCESS",
+          "url": "https://jenkins.example.com/job/demo/job/demo-service-uat/job/feature%252FDEMO-242_export_history/29/",
+          "at": "2026-10-08T01:30:00Z",
+          "durationMs": 455000,
+          "deployTarget": "uat-eu",
+          "tests": {
+            "total": 284,
+            "failed": 0,
+            "skipped": 0
+          }
+        }
       ]
     },
     {
@@ -1580,7 +1760,7 @@
       "fixVersions": [
         "2026.11"
       ],
-      "description": "<p>A report is visible only to members of the tenant that owns it, with an explicit share list for exceptions.</p>",
+      "description": "<p>A report is visible only to members of the tenant that owns it, with an explicit share list for exceptions.</p><p>Security: closes the Checkmarx result <a href=\"https://cxone.example.com/results/demo-service/scan/sast?result-id=R7f3kQ2\">R7f3kQ2</a> (CWE-639 — a report readable across tenants). Triage also mentioned CVE-2023-26136; check whether it applies here.</p>",
       "acceptanceCriteria": [
         "Cross-tenant access returns 404, not 403",
         "Share list survives an owner change",
@@ -1629,7 +1809,39 @@
           "when": "2026-09-14",
           "text": "Opened"
         }
-      ]
+      ],
+      "vulnFixes": {
+        "scannedAt": "2026-10-08T06:00:00Z",
+        "project": "demo-service",
+        "branch": "feature/DEMO-243_report_permissions",
+        "baseBranch": "main",
+        "branchScanAt": "2026-10-05T07:30:00Z",
+        "baseScanAt": "2026-10-04T03:00:00Z",
+        "items": [
+          {
+            "target": "CVE-2023-26136",
+            "kind": "cve",
+            "status": "not-found",
+            "detail": "Not found — in neither scan: not on feature/DEMO-243_report_permissions (scan 2026-10-05) nor on main (scan 2026-10-04). Check the id on the ticket."
+          },
+          {
+            "target": "CWE-639",
+            "kind": "sast",
+            "status": "fixed",
+            "severity": "MEDIUM",
+            "location": "/src/reports/ReportAccess.java:41",
+            "detail": "Fixed — Insecure_Direct_Object_References gone on feature/DEMO-243_report_permissions (scan 2026-10-05) · was MEDIUM on main (scan 2026-10-04)."
+          },
+          {
+            "target": "result R7f3kQ2",
+            "kind": "result",
+            "status": "fixed",
+            "severity": "MEDIUM",
+            "location": "/src/reports/ReportAccess.java:41",
+            "detail": "Fixed — Insecure_Direct_Object_References gone on feature/DEMO-243_report_permissions (scan 2026-10-05) · was MEDIUM on main (scan 2026-10-04)."
+          }
+        ]
+      }
     },
     {
       "key": "DEMO-244",
@@ -1749,6 +1961,25 @@
         {
           "when": "2026-09-23",
           "text": "Opened"
+        }
+      ],
+      "builds": [
+        {
+          "env": "qa",
+          "repo": "demo-service",
+          "branch": "bugfix/DEMO-244_dedupe_rows_followup",
+          "number": 64,
+          "result": "UNSTABLE",
+          "url": "https://jenkins.example.com/job/demo/job/demo-service-qa/job/bugfix%252FDEMO-244_dedupe_rows_followup/64/",
+          "at": "2026-10-08T05:10:00Z",
+          "durationMs": 377000,
+          "deployTarget": "qa",
+          "tests": {
+            "total": 301,
+            "failed": 0,
+            "skipped": 2
+          },
+          "failedStage": "Quality gate"
         }
       ]
     },

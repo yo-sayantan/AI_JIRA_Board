@@ -381,6 +381,16 @@ export function FlaskIcon({ size = 13, className = '', color = 'currentColor' }:
   )
 }
 
+/** Shield with a tick — Checkmarx: which vulnerabilities a fix ticket fixed. */
+export function ShieldIcon({ size = 12, className = '', color = 'currentColor' }: IP) {
+  return (
+    <svg {...svg(size, className)}>
+      <path d="M12 3l7 3v5.5c0 4.3-2.9 8.1-7 9.5-4.1-1.4-7-5.2-7-9.5V6l7-3z" {...line(color, 1.9)} />
+      <path d="M9 12l2.2 2.2L15.5 10" {...line(color, 1.9)} />
+    </svg>
+  )
+}
+
 /** Padlock — a shelf only another team moves cards onto. */
 export function LockIcon({ size = 12, className = '', color = 'currentColor' }: IP) {
   return (

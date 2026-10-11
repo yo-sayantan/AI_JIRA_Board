@@ -442,7 +442,9 @@ def fetch_one(issue_id, enrich_open=True):
                             seen.add(_pr_identity(extra))
                             prs.append(extra)
 
-        return settle({"branches": branches, "prs": prs, "times": times})
+        # branch → repo slug, for lookups keyed by repository (jenkins.py's build per branch).
+        repos = {b: refs[b][1] for b in branches if refs.get(b)}
+        return settle({"branches": branches, "prs": prs, "times": times, "repos": repos})
     except Exception as e:
         sys.stderr.write(f"WARN dev-status issue {issue_id}: {e}\n")
         return None

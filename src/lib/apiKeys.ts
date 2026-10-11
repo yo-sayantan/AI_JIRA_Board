@@ -68,3 +68,62 @@ export function canSave(draft: string, saved: { set: boolean; masked: string } |
   if (!value || value.includes(MASK_BULLET)) return false
   return secret || value !== (saved?.masked ?? '')
 }
+
+// ── The Test button (POST /api/keys/test, server/keycheck.mjs) ──────────────────────────────────
+
+export type KeyTestStatus = 'ok' | 'auth-failed' | 'forbidden' | 'not-found' | 'unreachable' | 'tls' | 'not-configured' | 'error'
+
+/** What the server answers for one test. `detail` is human text with no secret in it. */
+export interface KeyTestResult {
+  ok: boolean
+  service: string
+  status: KeyTestStatus
+  httpStatus?: number
+  ms: number
+  detail: string
+}
+
+/** A key that can stand in for another when testing: Bitbucket falls back to the Atlassian token. */
+const TEST_ALTERNATIVES: Record<string, string> = { BITBUCKET_PAT: 'ATLASSIAN_TOKEN' }
+
+/**
+ * Why Test is not offered yet, or null when it is. Every non-optional key must be saved — except
+ * URL keys, which the config's endpoints can supply (the server says so if neither is there).
+ * Planned keys count like any other, so a planned-only service is testable once its key is saved.
+ */
+export function testBlocker(service: ApiService, status: KeyStatus | null): string | null {
+  if (!status) return 'Loading the saved keys…'
+  const missing = service.keys.filter((k) => {
+    if (k.optional || kindOf(k) === 'url') return false
+    const alt = TEST_ALTERNATIVES[k.env]
+    return !status[k.env]?.set && !(alt && status[alt]?.set)
+  })
+  return missing.length ? `Save ${missing.map((k) => k.label).join(' and ')} first` : null
+}
+
+export type TestTone = 'ok' | 'bad' | 'warn' | 'idle'
+export const TEST_TONE_COLOR: Record<TestTone, string> = { ok: '#17c47a', bad: '#e11d48', warn: '#ff9f1c', idle: '#8b94a8' }
+
+/** A test result → the inline pill: tone, short text, and the full detail for its tooltip. */
+export function testResultView(r: KeyTestResult): { tone: TestTone; text: string; title: string } {
+  const code = r.httpStatus ? ` (${r.httpStatus})` : ''
+  const title = [r.detail, r.ms ? `${r.ms} ms` : ''].filter(Boolean).join(' · ')
+  switch (r.status) {
+    case 'ok':
+      return { tone: 'ok', text: ['✓ Connected', r.detail, `${r.ms} ms`].filter(Boolean).join(' · '), title }
+    case 'auth-failed':
+      return { tone: 'bad', text: `✗ Key rejected${code}`, title }
+    case 'forbidden':
+      return { tone: 'bad', text: `✗ Access denied${code}`, title }
+    case 'not-found':
+      return { tone: 'bad', text: `✗ Not found${code} — check the URL`, title }
+    case 'unreachable':
+      return { tone: 'warn', text: "Can't reach host", title }
+    case 'tls':
+      return { tone: 'warn', text: 'Certificate not trusted', title }
+    case 'not-configured':
+      return { tone: 'idle', text: `Not configured: ${r.detail}`, title }
+    default:
+      return { tone: 'bad', text: `✗ ${r.detail || 'Test failed'}`, title }
+  }
+}

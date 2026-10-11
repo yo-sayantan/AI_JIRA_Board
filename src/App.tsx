@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { ColumnKey } from './types'
 import type { MoveTarget } from './lib/columns'
-import { RUN_COMMAND, aiModelLabel, enrichJobsRunning, isServed, setDemoMode } from './lib/runner'
+import { RUN_COMMAND, aiModelLabel, enrichJobsRunning, isServed, setDemoMode, testApiKey } from './lib/runner'
 import { countMyCompleted, countRaised, countTicketsWithPr, dashboardPrTickets, hasActiveWork, indexByKey, splitBoard, type BoardSections } from './lib/boardView'
 import { parseQuery } from './lib/search'
 import { useBoardData } from './hooks/useBoardData'
@@ -152,7 +152,7 @@ export default function App() {
   // keeps its state when a first fetch turns the empty state into the board.
   const keysDialog = (
     <ErrorBoundary label="API keys" overlay onClose={closeKeys}>
-      <ApiKeysDialog open={keysOpen} status={apiKeys.status} failed={apiKeys.failed} onClose={closeKeys} onRefresh={apiKeys.refresh} onSave={apiKeys.save} />
+      <ApiKeysDialog open={keysOpen} status={apiKeys.status} failed={apiKeys.failed} onClose={closeKeys} onRefresh={apiKeys.refresh} onSave={apiKeys.save} onTest={testApiKey} />
     </ErrorBoundary>
   )
   const openCompleted = useCallback(() => setCompletedOpen(true), [])

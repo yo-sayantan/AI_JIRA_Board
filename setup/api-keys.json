@@ -120,21 +120,20 @@
       "required": false,
       "why": "Reads the latest build of a ticket's branch per environment: result, tests, deploy target, failed stage.",
       "usedBy": [
-        "PR readiness: CI gate (coming)",
-        "Cards and drawer (coming)"
+        "Build chips on cards",
+        "Drawer: Proof · Builds",
+        "PR readiness: CI gate"
       ],
       "getIt": "Jenkins → your name → Configure → API Token → Add new token",
       "keys": [
         {
           "env": "JENKINS_USER",
           "label": "User name",
-          "kind": "text",
-          "planned": true
+          "kind": "text"
         },
         {
           "env": "JENKINS_API_TOKEN",
           "label": "API token",
-          "planned": true,
           "hint": "Job links per repository and environment go in the config (jenkins.jobs)."
         }
       ]
@@ -146,8 +145,9 @@
       "required": false,
       "why": "Confirms which vulnerabilities a fix ticket actually closed, for its PR readiness report.",
       "usedBy": [
-        "PR readiness: security gate",
-        "Proof · vulnerability fix"
+        "Vulnerability chip on cards",
+        "Drawer: Proof · Vulnerabilities",
+        "PR readiness: security gate"
       ],
       "getIt": "Checkmarx One → Identity and Access Management → API Keys (the Checkmarx MCP server uses the same key)",
       "keys": [

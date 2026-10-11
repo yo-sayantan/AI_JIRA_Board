@@ -86,5 +86,18 @@
       "when": "2026-09-30",
       "text": "Opened"
     }
+  ],
+  "builds": [
+    {
+      "env": "qa",
+      "repo": "demo-service",
+      "branch": "bugfix/DEMO-210_export_timeout",
+      "number": 1,
+      "result": "NOT_BUILT",
+      "url": "https://jenkins.example.com/job/demo/job/demo-service-qa/job/bugfix%252FDEMO-210_export_timeout/1/",
+      "at": "2026-10-06T10:00:00Z",
+      "durationMs": null,
+      "deployTarget": "qa"
+    }
   ]
 }

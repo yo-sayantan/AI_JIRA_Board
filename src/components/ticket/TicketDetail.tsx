@@ -5,6 +5,7 @@ import { COLUMN_META } from '../../lib/columns'
 import { fmtDate, fmtDateTime, relTime, prMeta, isMergedPr, isClosedPr, prListOf, primaryPrOf, prCommentStats, branchesOf, branchStatusOf, typeMeta, effectiveType, isAssignedToMe, hexToRgba, cycleTime, fmtDays, unwrapBrief } from '../../lib/format'
 import { Pill, StatusBadge, PriorityBadge, TypeBadge, PrBadge, BranchStatusPill, Approvals, PointsTag, CopyButton, SafeHtml, ExternalLink, safeHref } from '../common/ui'
 import { Pipeline } from './Pipeline'
+import { ProofPanel, proofCount } from './Proof'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { toneColor, type PrReportSummary } from '../../lib/reportTypes'
 import { APP_CONFIG } from '../../lib/appConfig'
@@ -26,6 +27,7 @@ import {
   BranchIcon,
   PersonIcon,
   TrophyIcon,
+  FlaskIcon,
 } from '../common/Icons'
 
 /**
@@ -403,6 +405,13 @@ export function TicketDetail({
                   </div>
                 ))}
               </div>
+            </Section>
+          )}
+
+          {/* 6b. Proof — measured outside Jira: Checkmarx vulnerability fixes, latest Jenkins build per environment (more sources join in Proof.tsx) */}
+          {proofCount(ticket) > 0 && (
+            <Section title="Proof" icon={<FlaskIcon color={accent} size={14} />} accent={accent} count={proofCount(ticket)}>
+              <ProofPanel ticket={ticket} now={now} timeZone={APP_CONFIG.timeZone} />
             </Section>
           )}
 

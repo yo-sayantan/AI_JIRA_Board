@@ -33,5 +33,18 @@
       "when": "2026-08-23",
       "text": "Opened"
     }
+  ],
+  "builds": [
+    {
+      "env": "qa",
+      "repo": "demo-service",
+      "branch": "feature/DEMO-221_cache_warmup",
+      "number": 19,
+      "result": "ABORTED",
+      "url": "https://jenkins.example.com/job/demo/job/demo-service-qa/job/feature%252FDEMO-221_cache_warmup/19/",
+      "at": "2026-10-07T04:30:00Z",
+      "durationMs": 95000,
+      "deployTarget": "qa"
+    }
   ]
 }

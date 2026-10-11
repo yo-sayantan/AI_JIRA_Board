@@ -1,4 +1,4 @@
-import type { PrState, PullRequest, UpdateLogEntry } from '../types'
+import type { BuildResult, BuildTests, JenkinsBuild, PrState, PullRequest, UpdateLogEntry, VulnFixes, VulnFixItem, VulnFixKind, VulnFixStatus } from '../types'
 import { APP_CONFIG } from './appConfig'
 import { mapStatusToColumn } from './columns'
 
@@ -210,6 +210,163 @@ export function branchStatusMeta(state: PrState): { label: string; color: string
     default:
       return { label: state, color: '#94a3b8' }
   }
+}
+
+// ── Jenkins builds ──────────────────────────────────────────────────────
+// Latest build per environment (Ticket.builds, from jira-intern/jenkins.py). Colours follow the
+// PR states: success = approved green, failure = changes red, unstable = open amber, building = In
+// Progress blue, aborted / not built = quiet grey.
+export function buildMeta(result?: BuildResult | null): { label: string; color: string; glyph: string } {
+  switch (result) {
+    case 'SUCCESS':
+      return { label: 'Passed', color: '#17c47a', glyph: '✓' }
+    case 'FAILURE':
+      return { label: 'Failed', color: '#ff4466', glyph: '✗' }
+    case 'UNSTABLE':
+      return { label: 'Unstable', color: '#ff9f1c', glyph: '!' }
+    case 'BUILDING':
+      return { label: 'Building', color: '#2f86ff', glyph: '◌' }
+    case 'ABORTED':
+      return { label: 'Aborted', color: '#94a3b8', glyph: '⦸' }
+    default:
+      return { label: 'Not built', color: '#94a3b8', glyph: '○' }
+  }
+}
+
+/** The ticket's builds that carry what a chip needs; [] for dumps written before builds existed. */
+export function buildsOf(t: { builds?: JenkinsBuild[] | null }): JenkinsBuild[] {
+  if (!Array.isArray(t.builds)) return []
+  return t.builds.filter((b): b is JenkinsBuild => !!b && typeof b.env === 'string' && !!b.env && typeof b.result === 'string')
+}
+
+/**
+ * One build per environment for the card, environments in dump order (= config order): the primary
+ * branch's build when there is one, otherwise the newest build of that environment.
+ */
+export function cardBuilds(t: { builds?: JenkinsBuild[] | null; branch?: string | null }): JenkinsBuild[] {
+  const primary = (t.branch ?? '').trim().toLowerCase()
+  const byEnv = new Map<string, JenkinsBuild>()
+  const ts = (b: JenkinsBuild) => Date.parse(b.at ?? '') || 0
+  for (const b of buildsOf(t)) {
+    const cur = byEnv.get(b.env)
+    if (!cur) {
+      byEnv.set(b.env, b)
+      continue
+    }
+    const curPrimary = cur.branch?.trim().toLowerCase() === primary
+    const isPrimary = b.branch?.trim().toLowerCase() === primary
+    if ((isPrimary && !curPrimary) || (isPrimary === curPrimary && ts(b) > ts(cur))) byEnv.set(b.env, b)
+  }
+  return [...byEnv.values()]
+}
+
+/** "38s", "4m 12s", "1h 3m"; '' for nothing (a build still running has no duration). */
+export function fmtDuration(ms?: number | null): string {
+  if (typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0) return ''
+  const s = Math.round(ms / 1000)
+  if (s < 60) return `${s}s`
+  if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`
+  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`
+}
+
+/** Short environment names shout (QA, UAT); longer ones are capitalised (Staging). */
+export function envLabel(env?: string | null): string {
+  const e = (env ?? '').trim()
+  if (!e) return '?'
+  return e.length <= 4 ? e.toUpperCase() : e.charAt(0).toUpperCase() + e.slice(1)
+}
+
+/** "308 passed · 0 failed · 4 skipped" — skipped only when there are some. */
+export function buildTestsText(tests?: BuildTests | null): string {
+  if (!tests || typeof tests.total !== 'number') return ''
+  const failed = tests.failed ?? 0
+  const skipped = tests.skipped ?? 0
+  const passed = Math.max(0, tests.total - failed - skipped)
+  return `${passed} passed · ${failed} failed` + (skipped ? ` · ${skipped} skipped` : '')
+}
+
+/** Multi-line hover text for a build chip. */
+export function buildTooltip(b: JenkinsBuild, now: number = Date.now()): string {
+  const m = buildMeta(b.result)
+  const lines = [`${envLabel(b.env)} #${b.number} · ${m.label}${b.stale ? ' · stale' : ''}`, `${b.repo} · ${b.branch}`]
+  if (b.stale) lines.push('Stale — Jenkins could not be re-read; this is the last build seen')
+  const when = [relTime(b.at, now), fmtDuration(b.durationMs)].filter(Boolean).join(' · took ')
+  if (when) lines.push(when)
+  const tests = buildTestsText(b.tests)
+  if (tests) lines.push(`Tests: ${tests}`)
+  if (b.failedStage) lines.push(`Failed at stage '${b.failedStage}'`)
+  if (b.tests?.failing?.length) lines.push(`Failing: ${b.tests.failing.join(', ')}`)
+  if (b.deployTarget && b.deployTarget !== b.env) lines.push(`Deploy target: ${b.deployTarget}`)
+  return lines.join('\n')
+}
+
+// ── Checkmarx: which vulnerabilities a fix ticket fixed ────────────────────
+// Ticket.vulnFixes (jira-intern/checkmarx.py). Colours follow the PR states: fixed = approved green, open =
+// changes red, not found = open amber, unknown = quiet grey ("Not verified is grey, never green").
+const VULN_STATUSES: VulnFixStatus[] = ['fixed', 'open', 'not-found', 'unknown']
+
+export function vulnStatusMeta(status?: VulnFixStatus | null): { label: string; color: string; glyph: string } {
+  switch (status) {
+    case 'fixed':
+      return { label: 'Fixed', color: '#17c47a', glyph: '✓' }
+    case 'open':
+      return { label: 'Open', color: '#ff4466', glyph: '✗' }
+    case 'not-found':
+      return { label: 'Not found', color: '#ff9f1c', glyph: '?' }
+    default:
+      return { label: 'Unknown', color: '#94a3b8', glyph: '○' }
+  }
+}
+
+export function vulnKindLabel(kind?: VulnFixKind | null): string {
+  return { cve: 'CVE', sast: 'SAST', result: 'Result', package: 'Package' }[kind ?? 'cve'] ?? 'Target'
+}
+
+/** The ticket's Checkmarx results with only well-formed items; null when there is nothing to show. */
+export function vulnFixesOf(t: { vulnFixes?: VulnFixes | null }): VulnFixes | null {
+  const vf = t.vulnFixes
+  if (!vf || typeof vf !== 'object' || !Array.isArray(vf.items)) return null
+  const items = vf.items.filter((i): i is VulnFixItem => !!i && typeof i.target === 'string' && !!i.target && VULN_STATUSES.includes(i.status))
+  return items.length ? { ...vf, items } : null
+}
+
+/** Card chip numbers: "2/3 fixed" — green when all are fixed, red when any is open, amber otherwise. */
+export function vulnSummary(vf: VulnFixes): {
+  label: string
+  fixed: number
+  total: number
+  open: number
+  notFound: number
+  unknown: number
+  state: 'fixed' | 'open' | 'pending'
+  color: string
+} {
+  const n = (s: VulnFixStatus) => vf.items.filter((i) => i.status === s).length
+  const fixed = n('fixed')
+  const open = n('open')
+  const total = vf.items.length
+  const state = open > 0 ? 'open' : fixed === total ? 'fixed' : 'pending'
+  const color = state === 'fixed' ? '#17c47a' : state === 'open' ? '#ff4466' : '#ff9f1c'
+  return { label: `${fixed}/${total} fixed`, fixed, total, open, notFound: n('not-found'), unknown: n('unknown'), state, color }
+}
+
+/** "feature/x (scan 2026-10-09) vs develop (scan 2026-10-01)" — the two scans compared. */
+export function vulnScanLine(vf: VulnFixes): string {
+  const side = (name: string | null | undefined, at: string | null | undefined, fallback: string) =>
+    `${name || fallback}${name ? (at ? ` (scan ${at.slice(0, 10)})` : ' (not scanned yet)') : ''}`
+  return `${side(vf.branch, vf.branchScanAt, 'the branch')} vs ${side(vf.baseBranch, vf.baseScanAt, 'the base branch')}`
+}
+
+/** Multi-line hover text for the card chip. */
+export function vulnTooltip(vf: VulnFixes): string {
+  const s = vulnSummary(vf)
+  const lines = [`Checkmarx · ${s.fixed} of ${s.total} fixed`, vulnScanLine(vf)]
+  if (vf.note) lines.push(vf.note)
+  for (const i of vf.items) {
+    const m = vulnStatusMeta(i.status)
+    lines.push([`${m.glyph} ${i.target}`, m.label, i.severity].filter(Boolean).join(' · '))
+  }
+  return lines.join('\n')
 }
 
 // ── Dates / relative time ──────────────────────────────────────────────────

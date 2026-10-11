@@ -1,12 +1,29 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { API_SERVICES, canSave, keyCounts, kindOf, servicePlanned, serviceReady, type ApiKeyField, type ApiService, type KeyStatus } from '../../lib/apiKeys'
+import {
+  API_SERVICES,
+  TEST_TONE_COLOR,
+  canSave,
+  keyCounts,
+  kindOf,
+  servicePlanned,
+  serviceReady,
+  testBlocker,
+  testResultView,
+  type ApiKeyField,
+  type ApiService,
+  type KeyStatus,
+  type KeyTestResult,
+} from '../../lib/apiKeys'
 import { hexToRgba } from '../../lib/format'
 import type { ApiKeySave } from '../../lib/runner'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { CheckIcon, ChevronIcon, EyeIcon, EyeOffIcon, KeyIcon } from '../common/Icons'
 
 type SaveFn = (name: string, value: string) => Promise<ApiKeySave>
+type TestFn = (service: string) => Promise<KeyTestResult>
+/** One service's Test state: running, and the last answer (cleared when one of its keys is saved). */
+type TestState = { busy: boolean; result?: KeyTestResult }
 const UNSET = { set: false, masked: '' }
 const QUIET = '#8b94a8'
 
@@ -22,6 +39,7 @@ export function ApiKeysDialog({
   onClose,
   onRefresh,
   onSave,
+  onTest,
 }: {
   open: boolean
   status: KeyStatus | null
@@ -30,16 +48,32 @@ export function ApiKeysDialog({
   onClose: () => void
   onRefresh: () => void
   onSave: SaveFn
+  /** Check a service's SAVED key against its host (POST /api/keys/test). */
+  onTest: TestFn
 }) {
   const panelRef = useRef<HTMLElement>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [tests, setTests] = useState<Record<string, TestState>>({})
   useDialogFocus(open, panelRef)
+
+  const runTest = async (id: string) => {
+    setTests((t) => ({ ...t, [id]: { busy: true, result: t[id]?.result } }))
+    const result = await onTest(id)
+    setTests((t) => ({ ...t, [id]: { busy: false, result } }))
+  }
+  // A saved key makes the last test stale: drop its answer (a running test keeps going).
+  const saveFor = (id: string): SaveFn => async (name, value) => {
+    const r = await onSave(name, value)
+    if (r.ok) setTests((t) => (t[id]?.result ? { ...t, [id]: { busy: t[id].busy } } : t))
+    return r
+  }
 
   // Fresh status on every open; start on the first required service that still needs a key.
   const wasOpen = useRef(false)
   useEffect(() => {
     if (open && !wasOpen.current) {
       onRefresh()
+      setTests({})
       setExpanded(API_SERVICES.find((s) => s.required && !serviceReady(s, status))?.id ?? null)
     }
     wasOpen.current = open
@@ -122,7 +156,9 @@ export function ApiKeysDialog({
                   status={status}
                   open={expanded === s.id}
                   onToggle={() => setExpanded((cur) => (cur === s.id ? null : s.id))}
-                  onSave={onSave}
+                  onSave={saveFor(s.id)}
+                  test={tests[s.id]}
+                  onTest={() => void runTest(s.id)}
                 />
               ))}
             </ul>
@@ -144,12 +180,16 @@ function ServiceRow({
   open,
   onToggle,
   onSave,
+  test,
+  onTest,
 }: {
   service: ApiService
   status: KeyStatus | null
   open: boolean
   onToggle: () => void
   onSave: SaveFn
+  test: TestState | undefined
+  onTest: () => void
 }) {
   const ready = serviceReady(service, status)
   const planned = servicePlanned(service)
@@ -160,6 +200,10 @@ function ServiceRow({
     : service.required
       ? { text: 'Required', color: '#f59e0b' }
       : { text: planned ? 'Not used yet' : 'Not set', color: QUIET }
+  const blocker = testBlocker(service, status)
+  const busy = !!test?.busy
+  const view = test?.result ? testResultView(test.result) : null
+  const viewColor = view ? TEST_TONE_COLOR[view.tone] : QUIET
 
   return (
     <li
@@ -187,6 +231,15 @@ function ServiceRow({
             {service.why}
           </span>
         </span>
+        {view && (
+          <span
+            role="img"
+            aria-label={`Last test: ${view.text}`}
+            title={view.text}
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ background: viewColor, boxShadow: `0 0 0 3px ${hexToRgba(viewColor, 0.18)}` }}
+          />
+        )}
         <span
           className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold"
           style={{ color: pill.color, background: hexToRgba(pill.color, 0.12), border: `1px solid ${hexToRgba(pill.color, 0.4)}` }}
@@ -217,9 +270,45 @@ function ServiceRow({
                     {u}
                   </span>
                 ))}
+                <motion.button
+                  type="button"
+                  onClick={onTest}
+                  disabled={busy || !!blocker}
+                  whileHover={busy || blocker ? undefined : { scale: 1.05 }}
+                  whileTap={busy || blocker ? undefined : { scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                  aria-label={`Test ${service.name} connection`}
+                  aria-busy={busy || undefined}
+                  title={blocker ?? `Check the saved ${service.name} key against its host`}
+                  className="ml-auto h-5 shrink-0 rounded-md border px-1.5 text-[10.5px] font-bold disabled:cursor-default disabled:opacity-45"
+                  style={{
+                    color: blocker ? QUIET : service.color,
+                    borderColor: hexToRgba(blocker ? QUIET : service.color, 0.45),
+                    background: hexToRgba(blocker ? QUIET : service.color, 0.07),
+                  }}
+                >
+                  {busy ? 'Testing…' : 'Test'}
+                </motion.button>
                 <span className="basis-full">
                   <span className="font-semibold">Get it:</span> {service.getIt}
                 </span>
+                {/* The live region is always mounted (so a result is announced) but sr-only — absolutely
+                    positioned, it is no flex item, so an empty one adds no row gap. The visible pill is a
+                    separate, aria-hidden line that exists only when there is a result. */}
+                <span className="sr-only" aria-live="polite">
+                  {view?.text ?? ''}
+                </span>
+                {view && (
+                  <span className="basis-full" aria-hidden="true">
+                    <span
+                      className="inline-block max-w-full truncate rounded px-1.5 py-px align-middle font-semibold"
+                      title={view.title}
+                      style={{ color: viewColor, background: hexToRgba(viewColor, 0.08), border: `1px solid ${hexToRgba(viewColor, 0.35)}` }}
+                    >
+                      {view.text}
+                    </span>
+                  </span>
+                )}
               </p>
               {service.keys.map((k) => (
                 <KeyField key={k.env} field={k} saved={status?.[k.env] ?? UNSET} color={service.color} onSave={onSave} />
@@ -361,9 +450,17 @@ function KeyField({
           {hint}
         </p>
       )}
-      <p className="col-start-2 col-end-4 text-[10.5px] font-semibold leading-snug empty:hidden" aria-live="polite" style={{ color: note?.error ? '#e11d48' : color }}>
+      {/* Same pattern: an always-mounted sr-only live region (no grid track, so no gap when empty) and a
+          visible, aria-hidden note only while there is one. display:none on the live region would drop
+          the announcement in some screen readers. */}
+      <span className="sr-only" aria-live="polite">
         {note?.text ?? ''}
-      </p>
+      </span>
+      {note?.text && (
+        <p className="col-start-2 col-end-4 text-[10.5px] font-semibold leading-snug" aria-hidden="true" style={{ color: note.error ? '#e11d48' : color }}>
+          {note.text}
+        </p>
+      )}
     </div>
   )
 }

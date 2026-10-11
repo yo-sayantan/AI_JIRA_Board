@@ -52,7 +52,7 @@
   "fixVersions": [
     "2026.11"
   ],
-  "description": "<p>A report is visible only to members of the tenant that owns it, with an explicit share list for exceptions.</p>",
+  "description": "<p>A report is visible only to members of the tenant that owns it, with an explicit share list for exceptions.</p><p>Security: closes the Checkmarx result <a href=\"https://cxone.example.com/results/demo-service/scan/sast?result-id=R7f3kQ2\">R7f3kQ2</a> (CWE-639 — a report readable across tenants). Triage also mentioned CVE-2023-26136; check whether it applies here.</p>",
   "acceptanceCriteria": [
     "Cross-tenant access returns 404, not 403",
     "Share list survives an owner change",
@@ -101,5 +101,37 @@
       "when": "2026-09-14",
       "text": "Opened"
     }
-  ]
+  ],
+  "vulnFixes": {
+    "scannedAt": "2026-10-08T06:00:00Z",
+    "project": "demo-service",
+    "branch": "feature/DEMO-243_report_permissions",
+    "baseBranch": "main",
+    "branchScanAt": "2026-10-05T07:30:00Z",
+    "baseScanAt": "2026-10-04T03:00:00Z",
+    "items": [
+      {
+        "target": "CVE-2023-26136",
+        "kind": "cve",
+        "status": "not-found",
+        "detail": "Not found — in neither scan: not on feature/DEMO-243_report_permissions (scan 2026-10-05) nor on main (scan 2026-10-04). Check the id on the ticket."
+      },
+      {
+        "target": "CWE-639",
+        "kind": "sast",
+        "status": "fixed",
+        "severity": "MEDIUM",
+        "location": "/src/reports/ReportAccess.java:41",
+        "detail": "Fixed — Insecure_Direct_Object_References gone on feature/DEMO-243_report_permissions (scan 2026-10-05) · was MEDIUM on main (scan 2026-10-04)."
+      },
+      {
+        "target": "result R7f3kQ2",
+        "kind": "result",
+        "status": "fixed",
+        "severity": "MEDIUM",
+        "location": "/src/reports/ReportAccess.java:41",
+        "detail": "Fixed — Insecure_Direct_Object_References gone on feature/DEMO-243_report_permissions (scan 2026-10-05) · was MEDIUM on main (scan 2026-10-04)."
+      }
+    ]
+  }
 }

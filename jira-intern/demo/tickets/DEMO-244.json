@@ -117,5 +117,24 @@
       "when": "2026-09-23",
       "text": "Opened"
     }
+  ],
+  "builds": [
+    {
+      "env": "qa",
+      "repo": "demo-service",
+      "branch": "bugfix/DEMO-244_dedupe_rows_followup",
+      "number": 64,
+      "result": "UNSTABLE",
+      "url": "https://jenkins.example.com/job/demo/job/demo-service-qa/job/bugfix%252FDEMO-244_dedupe_rows_followup/64/",
+      "at": "2026-10-08T05:10:00Z",
+      "durationMs": 377000,
+      "deployTarget": "qa",
+      "tests": {
+        "total": 301,
+        "failed": 0,
+        "skipped": 2
+      },
+      "failedStage": "Quality gate"
+    }
   ]
 }

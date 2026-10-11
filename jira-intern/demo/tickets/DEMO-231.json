@@ -74,5 +74,45 @@
       "when": "2026-09-28",
       "text": "Opened"
     }
+  ],
+  "builds": [
+    {
+      "env": "qa",
+      "repo": "demo-service",
+      "branch": "feature/DEMO-231_paginate_saved_reports",
+      "number": 88,
+      "result": "FAILURE",
+      "url": "https://jenkins.example.com/job/demo/job/demo-service-qa/job/feature%252FDEMO-231_paginate_saved_reports/88/",
+      "at": "2026-10-07T07:20:00Z",
+      "durationMs": 538000,
+      "deployTarget": "qa",
+      "tests": {
+        "total": 296,
+        "failed": 3,
+        "skipped": 0,
+        "failing": [
+          "reports.SavedReportPagingTest.lastPageIsPartial",
+          "reports.SavedReportPagingTest.cursorSurvivesRefresh",
+          "reports.ApiContractTest.pageSizeCapped"
+        ]
+      },
+      "failedStage": "Integration tests"
+    },
+    {
+      "env": "uat",
+      "repo": "demo-service",
+      "branch": "feature/DEMO-231_paginate_saved_reports",
+      "number": 31,
+      "result": "SUCCESS",
+      "url": "https://jenkins.example.com/job/demo/job/demo-service-uat/job/feature%252FDEMO-231_paginate_saved_reports/31/",
+      "at": "2026-10-06T15:05:00Z",
+      "durationMs": 602000,
+      "deployTarget": "uat",
+      "tests": {
+        "total": 296,
+        "failed": 0,
+        "skipped": 0
+      }
+    }
   ]
 }
