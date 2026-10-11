@@ -5,14 +5,18 @@
 // it is. The file is parsed exactly like jira-intern/_config.py load_secrets() and
 // runner-env.sh export_secrets_from_file(): KEY=VALUE, literal values, nothing is executed.
 //
-// Values never leave this module in full: status() returns masked secrets, and URLs (the
-// registry's `secret: false` fields) as they are. A new URL clears its service's secrets in the
+// Values never leave this module in full: status() returns masked secrets, and the registry's
+// `url` / `email` / `text` fields as they are. A new URL clears its service's secrets in the
 // same write, so a stored token is never sent to a host it was not entered for.
 import { randomBytes } from 'node:crypto'
 import { constants } from 'node:fs'
 import { open, readFile, rename, unlink } from 'node:fs/promises'
 
 const NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/
+/** A registry field's kind: secret (masked — the default), url, email or text (shown in full). */
+export const kindOf = (field) => field?.kind || 'secret'
+const PRINTABLE = /^[\x21-\x7e]+$/
+const EMAIL = /^[\x21-\x3f\x41-\x7e]+@[\x21-\x3f\x41-\x7e]+\.[\x21-\x3f\x41-\x7e]+$/
 const MAX_VALUE = 4096
 const BULLETS = '••••••••'
 
@@ -96,13 +100,16 @@ export function validateValue(field, raw) {
   // One line, always: a newline would let a value plant a second KEY=VALUE.
   if (/[\r\n\0]/.test(value)) return { error: 'value must be a single line' }
   if (/^["']|["']$/.test(value)) return { error: 'remove the surrounding quotes' }
-  if (field.secret === false) {
+  const kind = kindOf(field)
+  if (kind === 'url') {
     const error = urlError(value)
     return error ? { error } : { value }
   }
+  if (kind === 'email') return EMAIL.test(value) ? { value } : { error: 'must be an email address' }
+  if (kind === 'text') return PRINTABLE.test(value) ? { value } : { error: 'one word — letters, digits and symbols, no spaces' }
   // Tokens are printable ASCII. This also refuses a mask sent back as a key, and the unicode and
   // control characters that Python's strip() would trim but bash and JS keep.
-  if (!/^[\x21-\x7e]+$/.test(value)) return { error: 'paste the key exactly — letters, digits and symbols only, no spaces' }
+  if (!PRINTABLE.test(value)) return { error: 'paste the key exactly — letters, digits and symbols only, no spaces' }
   return { value }
 }
 
@@ -116,7 +123,7 @@ export function createSecretsStore({ file, registry }) {
     const out = {}
     for (const [name, field] of fields) {
       const value = env[name] || ''
-      out[name] = { set: !!value, masked: value ? (field.secret === false ? value : maskValue(value)) : '' }
+      out[name] = { set: !!value, masked: value ? (kindOf(field) === 'secret' ? maskValue(value) : value) : '' }
     }
     return out
   }
@@ -132,9 +139,9 @@ export function createSecretsStore({ file, registry }) {
     let next = upsertEnv(before, name, checked.value)
     // A token belongs to the host it was entered for: pointing the service somewhere new clears it.
     const cleared = []
-    if (field.secret === false && checked.value && checked.value !== (parseEnv(before)[name] || '')) {
+    if (kindOf(field) === 'url' && checked.value && checked.value !== (parseEnv(before)[name] || '')) {
       for (const [other, f] of fields) {
-        if (f.service !== field.service || f.secret === false || !parseEnv(next)[other]) continue
+        if (f.service !== field.service || kindOf(f) !== 'secret' || !parseEnv(next)[other]) continue
         next = upsertEnv(next, other, '')
         cleared.push(other)
       }

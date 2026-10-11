@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { API_SERVICES, canSave, keyCounts, missingRequired, serviceReady, type KeyStatus } from './apiKeys'
+import { API_SERVICES, canSave, keyCounts, missingRequired, servicePlanned, serviceReady, type KeyStatus } from './apiKeys'
 
 const jira = API_SERVICES.find((s) => s.id === 'jira')!
 const bitbucket = API_SERVICES.find((s) => s.id === 'bitbucket')!
@@ -25,6 +25,14 @@ describe('serviceReady', () => {
 
   it('no status yet means not ready', () => {
     expect(serviceReady(jira, null)).toBe(false)
+  })
+})
+
+describe('planned services', () => {
+  it('a service whose keys are all planned is marked as not used yet', () => {
+    const github = API_SERVICES.find((s) => s.id === 'github')!
+    expect(servicePlanned(github)).toBe(true)
+    expect(servicePlanned(jira)).toBe(false)
   })
 })
 

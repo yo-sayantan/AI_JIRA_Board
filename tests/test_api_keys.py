@@ -83,7 +83,10 @@ class RegistryContractTest(unittest.TestCase):
         worker = (ROOT / "ai-intern" / "worker.py").read_text()
         config = json.loads((ROOT / "config" / "jira-board.config.json").read_text())
         api_key_envs = {c.get("apiKeyEnv") for c in config["connector"].values() if isinstance(c, dict)}
+        planned = {k["env"] for s in REGISTRY["services"] for k in s["keys"] if k.get("planned")}
         for name in ENV_NAMES:
+            if name in planned:
+                continue  # listed so the user can add it now; the integration that reads it comes later
             with self.subTest(name=name):
                 self.assertTrue(
                     name in exported or f'"{name}"' in worker or name in api_key_envs,
@@ -101,6 +104,8 @@ class RegistryContractTest(unittest.TestCase):
             self.assertRegex(s["color"], r"^#[0-9a-f]{6}$")
             for k in s["keys"]:
                 self.assertRegex(k["env"], r"^[A-Z][A-Z0-9_]*$")
+                self.assertIn(k.get("kind", "secret"), ("secret", "url", "email", "text"), k["env"])
+                self.assertNotIn("secret", k, "use kind, not the old secret flag")
 
     def test_secrets_file_is_ignored_by_git_and_docker(self):
         self.assertRegex((ROOT / ".gitignore").read_text(), r"(?m)^\.env$")

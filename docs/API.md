@@ -93,8 +93,8 @@ The values live in `setup/.env` (`server/secrets.mjs`); the names that exist are
 
 | Route | Response |
 |---|---|
-| `GET /api/keys` | **200** `{ ok, keys: { ENV: { set, masked } } }` — one entry per key in `api-keys.json`. A secret's `masked` is first 4 + `••••••••` + last 4 (≥ 16 chars), all bullets below that — never the full value or its length; URL fields (`secret: false`) come back as they are · **500** `could not read setup/.env` |
-| `POST /api/keys` `body: { name, value }`, ≤ 8 KB | **200** `{ ok, keys, cleared }` — the new status, and the tokens cleared because their service's base URL changed (a new `*_URL` clears its service's secrets) · **400** `bad json` / `unknown key …` / `value must be a single line` / `remove the surrounding quotes` / `value too long` (> 4096) / a secret that is not printable ASCII / a URL that is not `https://` (`http://` only for localhost) or carries a user, password, `?` or `#` · **413** · **415** · **500** `could not write setup/.env` |
+| `GET /api/keys` | **200** `{ ok, keys: { ENV: { set, masked } } }` — one entry per key in `api-keys.json`. A secret's `masked` is first 4 + `••••••••` + last 4 (≥ 16 chars), all bullets below that — never the full value or its length; `url`, `email` and `text` fields come back as they are · **500** `could not read setup/.env` |
+| `POST /api/keys` `body: { name, value }`, ≤ 8 KB | **200** `{ ok, keys, cleared }` — the new status, and the tokens cleared because their service's base URL changed (a new `*_URL` clears its service's secrets) · **400** `bad json` / `unknown key …` / `value must be a single line` / `remove the surrounding quotes` / `value too long` (> 4096) / a secret that is not printable ASCII / a URL that is not `https://` (`http://` only for localhost) or carries a user, password, `?` or `#` / `must be an email address` / a text field with spaces · **413** · **415** · **500** `could not write setup/.env` |
 
 `name` must be in `api-keys.json`; `value: ''` removes the key. A save rewrites only that line (comments
 and unknown lines are kept) through one write queue — temp file, mode 0600, rename. The log records the key

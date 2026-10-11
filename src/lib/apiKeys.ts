@@ -3,14 +3,20 @@
 // setup/.env and only ever reach the browser masked (server/secrets.mjs).
 import registry from '../../setup/api-keys.json'
 
+/** secret: masked except its first and last characters (the default). url / email / text: shown in full. */
+export type KeyKind = 'secret' | 'url' | 'email' | 'text'
+
 export interface ApiKeyField {
   env: string
   label: string
-  /** false → a URL, shown in full; true → masked except its first and last characters. */
-  secret: boolean
+  kind?: KeyKind
   optional?: boolean
+  /** Can be saved now; the integration that reads it comes later. */
+  planned?: boolean
   hint?: string
 }
+
+export const kindOf = (field: ApiKeyField): KeyKind => field.kind ?? 'secret'
 
 export interface ApiService {
   id: string
@@ -26,7 +32,7 @@ export interface ApiService {
 /** Per env name: is it set, and how the server shows it (masked secret, or the URL itself). */
 export type KeyStatus = Record<string, { set: boolean; masked: string }>
 
-export const API_SERVICES: ApiService[] = registry.services
+export const API_SERVICES: ApiService[] = registry.services as ApiService[]
 
 /** The bullet run server/secrets.mjs puts in a mask. A value containing it is a mask, not a key. */
 const MASK_BULLET = '•'
@@ -35,6 +41,11 @@ const MASK_BULLET = '•'
 export function serviceReady(service: ApiService, status: KeyStatus | null): boolean {
   if (!status) return false
   return service.keys.filter((k) => !k.optional).every((k) => status[k.env]?.set)
+}
+
+/** Every key of the service is planned: nothing reads it yet. */
+export function servicePlanned(service: ApiService): boolean {
+  return service.keys.every((k) => k.planned)
 }
 
 /** Required services still missing a key. Empty until the status has loaded (no false alarm). */

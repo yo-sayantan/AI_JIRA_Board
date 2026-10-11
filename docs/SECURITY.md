@@ -64,7 +64,9 @@ file the same way). These are the only names ever read:
 |---|---|---|
 | `JIRA_PERSONAL_TOKEN` | fetch scripts, AI worker | Jira REST (required). |
 | `CONFLUENCE_PERSONAL_TOKEN` | fetch scripts, MCP wrapper | Confluence excerpts (optional). |
-| `BITBUCKET_PAT` / `ATLASSIAN_TOKEN` | fetch scripts, AI worker | Bitbucket REST: PR comments, changed files, build status (optional). |
+| `BITBUCKET_PAT` / `ATLASSIAN_TOKEN` | fetch scripts, AI worker | Bitbucket REST: PR comments, changed files, build status (optional). `ATLASSIAN_TOKEN` is the Atlassian Cloud token (its own row in the dialog); today it backs Bitbucket when no PAT is set. |
+| `CHECKMARX_API_KEY` (+ `CHECKMARX_BASE_URL` / `CHECKMARX_AUTH_URL`) | AI worker | Checkmarx One scan lookups for vulnerability-fix proof (optional). |
+| `JENKINS_USER` / `JENKINS_API_TOKEN`, `GITHUB_TOKEN` | nothing yet | Saved for coming integrations (`planned` in `setup/api-keys.json`). |
 | `JIRA_URL` / `CONFLUENCE_URL` / `BITBUCKET_URL` | fetch scripts, AI worker | Endpoint overrides. |
 | `JIRA_CA_BUNDLE` / `JIRA_INSECURE_TLS` | fetch scripts, AI worker | TLS posture (below). |
 | `CURSOR_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` | AI worker (`file_secret`, re-read per call, never exported) | Cloud AI providers. |
@@ -84,7 +86,7 @@ The board's key button writes `setup/.env` through `GET`/`POST /api/keys` (`serv
 
 - **No full value ever leaves the server.** `GET /api/keys` returns `{ set, masked }` per key: first 4
   + `••••••••` + last 4 for 16+ characters, all bullets below that — the length is never revealed.
-  Only the base-URL fields (`secret: false` in `setup/api-keys.json`) come back in full. The browser
+  Only `url`, `email` and `text` fields (their `kind` in `setup/api-keys.json`) come back in full. The browser
   keeps no copy; a new secret is typed into a password field (the saved mask is only its placeholder).
 - **Only known names, only clean values.** The name must be in `setup/api-keys.json`; the value must
   be one line, ≤ 4096 characters, without surrounding quotes. Secrets are printable ASCII only (which

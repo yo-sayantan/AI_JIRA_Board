@@ -187,7 +187,7 @@ saved from the board's API keys dialog. Config keys they override are in bracket
 
 | variable | meaning |
 |---|---|
-| `JIRA_PERSONAL_TOKEN` | Jira PAT (required). `BITBUCKET_PAT` (or `ATLASSIAN_TOKEN`) for Bitbucket. |
+| `JIRA_PERSONAL_TOKEN` | Jira PAT (required). `BITBUCKET_PAT` (or the Atlassian Cloud `ATLASSIAN_TOKEN`) for Bitbucket; `CHECKMARX_API_KEY` for Checkmarx One. All are entered with the key button. |
 | `JIRA_CA_BUNDLE` | Path to your corporate root-CA bundle (PEM). TLS verification is **on** by default; an on-prem Jira/Bitbucket behind a private CA fails with a certificate error until it is trusted. The bundle is **added** to the system roots (a public-CDN Jira keeps working). Unset, `~/.ai/ca-bundle.pem` is used when it exists — the easiest route, because both containers already mount `~/.ai` (see [SETUP.md](SETUP.md#step-6--trust-your-companys-certificate-authority-optional)). |
 | `JIRA_INSECURE_TLS` | `1` disables TLS verification for Jira and Bitbucket — **last resort only**: the bearer PAT then travels over an unverified channel. Every run announces it with `WARN: TLS verification disabled (JIRA_INSECURE_TLS=1)` on stderr. Prefer `JIRA_CA_BUNDLE`. |
 | `JIRA_URL` / `CONFLUENCE_URL` / `BITBUCKET_URL` | Override `endpoints.*Base` for one run or container. |

@@ -1028,8 +1028,9 @@ def _cloud_json(url, payload=None, headers=None, timeout=30):
 
 
 def _setting(name):
-    """Deployment value: container env first, then the secrets file (never printed)."""
-    return (os.environ.get(name) or SECRETS_ENV.get(name) or "").strip()
+    """Deployment value: container env first, then setup/.env — re-read, so a value saved in the
+    board's API keys dialog is used without a restart (never printed)."""
+    return (os.environ.get(name) or load_secrets().get(name) or "").strip()
 
 
 def _config_endpoints():

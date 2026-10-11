@@ -177,8 +177,11 @@ raised rows queue after active tickets. Render path heals JSON-wrapped model out
 ## API keys
 
 The one place to add tokens and keys — no file to edit by hand. One list, a row per service from
-`setup/api-keys.json` (Jira — required, Bitbucket, Confluence, Claude, Cursor, Gemini, OpenAI): lit in the service's
-colour when its non-optional keys are set, greyed when not. A row expands in place: why it is needed, **Used by**
+`setup/api-keys.json` (Jira — required, Atlassian Cloud, Bitbucket, Confluence, Jenkins, Checkmarx One, Claude, Cursor, Gemini, OpenAI, GitHub): lit in the service's
+colour when its non-optional keys are set, greyed when not. Each key has a kind — `secret` (masked), `url`, `email` or
+`text` (shown in full) — and keys marked `planned` say **not used yet**: they can be saved before the integration that reads
+them lands. Each key is one compact row (label · box · Save), with its hint underneath only when it has one; the browser's own
+password-reveal button is hidden so there is a single eye. A row expands in place: why it is needed, **Used by**
 chips, where to get it, and one field per key (the optional base-URL fields override `endpoints.*` from the config).
 An unsaved key shows an empty box and a greyed Save; a saved key shows its **masked** value in the box (first 4 + bullets + last 4;
 keys under 16 characters show bullets only, and the length is never revealed) with Save greyed until you type a new one.
