@@ -183,8 +183,10 @@ const PLANS = {
       return { notConfigured: `site URL must be your Cloud site, e.g. https://your-org.atlassian.net (not ${b.host})` }
     return {
       host: b.host,
+      // Scoped API tokens are rejected on the site URL and only work through Atlassian's gateway.
+      gateway: { tenantInfo: `${b.url}/_edge/tenant_info`, myself: (cloudId) => `https://api.atlassian.com/ex/jira/${encodeURIComponent(cloudId)}/rest/api/3/myself` },
       hints: {
-        401: 'Key rejected — the email must be the one on your Atlassian account (id.atlassian.com → Profile), not a company username or directory address',
+        401: 'Key rejected — use the email of your Atlassian account (not a directory address), and a token that is still valid',
         403: 'Access denied — check the email is the one the token belongs to, and that the site is your-org.atlassian.net',
       },
       request: { method: 'GET', url: `${b.url}/rest/api/3/myself`, headers: { Authorization: basic(s.ATLASSIAN_EMAIL, s.ATLASSIAN_TOKEN), Accept: 'application/json' } },
@@ -378,6 +380,20 @@ export function createKeyChecker({ loadSettings, config, request = httpRequest, 
     return tls
   }
 
+  /** Retry an Atlassian "who am I" through the gateway; the display name on success, else null. */
+  async function tryGateway(plan, tls) {
+    try {
+      const info = await request({ method: 'GET', url: plan.gateway.tenantInfo, headers: { Accept: 'application/json' }, timeoutMs, maxBytes, tls })
+      const cloudId = Number(info.status) === 200 ? str(parseJson(info)?.cloudId) : ''
+      if (!cloudId || !/^[\w-]{8,64}$/.test(cloudId)) return null
+      const res = await request({ ...plan.request, url: plan.gateway.myself(cloudId), timeoutMs, maxBytes, tls })
+      if (Number(res.status) < 200 || Number(res.status) >= 300) return null
+      return plan.onOk(parseJson(res))
+    } catch {
+      return null
+    }
+  }
+
   async function run(service) {
     const s = await loadSettings()
     const started = Date.now()
@@ -406,6 +422,15 @@ export function createKeyChecker({ loadSettings, config, request = httpRequest, 
     if (code >= 200 && code < 300) {
       const verdict = plan.onOk(parseJson(res))
       return done(typeof verdict === 'string' ? { status: 'ok', httpStatus: code, detail: verdict } : { ...verdict, httpStatus: code })
+    }
+    // 401 on the site: a scoped token (ATATT…) works only via api.atlassian.com/ex/jira/<cloudId>. The cloud
+    // id is public (anonymous tenant_info), so look it up and retry the same call there before giving up.
+    if (code === 401 && plan.gateway) {
+      const viaGateway = await tryGateway(plan, tls)
+      if (viaGateway) return done({ status: 'ok', httpStatus: 200, detail: `${viaGateway} · scoped token, via api.atlassian.com` })
+      const mapped401 = statusFor(401)
+      mapped401.detail = `${plan.hints?.[401] ?? mapped401.detail} · also tried the scoped-token gateway`
+      return done({ ...mapped401, httpStatus: 401 })
     }
     const mapped = statusFor(code)
     // A probe may explain a refusal better than the generic text (e.g. Atlassian's usual 403 causes).

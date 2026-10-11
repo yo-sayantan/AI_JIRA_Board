@@ -111,7 +111,7 @@ takes base URLs from the saved `*_URL` keys, else the config's `endpoints`, and 
 | `jira` | `GET {JIRA_URL \| endpoints.jiraBase}/rest/api/2/myself`, `Authorization: Bearer JIRA_PERSONAL_TOKEN` → "Signed in as <displayName>" |
 | `confluence` | `GET {CONFLUENCE_URL \| endpoints.confluenceBase}/rest/api/user/current`, Bearer `CONFLUENCE_PERSONAL_TOKEN` |
 | `bitbucket` | `GET {BITBUCKET_URL \| endpoints.bitbucketBase}/rest/api/1.0/projects?limit=1`, Bearer `BITBUCKET_PAT` (else `ATLASSIAN_TOKEN`) |
-| `atlassian` | `GET {ATLASSIAN_SITE_URL}/rest/api/3/myself`, Basic `ATLASSIAN_EMAIL:ATLASSIAN_TOKEN` (not-configured "needs email + site URL" without them) |
+| `atlassian` | `GET {ATLASSIAN_SITE_URL}/rest/api/3/myself`, Basic `ATLASSIAN_EMAIL:ATLASSIAN_TOKEN` (not-configured "needs email + site URL" without them) On a 401 it retries once through Atlassian's gateway (`api.atlassian.com/ex/jira/<cloudId>/…`, cloud id read anonymously from the site's `/_edge/tenant_info`) — **scoped API tokens** (`ATATT…`) are rejected on the site URL and work only there; success says "scoped token, via api.atlassian.com". |
 | `jenkins` | `GET {first https URL in jenkins.jobs}api/json?tree=name`, Basic `JENKINS_USER:JENKINS_API_TOKEN` |
 | `checkmarx` | `POST` the token URL (`CHECKMARX_AUTH_URL` \| `endpoints.checkmarxAuthUrl`, else `<base>/auth/realms/<tenant>/protocol/openid-connect/token`), form `grant_type=refresh_token&client_id=ast-app&refresh_token=CHECKMARX_API_KEY` — as `jira-intern/checkmarx.py`; a 400 `invalid_grant` is `auth-failed` |
 | `claude` | `GET https://api.anthropic.com/v1/models`, `x-api-key`, `anthropic-version: 2023-06-01` |
