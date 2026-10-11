@@ -13,8 +13,7 @@ describe('the demo folder', () => {
     expect(Date.parse(raw._demoNow)).not.toBeNaN()
   })
 
-  it('names every ticket in the folder listing', () => {
-    // tickets/ is generated from data.json by `npm run demo:split`; keys must stay file-safe.
+  it('uses Jira-shaped keys', () => {
     for (const t of raw.tickets) expect(t.key).toMatch(/^[A-Z][A-Z0-9]*-[\d-a-z]+$/)
   })
 })

@@ -29,7 +29,6 @@ these files. All of them are git-ignored; none is ever needed in a commit.
 | `reports/.base-<KEY>.json` | AI worker | AI worker | Snapshot of the deterministic base while enriching; restored on failure, deleted after. |
 | `reports/index.js` | `local-runner/sync-reports.mjs` | the browser on `file://` | `window.__JIRA_PR_REPORTS__` — every report inlined, plus `generating`. |
 | `demo/data.json` | you (by hand) | the board in Demo mode, `src/demo/data.ts` (compiled copy) | The sample board behind Settings → Demo mode — invented tickets, kept beside the real dump so they can be read and edited. **Tracked in git**, unlike the real dump. |
-| `demo/tickets/*.json` | `npm run demo:split` | you, reading them | One file per sample ticket, generated from `demo/data.json`. |
 | `models/` | Ollama (pulls), you (`*.gguf`) | `server/ollama.mjs` (gates the container), Ollama (`/root/.ollama`) | Ollama's whole store plus hand-dropped weights. The AI-Ollama container runs only when Settings' toggle is on **and** this holds a model. |
 
 Paths the Node server knows are listed in `server/config.mjs` `PATHS`; the Python side builds the

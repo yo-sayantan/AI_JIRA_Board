@@ -43,7 +43,7 @@ AI agent to make a correct change without re-deriving the architecture.
 | `setup/` | Templates ONLY (secrets, personal config, MCP, Desktop launcher) — the guide for them is `docs/SETUP.md`. Shipped into the Docker image. |
 | `help/` | **The help guide** (the board's **?** button): plain HTML pages that open straight from disk, numbered in deploy order — `00-start-here.html` … `10-developer-documentation.html`, `developer-doc-viewer.html` (renders `docs/*.md`), `legal-privacy-and-accessibility.html`. One `help.css`, one `help.js`, and `help-data.js` — a GENERATED copy of `ai-intern/models.json`, `cursor-prices.json`, `cloud-models.json` and `docs/*.md` so tables and docs work offline (`scripts/build-help-data.mjs`; a test fails when it is stale). |
 | `docs/` | **Developer documentation** (markdown, see index at the bottom). The only `.md` files outside are runtime inputs, not docs: `jira-intern/prompts/*.md` (LLM prompts read by scripts) and `.github/pull_request_template.md` (GitHub requires its location). |
-| `jira-intern/demo/` | Demo mode's sample board: `data.json` (the source — tracked in git, unlike the real dump), `tickets/*.json` (per-ticket mirror, `npm run demo:split`), `README.md`. |
+| `jira-intern/demo/` | Demo mode's sample board: `data.json` (the only source — tracked in git, unlike the real dump) and `README.md`. |
 | `src/demo/` | Demo mode's code: loads + re-dates `jira-intern/demo/data.json`, two canned PR reports, and a browser-side mirror of the move gates. Driven by the `demoMode` feature toggle; `runner.ts::setDemoMode` blocks every server call while it is on. |
 | `tests/` | Python unittests (`npm test`). |
 

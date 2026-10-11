@@ -205,13 +205,6 @@ def branch_head(proj, slug, branch):
     return (max(stamps) / 1000.0 if stamps else None), False
 
 
-def latest_commit_time(proj, slug, branch):
-    """Epoch seconds of the newest commit reachable from `branch`, or None when Bitbucket
-    cannot say (branch deleted, network down). A None never ranks a branch — it only keeps
-    it from winning on missing data."""
-    return branch_head(proj, slug, branch)[0]
-
-
 def _bb_pr_as_devstatus(p, slug):
     """A Bitbucket REST pull request in the shape dev-status uses, so `_to_pr` handles both."""
     from_ref, to_ref = p.get("fromRef") or {}, p.get("toRef") or {}

@@ -6,7 +6,7 @@
 //                                          (AGENT_BIN, AGENT_PROMPT_FLAG, AGENT_EXTRA_ARGS,
 //                                           AGENT_MODEL_FLAG, AGENT_SECRETS, AGENT_API_KEY_ENV,
 //                                           AGENT_INSTALL_HINT, AGENT_CONNECTOR, MODEL_MAIN,
-//                                           MODEL_SUMMARY, TIMEOUT_* …)
+//                                           TIMEOUT_* …)
 //   node config.mjs policy               → the generated MCP POLICY block (allow + read/write)
 //   node config.mjs render <prompt.md>   → prompt with {{TOKENS}} substituted, to stdout
 //
@@ -217,10 +217,8 @@ function shellenv() {
   out.push(`AGENT_INSTALL_HINT=${shq(conn.install ?? '')}`)
   out.push(`REQUIRED_APPROVALS=${shq(cfg.app?.requiredApprovals ?? 2)}`)
   out.push(`MODEL_MAIN=${shq(cfg.models?.main ?? 'auto')}`)
-  out.push(`MODEL_SUMMARY=${shq(cfg.models?.summary ?? 'auto')}`)
   out.push(`TIMEOUT_DAILY=${shq(cfg.timeouts?.dailySec ?? 1800)}`)
   out.push(`TIMEOUT_WEEKLY=${shq(cfg.timeouts?.weeklySec ?? 7200)}`)
-  out.push(`TIMEOUT_SUMMARY=${shq(cfg.timeouts?.summarySec ?? 600)}`)
   out.push(`TIMEOUT_REFRESH=${shq(cfg.timeouts?.refreshSec ?? 600)}`)
   // PR Readiness Reports (local-runner/pr-report.sh + pr-reports-backfill.sh).
   out.push(`MODEL_REPORT=${shq(cfg.models?.report ?? 'auto')}`)

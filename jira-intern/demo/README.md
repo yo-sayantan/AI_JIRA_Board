@@ -7,21 +7,11 @@ mode is on.
 
 | File | What it is |
 |---|---|
-| `data.json` | **The source of truth.** The whole sample dump, same shape as the real `jira-intern/data.json` (`src/types.ts::JiraData`). The board loads this. |
-| `tickets/<KEY>.json` | One file per ticket — the easy way to read them by hand. Generated from `data.json`. |
-| `tickets/completed-<KEY>.json` | One file per Completed-archive row. |
-| `tickets/raised-<KEY>.json` | One file per Raised-by-me row. |
-| `build.mjs` | Regenerates `tickets/` from `data.json`. |
+| `data.json` | **The only source.** The whole sample dump, same shape as the real `jira-intern/data.json` (`src/types.ts::JiraData`). The board loads this. |
 
 ## Editing
 
-Edit `data.json`, then:
-
-```bash
-npm run demo:split      # refresh tickets/ to match
-```
-
-With the board **served** (`npm run serve`, or Docker), Demo mode fetches this `data.json`, so a
+Edit `data.json`. With the board **served** (`npm run serve`, or Docker), Demo mode fetches this `data.json`, so a
 reload shows your edits — no rebuild needed. Opened from `file://`, the board falls back to the
 copy compiled into `dist/index.html`, which is refreshed by `npm run build`.
 
