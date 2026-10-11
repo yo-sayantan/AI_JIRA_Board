@@ -81,6 +81,8 @@ Overlay (indigo megaphone chip, `open/total` count) for every non-sub-task ticke
 - Row peek: AI brief (when present), full description (scrollable), field grid, hand-off trail.
 - Filters: status buckets (Open / In progress / Review-QA / Fixed), assignment
   (With me / With others / Unassigned / Reassigned), projects, types; same search grammar.
+  "With me" reads the stored `"Display Name (ID)"` assignee through `format.ts::isAssignedToMe`
+  (id against `user.accountId`, else name against `user.name`).
 - **Hard refresh** button: full re-pull of every reported ticket (existing rows update, new ones
   appear) — these tickets never ride the normal board refresh once someone else works them.
   Shows a "fetched X ago" stamp (`raisedAt`).

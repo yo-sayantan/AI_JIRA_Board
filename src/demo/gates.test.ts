@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Ticket } from '../types'
 import { MOVE_TARGETS } from '../lib/columns'
+import { isAssignedToMe } from '../lib/format'
 import { checkMove, DONE_LOCKED, isQaTicket, moveTargetOf, readinessOf } from '../lib/moveRules'
 import { demoDump } from './index'
 import { demoMoveVerdict, evaluateMove } from './gates'
@@ -105,6 +106,8 @@ describe('demo dump', () => {
     expect(d.completed.some((c) => c.mine === false)).toBe(true)
     expect((d.raised ?? []).some((r) => (r.assigneeLog ?? []).length >= 4)).toBe(true)
     expect((d.raised ?? []).some((r) => r.assignee == null)).toBe(true)
+    // The Raised "With me" chip needs a row handed back to the demo user.
+    expect((d.raised ?? []).some((r) => isAssignedToMe(r.assignee, d.user))).toBe(true)
   })
 
   it('never points at a real host', () => {

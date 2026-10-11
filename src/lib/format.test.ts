@@ -9,11 +9,38 @@ describe('dtf', () => {
 })
 
 describe('isAssignedToMe', () => {
+  const me = { name: 'Alex Doe', accountId: 'DEV001' }
+
   it('requires an exact match, not a substring', () => {
-    expect(isAssignedToMe('sayan', { name: 'sayantan' })).toBe(false)
-    expect(isAssignedToMe('Sayantan', { name: 'sayantan' })).toBe(true)
+    expect(isAssignedToMe('ale', { name: 'alex' })).toBe(false)
+    expect(isAssignedToMe('Alex', { name: 'alex' })).toBe(true)
     expect(isAssignedToMe('a@b.c', { email: 'a@b.c' })).toBe(true)
     expect(isAssignedToMe('', { name: 'x' })).toBe(false)
+    expect(isAssignedToMe('Alex Doe', null)).toBe(false)
+  })
+
+  it('matches a plain display name or a bare id', () => {
+    expect(isAssignedToMe('  alex doe ', me)).toBe(true)
+    expect(isAssignedToMe('dev001', me)).toBe(true)
+    expect(isAssignedToMe('Sam Roe', me)).toBe(false)
+  })
+
+  // The intern writes every person as "Display Name (ID)" (_jira.py::person_fmt).
+  it('matches the "Display Name (ID)" form the intern writes', () => {
+    expect(isAssignedToMe('Alex Doe (DEV001)', me)).toBe(true)
+    expect(isAssignedToMe('Doe, Alex (dev001)', { accountId: 'DEV001' })).toBe(true)
+    expect(isAssignedToMe('alex doe (DEV001)', { name: 'Alex Doe' })).toBe(true)
+    expect(isAssignedToMe('Doe, Alex (DEV001)', { name: 'Doe, Alex' })).toBe(true)
+    expect(isAssignedToMe('(DEV001)', me)).toBe(true)
+  })
+
+  it('does not match someone else in that form', () => {
+    expect(isAssignedToMe('Sam Roe (DEV002)', me)).toBe(false)
+    expect(isAssignedToMe('Alex Doe (DEV0011)', { accountId: 'DEV001' })).toBe(false)
+    expect(isAssignedToMe('Alex Doer (DEV002)', { name: 'Alex Doe' })).toBe(false)
+    // A namesake: same display name, different id — the id decides when both sides have one.
+    expect(isAssignedToMe('Alex Doe (DEV002)', me)).toBe(false)
+    expect(isAssignedToMe('Alex Doe ()', { accountId: 'DEV001' })).toBe(false)
   })
 })
 

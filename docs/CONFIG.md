@@ -52,8 +52,8 @@ validation loudly. An invalid timezone falls back to UTC; legacy `IST` normalize
 ## `user` — who you are
 | key | meaning |
 |---|---|
-| `name` | Your display name exactly as Jira shows it. Used for prompt tokens and attribution only — "assigned to me" is resolved by Jira itself (`currentUser()` in JQL), not by matching this string. |
-| `accountId` | Your corporate user id (e.g. `ABC1234`). Decides which sub-tasks are *mine*: compared case-insensitively and **exactly** with the assignee's `name` / `key` / `accountId`; the display name only counts when it contains the id as a whole word. |
+| `name` | Your display name exactly as Jira shows it. Used for prompt tokens and attribution; the fetch resolves "assigned to me" through Jira itself (`currentUser()` in JQL). In the board it is the fallback for spotting *me* in a stored assignee (`"Display Name (ID)"`) when there is no id to compare — `src/lib/format.ts::isAssignedToMe`. |
+| `accountId` | Your corporate user id (e.g. `ABC1234`). Decides which sub-tasks are *mine*: compared case-insensitively and **exactly** with the assignee's `name` / `key` / `accountId`; the display name only counts when it contains the id as a whole word. The board does the same on the dump (Raised "With me", the drawer's sub-ticket tree): the `(ID)` suffix of a stored assignee must equal this id — a namesake with another id is not you. |
 | `email` | Informational, plus an exact match against the assignee's `emailAddress`. |
 
 ## `endpoints` — your company's servers
