@@ -61,7 +61,7 @@
       <main class="content">
       <h2 id="key-dialog">1 · The API keys dialog</h2>
       <p>Every token the board uses is added in the board itself — no file to edit. Click the <b>key button</b> in the
-        header, beside Settings (it shows an amber dot while the Jira token is missing; a new install shows
+        header, beside Settings (it shows an amber dot while the Jira token is missing, and turns <b>orange</b> or <b>red</b> when a saved key's latest call failed; a new install shows
         <b>Add API keys first</b> instead). The window works like Settings: a sidebar groups the services (Atlassian · Code hosting · CI/CD &amp; security · AI models, A–Z inside each); a service is lit in its colour once its keys are saved, and the selected one fills the panel beside it.</p>
       <ul>
         <li>Pick a service to see <b>why</b> it is needed, what <b>uses</b> it, and <b>where to get</b> the key.</li>
@@ -71,7 +71,10 @@
         <li>Keys marked <b>Not used yet</b> can be saved now for an integration that is coming.</li>
         <li><b>Test</b> (in an open row, once its keys are saved) checks the saved key against its host with one read-only
           call and shows the answer inline: <b>✓ Connected</b> with who you are signed in as, <b>Key rejected (401)</b>,
-          <b>Can't reach host</b>, a certificate problem, or what is still missing. A coloured dot stays on the row.</li>
+          <b>Can't reach host</b>, a certificate problem, or what is still missing. It refines the row's dot straight away.</li>
+        <li><b>The dot on each service is permanent</b> and follows the latest <em>real</em> calls the board and its AI make with that key (the refresh, the reports, the AI briefs, Test) — you see a problem without pressing Test:
+          <b style="color:#17c47a">green</b> = working · <b style="color:#ff8a1f">orange</b> = needs attention (wrong or unreachable URL, network, certificate, server error) ·
+          <b style="color:#e11d48">red</b> = key rejected or access denied · <b>no dot</b> = never called yet. It turns orange or red as soon as a real call fails and green again as soon as one works. Hover it for <em>Working · last OK 2h ago</em> or <em>Key rejected (401) since 09:14</em>. A missing ticket or branch (a 404 on one lookup) is not a failure.</li>
         <li>Behind a corporate proxy: the Test button's cloud checks (Claude, OpenAI, Gemini, Cursor, GitHub) do
           <b>not</b> go through <code class="inl">HTTPS_PROXY</code> — the board's server calls them directly — so where the
           internet is reachable only through a proxy they may say <b>Can't reach host</b> even though the key is fine and the

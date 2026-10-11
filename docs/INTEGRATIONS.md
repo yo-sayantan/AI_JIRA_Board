@@ -91,6 +91,17 @@ authoritative, includes reviewers/approvals); a Bitbucket **key-scan** of hinted
 - Review activity never bumps Jira's `updated` → even "unchanged" tickets re-check PRs on the
   daily fast path.
 
+## Service health (the API keys dialog's dots)
+
+Every outside client records what a real call saw via `jira-intern/_health.py` (`record`, `record_ok`, `record_exception`),
+and the Test button records through `server/health.mjs`: one file per service id from `setup/api-keys.json`, read by
+`GET /api/keys/health`. Call sites: `_jira.get_json` / `jira_post` (`jira`, `bitbucket`), `jenkins._get`, `checkmarx._call`
+(a 400 on the token exchange = key rejected), `ai-intern/worker.py` `http_json` / `_cloud_json` (cloud host → `claude`,
+`cursor`, `gemini`, `openai`; Ollama is not a keyed service) and `mcp_get` (Bitbucket / Jira reads). Mapping: 2xx ok ·
+401 `auth-failed` · 403 `forbidden` · 429 / 5xx / redirect `error` · timeout, DNS, refused `unreachable` · certificate `tls`.
+Other 4xx — notably the **404 of a per-ticket / per-branch lookup** (Jenkins "no build for this branch", Checkmarx "no
+project") — say nothing about the service and are never recorded. Red = 401 / 403 (the key), orange = everything else.
+
 ## Jenkins (multibranch pipelines, JSON API)
 
 `jira-intern/jenkins.py` reads the **latest build of each of a ticket's branches, per environment**,

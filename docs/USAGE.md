@@ -6,7 +6,7 @@ A tour of what's on screen and how to drive it.
 
 - **Header** — your name, last-fetch freshness, the current-sprint pill (name · dates · working
   days left · progress bar), live **search**, light/dark toggle, **Refresh/Reload**, and the
-  **API keys** key button (amber dot until the Jira token is saved — see below).
+  **API keys** key button (amber dot until the Jira token is saved; **orange** or **red** when a saved key's latest real call failed — see below).
 - **Stat chips** — one per column plus scope toggles. Click to filter; click again to clear.
 - **Board** — the kanban columns: To Do · Blocked · In Progress · In Review · QA · Done. Any empty column folds to a slim rail so the columns with cards get the width (it opens to a compact *Drop here* zone while you drag); QA has a separate **QA In Progress** space under it, in the same column, for tickets the QA team has picked up (like On Hold under Blocked, but you cannot drop on it).
 - **QA lane** — QA and QA In Progress are for QA tickets (raised by you or linked to your work — type QA/Test, a `QA` label, or a "QA:" title). A ticket of yours can't be dropped there, and a QA ticket can only go to QA · QA In Progress · Blocked · On Hold · Done.
@@ -123,7 +123,7 @@ integrations that are coming. Pick a service to see why it is needed, what uses 
 and **Save**. A saved key shows masked (first and last few characters only); paste a new key into the box to replace it,
 or **Remove** it (asks to confirm). **Test** checks the saved key against its host and answers inline — **✓ Connected**
 with the account name, **Key rejected (401)**, **Can't reach host**, a certificate problem, or what is still missing — and
-leaves a coloured dot on the row. Keys are stored in `setup/.env` on this machine — git-ignored, never
+refines the row's dot. **The dot on every service is permanent**: it follows the latest real calls the board and its AI make with that key, so you see a problem without pressing Test — green **working** · orange **needs attention** (wrong or unreachable URL, network, certificate, server error) · red **key rejected / access denied** · no dot = never called; hover it for *Working · last OK 2h ago* or *Key rejected (401) since 09:14*. The header key button carries the same colour (red beats orange) when any saved key needs attention. Keys are stored in `setup/.env` on this machine — git-ignored, never
 served — and take effect on the next fetch or AI call, no restart. A brand-new board with no data yet
 shows **Add API keys first** on its empty screen. The button is hidden when the board is opened as a file.
 
