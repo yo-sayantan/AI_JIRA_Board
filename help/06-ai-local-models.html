@@ -23,6 +23,7 @@
         <a class="nl" href="08-other-ways-to-run.html"><span class="n">8</span>Other ways</a>
         <a class="nl" href="09-troubleshooting-and-faq.html"><span class="n">9</span>Troubleshooting</a>
         <a class="nl" href="10-developer-documentation.html">Docs</a>
+        <a class="nl" href="11-api-keys-and-integrations.html"><span class="n">11</span>Keys</a>
       </div>
     </nav>
 
@@ -51,6 +52,7 @@
         <a href="08-other-ways-to-run.html">08 · Other ways to run</a>
         <a href="09-troubleshooting-and-faq.html">09 · Troubleshooting and FAQ</a>
         <a href="10-developer-documentation.html">10 · Developer documentation</a>
+        <a href="11-api-keys-and-integrations.html">11 · API keys and integrations</a>
         <a href="legal-privacy-and-accessibility.html">Policies &amp; privacy</a>
       </aside>
 
@@ -184,8 +186,11 @@ ollama create qwen2.5-coder:7b -f /tmp/Modelfile</pre>
       </div>
 
       <div class="note warn" id="gap"><b>Honest gap.</b> Local models (including Gemma / GPT-OSS / nano) read the intern
-        volume and live Jira/Bitbucket REST (same tokens as Cursor MCP). CI, Checkmarx and live Dynatrace stay
-        <b>Not verified</b> until dedicated REST is added.</div>
+        volume and live Jira/Bitbucket REST (same tokens as Cursor MCP). Live Dynatrace stays
+        <b>Not verified</b> until dedicated REST is added. CI and Checkmarx are the exceptions once set up: the
+        "CI green" gate is read from the ticket's latest Jenkins builds, and on a vulnerability-fix ticket the
+        "Security scan (Checkmarx) clean" gate from which of the vulnerabilities it names Checkmarx One shows as fixed
+        on its branch (both fetched with the board, no AI needed).</div>
 
       
       <nav class="pager" aria-label="Previous and next page">

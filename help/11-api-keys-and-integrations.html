@@ -1,0 +1,197 @@
+<!doctype html>
+<!-- Jira Board Help — API keys and integrations. Plain HTML: open this file straight from disk, no server needed. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%236d5bd0%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%233b82f6%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20x%3D%224%22%20y%3D%224%22%20width%3D%2256%22%20height%3D%2256%22%20rx%3D%2216%22%20fill%3D%22url(%23g)%22%2F%3E%3Cpath%20d%3D%22M23%2026a9%209%200%200%201%2018%200c0%204.5-3.4%206.3-5.8%208-1.9%201.3-3.2%202.6-3.2%205%22%20fill%3D%22none%22%20stroke%3D%22%23ffffff%22%20stroke-width%3D%225.6%22%20stroke-linecap%3D%22round%22%2F%3E%3Ccircle%20cx%3D%2232%22%20cy%3D%2249%22%20r%3D%223.6%22%20fill%3D%22%23ffffff%22%2F%3E%3C%2Fsvg%3E" />
+    <title>Jira Board Help — API keys and integrations</title>
+    <link rel="stylesheet" href="help.css" />
+  </head>
+  <body>
+    <nav class="top" aria-label="Help pages">
+      <div class="inner">
+        <span class="brand"><a href="00-start-here.html">🎫 Jira Board Help</a></span>
+        <a class="nl" href="00-start-here.html">Start</a>
+        <a class="nl" href="01-requirements.html"><span class="n">1</span>Requirements</a>
+        <a class="nl" href="02-install-the-tools.html"><span class="n">2</span>Install</a>
+        <a class="nl" href="03-get-the-code-with-git.html"><span class="n">3</span>Git</a>
+        <a class="nl" href="04-configure-token-and-settings.html"><span class="n">4</span>Configure</a>
+        <a class="nl" href="05-deploy-with-docker.html"><span class="n">5</span>Deploy</a>
+        <a class="nl" href="06-ai-local-models.html"><span class="n">6</span>Local AI</a>
+        <a class="nl" href="07-ai-cloud-models-and-prices.html"><span class="n">7</span>Cloud AI</a>
+        <a class="nl" href="08-other-ways-to-run.html"><span class="n">8</span>Other ways</a>
+        <a class="nl" href="09-troubleshooting-and-faq.html"><span class="n">9</span>Troubleshooting</a>
+        <a class="nl" href="10-developer-documentation.html">Docs</a>
+        <a class="nl" href="11-api-keys-and-integrations.html" aria-current="page"><span class="n">11</span>Keys</a>
+      </div>
+    </nav>
+
+    <header class="hero page">
+      <div class="logo">🔑</div>
+      <span class="step-of">Reference</span><h1>API keys and integrations</h1>
+      <p class="sub">The key button, what each key unlocks, and how to connect Jenkins and Checkmarx One.</p>
+    </header>
+
+    <div class="layout">
+      <aside class="toc" aria-label="On this page">
+        <p class="toc-h">On this page</p>
+        <a href="#key-dialog">The API keys dialog</a>
+        <a href="#what-each-key-unlocks">What each key unlocks</a>
+        <a href="#jenkins">Connect Jenkins</a>
+        <a href="#checkmarx">Connect Checkmarx One</a>
+        <a href="#what-shows-where">What shows where</a>
+        <a href="#keys-troubleshooting">Troubleshooting</a>
+        <p class="toc-h">Guide pages</p>
+        <a href="00-start-here.html">00 · Start here</a>
+        <a href="01-requirements.html">01 · Requirements — what to install</a>
+        <a href="02-install-the-tools.html">02 · Install the tools</a>
+        <a href="03-get-the-code-with-git.html">03 · Get the code with Git</a>
+        <a href="04-configure-token-and-settings.html">04 · Configure your token and settings</a>
+        <a href="05-deploy-with-docker.html">05 · Deploy with Docker</a>
+        <a href="06-ai-local-models.html">06 · AI with local models</a>
+        <a href="07-ai-cloud-models-and-prices.html">07 · AI with cloud models and prices</a>
+        <a href="08-other-ways-to-run.html">08 · Other ways to run</a>
+        <a href="09-troubleshooting-and-faq.html">09 · Troubleshooting and FAQ</a>
+        <a href="10-developer-documentation.html">10 · Developer documentation</a>
+        <a href="11-api-keys-and-integrations.html" aria-current="page">11 · API keys and integrations</a>
+        <a href="legal-privacy-and-accessibility.html">Policies &amp; privacy</a>
+      </aside>
+
+      <main class="content">
+      <h2 id="key-dialog">1 · The API keys dialog</h2>
+      <p>Every token the board uses is added in the board itself — no file to edit. Click the <b>key button</b> in the
+        header, beside Settings (it shows an amber dot while the Jira token is missing; a new install shows
+        <b>Add API keys first</b> instead). You get one row per service; a row is lit in its colour once its keys are saved.</p>
+      <ul>
+        <li>Click a row to see <b>why</b> it is needed, what <b>uses</b> it, and <b>where to get</b> the key.</li>
+        <li>Paste the value and <b>Save</b>. A secret comes back masked (first and last few characters only); URLs, e-mail
+          addresses and user names are shown in full.</li>
+        <li>Saving a new <b>base URL</b> clears that service's token, so a token is never sent to a host it was not entered for.</li>
+        <li>Keys marked <b>Not used yet</b> can be saved now for an integration that is coming.</li>
+        <li><b>Test</b> (in an open row, once its keys are saved) checks the saved key against its host with one read-only
+          call and shows the answer inline: <b>✓ Connected</b> with who you are signed in as, <b>Key rejected (401)</b>,
+          <b>Can't reach host</b>, a certificate problem, or what is still missing. A coloured dot stays on the row.</li>
+        <li>Behind a corporate proxy: the Test button's cloud checks (Claude, OpenAI, Gemini, Cursor, GitHub) do
+          <b>not</b> go through <code class="inl">HTTPS_PROXY</code> — the board's server calls them directly — so where the
+          internet is reachable only through a proxy they may say <b>Can't reach host</b> even though the key is fine and the
+          AI calls themselves work.</li>
+        <li>A key works from the next fetch or AI call — no restart. <b>Remove</b> (asks twice) clears it.</li>
+      </ul>
+      <div class="note">Keys are written to <code class="inl">setup/.env</code> in your copy of the repository —
+        git-ignored, kept out of the Docker image and never served to the browser. Running without the board? Create that
+        file yourself with <code class="inl">KEY=value</code> lines (<code class="inl">chmod 600</code>); the names are below.</div>
+
+      <h2 id="what-each-key-unlocks">2 · What each key unlocks</h2>
+      <table>
+        <tr><th>Service</th><th>Keys</th><th>Unlocks</th></tr>
+        <tr><td><b>Jira</b> (required)</td><td><code class="inl">JIRA_PERSONAL_TOKEN</code>, optional <code class="inl">JIRA_URL</code></td><td>Every ticket on the board, drag-to-move, reports.</td></tr>
+        <tr><td>Atlassian Cloud</td><td><code class="inl">ATLASSIAN_TOKEN</code>; email and site URL not used yet</td><td>Bitbucket access when no Bitbucket token is set; Cloud Jira / Confluence later.</td></tr>
+        <tr><td>Bitbucket</td><td><code class="inl">BITBUCKET_PAT</code>, optional <code class="inl">BITBUCKET_URL</code></td><td>Real branches, pull requests, review state; the move gates' PR checks.</td></tr>
+        <tr><td>Confluence</td><td><code class="inl">CONFLUENCE_PERSONAL_TOKEN</code>, optional URL</td><td>Linked pages for the agent fallback only.</td></tr>
+        <tr><td>Jenkins</td><td><code class="inl">JENKINS_USER</code>, <code class="inl">JENKINS_API_TOKEN</code></td><td>Build chips, Proof → Builds, the report's CI gate.</td></tr>
+        <tr><td>Checkmarx One</td><td><code class="inl">CHECKMARX_API_KEY</code>, <code class="inl">CHECKMARX_BASE_URL</code>, optional <code class="inl">CHECKMARX_AUTH_URL</code></td><td>Shield chip, Proof → Vulnerabilities, the report's security gate.</td></tr>
+        <tr><td>Claude · Cursor · Gemini</td><td><code class="inl">ANTHROPIC_API_KEY</code> · <code class="inl">CURSOR_API_KEY</code> · <code class="inl">GEMINI_API_KEY</code></td><td>Cloud AI briefs and report enrichment (<a href="07-ai-cloud-models-and-prices.html">page 07</a>).</td></tr>
+        <tr><td>OpenAI</td><td><code class="inl">OPENAI_API_KEY</code></td><td>The agent fallback's codex connector only.</td></tr>
+        <tr><td>GitHub</td><td><code class="inl">GITHUB_TOKEN</code> (not used yet)</td><td>Branches and PRs from GitHub, later.</td></tr>
+      </table>
+
+      <h2 id="jenkins">3 · Connect Jenkins</h2>
+      <div class="step">
+        <div class="step-h"><span class="num">1</span><h3>Save your Jenkins user and API token</h3></div>
+        <p>In Jenkins: your name → <b>Configure</b> → <b>API Token</b> → <b>Add new token</b>. In the board's key dialog,
+          open <b>Jenkins</b> and save your user name and the token.</p>
+      </div>
+      <div class="step">
+        <div class="step-h"><span class="num">2</span><h3>List your multibranch jobs in your personal config</h3></div>
+        <p>Add a <code class="inl">jenkins</code> block to <code class="inl">~/.ai/config.json</code> — one job URL per
+          repository and environment. Keys are the repository slugs; the URLs below are placeholders.</p>
+        <pre><button class="copy">Copy</button>"jenkins": {
+  "jobs": {
+    "payments-service": {
+      "qa":  "https://jenkins.example.com/job/team/job/payments-service-qa/",
+      "uat": "https://jenkins.example.com/job/team/job/payments-service-uat/"
+    }
+  }
+}</pre>
+        <p class="small">Job URLs must start with <code class="inl">https://</code> — an <code class="inl">http://</code>
+          one is skipped (your token is sent with every call), and the fetch log says so. The certificate is always checked;
+          a company certificate goes in <code class="inl">~/.ai/ca-bundle.pem</code> (<a href="09-troubleshooting-and-faq.html">page 09</a>).
+          Only as a last resort, <code class="inl">JENKINS_INSECURE_TLS=1</code> in your shell before deploying (or in
+          <code class="inl">setup/.env</code>) turns checking off for Jenkins alone — <code class="inl">JIRA_INSECURE_TLS</code>
+          does not apply to Jenkins.</p>
+        <p class="small">Repositories not listed are never asked. The board reads the latest build of each of a ticket's own
+          branches per environment: result, number, tests, failing test names, the failed stage and the deploy target.
+          Full reference: <a href="developer-doc-viewer.html?f=CONFIG.md">CONFIG.md</a> and
+          <a href="developer-doc-viewer.html?f=INTEGRATIONS.md">INTEGRATIONS.md</a>.</p>
+      </div>
+      <div class="step">
+        <div class="step-h"><span class="num">3</span><h3>Refresh</h3></div>
+        <p>Click <b>Refresh</b>. Builds are re-read on every refresh, even for tickets that did not change in Jira.</p>
+      </div>
+
+      <h2 id="checkmarx">4 · Connect Checkmarx One</h2>
+      <div class="step">
+        <div class="step-h"><span class="num">1</span><h3>Save the API key and tenant URL</h3></div>
+        <p>In Checkmarx One: <b>Identity and Access Management</b> → <b>API Keys</b>. In the key dialog, open
+          <b>Checkmarx One</b> and save the key and your tenant API URL (https, for example
+          <code class="inl">https://your-tenant.cxone.cloud</code>). Add the token URL only when your sign-in host differs
+          from the API host.</p>
+      </div>
+      <div class="step">
+        <div class="step-h"><span class="num">2</span><h3>Which tickets are checked</h3></div>
+        <p>Only <b>vulnerability-fix tickets with a pull request</b> — ones whose title, type, labels, description or
+          acceptance criteria mention a CVE, Checkmarx, SAST / SCA, a CWE or a dependency upgrade. For each CVE, query,
+          CWE, result link or package the ticket names, the board compares the latest scan of the PR's branch with the
+          base branch's scan and says <b>Fixed</b>, <b>Open</b>, <b>Not found</b> (in neither scan — check the id) or
+          <b>Unknown</b> (no scan to compare yet).</p>
+      </div>
+
+      <h2 id="what-shows-where">5 · What shows where</h2>
+      <table>
+        <tr><th>Place</th><th>Jenkins</th><th>Checkmarx One</th></tr>
+        <tr><td>Card</td><td>One chip per environment, coloured by result</td><td>A shield chip: how many named targets are fixed</td></tr>
+        <tr><td>Ticket drawer → Proof</td><td><b>Builds</b>: result, environment, build link, tests, failed stage</td><td><b>Vulnerabilities</b>: both scans, then each target with status, severity, location</td></tr>
+        <tr><td>PR readiness report</td><td>Gate "CI green"</td><td>Gate "Security scan (Checkmarx) clean" and evidence rows</td></tr>
+      </table>
+      <p class="small">Nothing appears for a ticket with no data — the board hides an empty group rather than showing a blank one.
+        The report gates work at every AI level, None included.</p>
+
+      <h2 id="keys-troubleshooting">6 · Troubleshooting</h2>
+      <p>Start with the <b>Test</b> button in the service's row: it tells you straight away whether the saved key and URL work.</p>
+      <table>
+        <tr><th>Symptom</th><th>Fix</th></tr>
+        <tr><td>Test says <b>Key rejected (401)</b></td><td>The host answered but refused the key: it was mistyped, has expired or was revoked. Create a new one and Save it. Atlassian Cloud also needs the account e-mail.</td></tr>
+        <tr><td>Test says <b>Access denied (403)</b></td><td>The key is valid but lacks permission for that read — give the token read access (Bitbucket: project read; Jenkins: Overall/Read and Job/Read).</td></tr>
+        <tr><td>Test says <b>Can't reach host</b></td><td>The board's server cannot reach that address: VPN off, a typo in the base URL, or (in Docker) no route from the container. Hover the result to see the host and the error.</td></tr>
+        <tr><td>Test says <b>Certificate not trusted</b></td><td>The host uses a company certificate. Put the company root CA in <code class="inl">~/.ai/ca-bundle.pem</code> (or point <code class="inl">JIRA_CA_BUNDLE</code> at it) — see <a href="09-troubleshooting-and-faq.html">page 09</a>.</td></tr>
+        <tr><td>Test says <b>Not found (404)</b> or <b>Redirected to …</b></td><td>The base URL points at the wrong place, or at a sign-in page. Use the API host itself (for Jira, the address you see before <code class="inl">/browse/</code>).</td></tr>
+        <tr><td>Test says <b>Not configured</b></td><td>It names what is missing — a key, the base URL (the dialog or <code class="inl">endpoints.*</code> in your config), or a Jenkins job URL in <code class="inl">jenkins.jobs</code>.</td></tr>
+        <tr><td>No build chips</td><td>Are both Jenkins keys saved and the repository listed in <code class="inl">jenkins.jobs</code> with an <b>https</b> job URL (http ones are skipped)? Is the branch name in the ticket's PR or branch list? A branch with no build simply shows nothing.</td></tr>
+        <tr><td>"Jenkins unreachable — builds carried forward"</td><td>The container can't reach Jenkins or the token was refused (401/403). Check VPN / DNS, the token, and a company certificate in <code class="inl">~/.ai/ca-bundle.pem</code> (<a href="09-troubleshooting-and-faq.html">page 09</a>). The last known builds stay on the cards, marked <b>stale</b> in their tooltip, and the report's CI gate says <b>Not verified</b> until Jenkins is read again.</td></tr>
+        <tr><td>"Checkmarx unreachable — vulnerability results carried forward"</td><td>Check the API key, that the base URL is https, and the token URL if your sign-in host is separate. Previous results stay.</td></tr>
+        <tr><td>Every target says Unknown</td><td>The PR's branch has no completed scan yet (or none that ran SCA for CVEs / packages, SAST for queries), the base branch has none, the branch was last scanned before the base (rescan it), the ticket names a per-scan result id instead of a similarity id, or no Checkmarx project is named exactly like the repository.</td></tr>
+        <tr><td>A key row stays grey after Save</td><td>A required key of that service is still empty, or saving failed — see "could not write setup/.env" on <a href="09-troubleshooting-and-faq.html">page 09</a>.</td></tr>
+      </table>
+
+      <nav class="pager" aria-label="Previous and next page">
+        <a class="prev" href="10-developer-documentation.html"><small>← Previous · 10</small><b>Developer documentation</b></a>
+      </nav>
+      <footer>
+        <div class="flinks">
+          <a href="legal-privacy-and-accessibility.html#privacy">Privacy Policy</a>
+          <a href="legal-privacy-and-accessibility.html#terms">Terms &amp; Conditions</a>
+          <a href="legal-privacy-and-accessibility.html#cookies">Cookie Policy</a>
+          <a href="legal-privacy-and-accessibility.html#data">Your data</a>
+          <a href="legal-privacy-and-accessibility.html#embeds">Third-party embeds</a>
+          <a href="legal-privacy-and-accessibility.html#a11y">Accessibility</a>
+          <a href="legal-privacy-and-accessibility.html#contact">Contact us</a>
+        </div>
+        <div class="tag">Built to dodge JIRA · made with ☕ + a refresh button · no cookies, no tracking · works offline</div>
+      </footer>
+      </main>
+    </div>
+
+    <script src="help.js"></script>
+  </body>
+</html>

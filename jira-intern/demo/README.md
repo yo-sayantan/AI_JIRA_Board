@@ -51,6 +51,16 @@ the whole set.
   dev ticket dragged toward QA is refused. `DEMO-244` carries a `qa-failed` label and is still a dev bug.
 - **Hierarchy** — my tickets with my sub-tasks, sub-tasks owned by QA, a sub-task with its own
   child, a team-mate's ticket carrying my sub-task, an unassigned ticket, and an epic.
+- **Jenkins builds** — every build state, on cards and in the drawer's Proof section: `DEMO-220` green QA with
+  tests plus UAT still building (two environments); `DEMO-231` a failed pipeline with its failed stage and
+  failing tests (UAT still green from before); `DEMO-244` unstable at the quality gate; `DEMO-221` aborted;
+  `DEMO-210` not built; `DEMO-242` green in both environments, UAT deployed to `uat-eu` (a build parameter).
+- **Checkmarx vulnerability fixes** — every status and every kind of target, on the card's shield chip, in the
+  drawer's Proof section and in the report's security gate: `DEMO-230` 2/3 fixed — a CVE and its package
+  (`jsonwebtoken@8.5.1`) gone, `Path_Traversal` still open (red); `DEMO-243` 2/3 fixed — a Checkmarx result link and
+  `CWE-639` fixed, a CVE found in neither scan (amber); `DEMO-232` 0/1 — the branch is not scanned yet (amber, with a
+  note). Each ticket's description names exactly the targets its `vulnFixes` lists (a Python test checks that
+  `checkmarx.extract_targets` finds them).
 - **Card edges** — no story points, 21 points, no branch, several branches, no description, a very
   long title, many labels, carried across three sprints, minutes old, a year old, archiving
   tomorrow, and a long unresolved comment thread.

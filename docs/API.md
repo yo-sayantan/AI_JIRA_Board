@@ -20,11 +20,11 @@ params unless marked `body:`.
 |---|---|
 | `Host` must be loopback (`localhost`, `127.0.0.1`, `[::1]`, `*.localhost`), the `BIND_HOST` address, or listed in `ALLOWED_HOSTS` (comma-separated `host[:port]`) | **403** `forbidden host` (+ `hint`) |
 | Non-GET/HEAD: `Origin` (or `Referer`) host must equal `Host`, and `Sec-Fetch-Site`, when sent, must be `same-origin` or `none` | **403** `forbidden origin` |
-| `POST /api/settings`, `/api/keys`, `/api/ai-models/pull`, `/api/ai-jobs` need `Content-Type: application/json` | **415** `unsupported media type` |
+| `POST /api/settings`, `/api/keys`, `/api/keys/test`, `/api/ai-models/pull`, `/api/ai-jobs` need `Content-Type: application/json` | **415** `unsupported media type` |
 | Undecodable path | **400** `bad url` |
 | Unknown `/api/*` | **404** `not found` |
 | Non-GET on a static path | **405** `method not allowed` |
-| Body larger than the route's limit (4 KB settings, 8 KB keys, 64 KB proxied) | **413** `too large` |
+| Body larger than the route's limit (4 KB settings, 8 KB keys, 1 KB key test, 64 KB proxied) | **413** `too large` |
 | Client went away mid-body | **400** `aborted` |
 | Queue at capacity | **429** `queue full` |
 | Unhandled exception | **500** `internal error` |
@@ -95,10 +95,36 @@ The values live in `setup/.env` (`server/secrets.mjs`); the names that exist are
 |---|---|
 | `GET /api/keys` | **200** `{ ok, keys: { ENV: { set, masked } } }` — one entry per key in `api-keys.json`. A secret's `masked` is first 4 + `••••••••` + last 4 (≥ 16 chars), all bullets below that — never the full value or its length; `url`, `email` and `text` fields come back as they are · **500** `could not read setup/.env` |
 | `POST /api/keys` `body: { name, value }`, ≤ 8 KB | **200** `{ ok, keys, cleared }` — the new status, and the tokens cleared because their service's base URL changed (a new `*_URL` clears its service's secrets) · **400** `bad json` / `unknown key …` / `value must be a single line` / `remove the surrounding quotes` / `value too long` (> 4096) / a secret that is not printable ASCII / a URL that is not `https://` (`http://` only for localhost) or carries a user, password, `?` or `#` / `must be an email address` / a text field with spaces · **413** · **415** · **500** `could not write setup/.env` |
+| `POST /api/keys/test` `body: { service }`, ≤ 1 KB | **200** `{ ok, service, status, httpStatus?, ms, detail }` — `status` is `ok` · `auth-failed` · `forbidden` · `not-found` · `unreachable` · `tls` · `not-configured` · `error`; `detail` is human text (a display name, a login, a model count, the host that could not be reached) and never holds a secret · **400** `bad json` / `unknown service` · **409** `test already running` (one test per service at a time) · **413** · **415** · **500** `could not read setup/.env` |
 
 `name` must be in `api-keys.json`; `value: ''` removes the key. A save rewrites only that line (comments
 and unknown lines are kept) through one write queue — temp file, mode 0600, rename. The log records the key
 name only. The same Host/Origin guards as every POST apply.
+
+`POST /api/keys/test` (`server/keycheck.mjs`) checks the SAVED values — nothing in the request body but the
+service id. It re-reads `setup/.env` (an environment variable of the same name wins, as in the Python scripts),
+takes base URLs from the saved `*_URL` keys, else the config's `endpoints`, and makes ONE authenticated read:
+
+| `service` | Request |
+|---|---|
+| `jira` | `GET {JIRA_URL \| endpoints.jiraBase}/rest/api/2/myself`, `Authorization: Bearer JIRA_PERSONAL_TOKEN` → "Signed in as <displayName>" |
+| `confluence` | `GET {CONFLUENCE_URL \| endpoints.confluenceBase}/rest/api/user/current`, Bearer `CONFLUENCE_PERSONAL_TOKEN` |
+| `bitbucket` | `GET {BITBUCKET_URL \| endpoints.bitbucketBase}/rest/api/1.0/projects?limit=1`, Bearer `BITBUCKET_PAT` (else `ATLASSIAN_TOKEN`) |
+| `atlassian` | `GET {ATLASSIAN_SITE_URL}/rest/api/3/myself`, Basic `ATLASSIAN_EMAIL:ATLASSIAN_TOKEN` (not-configured "needs email + site URL" without them) |
+| `jenkins` | `GET {first https URL in jenkins.jobs}api/json?tree=name`, Basic `JENKINS_USER:JENKINS_API_TOKEN` |
+| `checkmarx` | `POST` the token URL (`CHECKMARX_AUTH_URL` \| `endpoints.checkmarxAuthUrl`, else `<base>/auth/realms/<tenant>/protocol/openid-connect/token`), form `grant_type=refresh_token&client_id=ast-app&refresh_token=CHECKMARX_API_KEY` — as `jira-intern/checkmarx.py`; a 400 `invalid_grant` is `auth-failed` |
+| `claude` | `GET https://api.anthropic.com/v1/models`, `x-api-key`, `anthropic-version: 2023-06-01` |
+| `cursor` | `GET https://api.cursor.com/v1/models`, Basic `CURSOR_API_KEY:` (as the worker) |
+| `gemini` | `GET https://generativelanguage.googleapis.com/v1beta/models`, `x-goog-api-key` (never in the URL) |
+| `openai` | `GET https://api.openai.com/v1/models`, Bearer |
+| `github` | `GET https://api.github.com/user`, Bearer + `User-Agent` → "Signed in as <login>" |
+
+HTTP 2xx → `ok`, 401 → `auth-failed`, 403 → `forbidden`, 404 → `not-found`, 3xx → `error` "Redirected to <host>"
+(never followed, the credential is never resent), anything else → `error`. A timeout (10 s) or a refused / unknown
+host → `unreachable`; an untrusted certificate → `tls`. Missing key or base URL (or an `http://` one other than
+localhost, or the config's `.example` placeholder) → `not-configured`, and nothing is sent. TLS is always verified;
+`JIRA_CA_BUNDLE` (else `~/.ai/ca-bundle.pem`) is added to the system roots; `JIRA_INSECURE_TLS=1` relaxes only the
+Jira, Confluence and Bitbucket hosts. Response bodies are capped at 256 KB. The log line is `[keys] test <service> → <status>`.
 
 ### AI intern (proxied to `AI_INTERN_URL`)
 

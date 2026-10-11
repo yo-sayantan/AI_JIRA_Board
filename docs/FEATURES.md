@@ -129,11 +129,54 @@ Drag targets are ONE list, `jira-intern/move_targets.json`, read by the board
 ## Ticket detail drawer
 
 Click any card/row anywhere → a right-side drawer with the full ticket: AI brief, description,
-acceptance criteria, code (branches + PRs with reviewers/approvals/comment-resolution), comments,
+acceptance criteria, code (branches + PRs with reviewers/approvals/comment-resolution), Proof (which
+vulnerabilities a fix ticket fixed per Checkmarx, latest Jenkins build per environment — shown only when
+there is something), comments,
 links (related/Confluence/external), update log, sub-tickets (each openable — drawers **stack**,
 with breadcrumb depth and Esc closing only the top layer).
 `src/components/ticket/TicketDetail.tsx`, stack in `hooks/useDrawerStack.ts`; archive/raised rows
 are adapted via `completedToTicket` / `raisedToTicket` so one component renders all three.
+
+## Jenkins builds (cards, drawer, CI gate)
+
+For every branch of my tickets, the **latest build in each environment's Jenkins multibranch job**
+(config → `jenkins.jobs`, credentials `JENKINS_USER` / `JENKINS_API_TOKEN`). Fetched by
+`jira-intern/jenkins.py` inside the daily fetch (fast path included) and the single-ticket refresh,
+stored as `Ticket.builds`, carried forward when Jenkins is unreachable — each carried build marked
+`stale: true`. Job URLs must be https (an http one is skipped).
+- **Card**: one flat chip per environment on one row — `QA ✓ #412` green, `✗` red for a failure, amber
+  for unstable, a turning blue ring while building, grey for aborted / not built. The primary branch's
+  build stands for the environment; the tooltip has branch, age, duration, tests and the failed stage —
+  and, for a stale build, "· stale" plus "Stale — Jenkins could not be re-read; this is the last build seen".
+  `components/common/Builds.tsx::BuildChip`, picked by `lib/format.ts::cardBuilds`.
+- **Drawer → Proof → Builds**: per build a result pill, environment, `#number ↗` (opens Jenkins), repo,
+  age · duration, deploy target, branch, tests (passed / failed / skipped + up to 5 failing names) and the
+  failed stage. Hidden when the ticket has no builds. `components/ticket/Proof.tsx` is the Proof section —
+  one group per outside source (Builds, Vulnerabilities).
+- **PR readiness report**: the "CI green" gate and one evidence row per build come from these builds in
+  the deterministic base report (Bitbucket's commit build status is the fallback) — see `docs/AI-PIPELINE.md`.
+  A stale build never passes the gate: it is **Not verified** with the build's age (a fresh failure still fails it).
+
+## Vulnerability fixes (Checkmarx One: cards, drawer, security gate)
+
+For **vulnerability-fix tickets only**, which of the vulnerabilities the ticket names are fixed — and only
+those: CVE ids, SAST query names / CWE ids, Checkmarx result links, vulnerable package versions, read from the
+title, description, comments and links. Each is looked up in the latest completed Checkmarx One scan of the
+PR's source branch and of its base branch: **fixed** (in the base, gone from — or triaged away on — the
+branch), **open** (still on the branch), **not found** (in neither), **unknown** (branch not scanned yet, nothing
+to compare, no project). Fetched by `jira-intern/checkmarx.py` inside the daily fetch (fast path included) and
+the single-ticket refresh, stored as `Ticket.vulnFixes`, carried forward when Checkmarx cannot be read. Needs
+`CHECKMARX_API_KEY` + the tenant URL (key button → Checkmarx One); without them nothing is asked.
+- **Card**: one flat shield chip, `2/3 fixed` — green when all are fixed, red when any is still open, amber when
+  one is not found or not known yet; the tooltip lists every target with its status and the two scans compared.
+  `components/common/VulnFixes.tsx::VulnChip`, numbers from `lib/format.ts::vulnSummary`.
+- **Drawer → Proof → Vulnerabilities · Checkmarx**: the two scans compared (branch and base, with dates), then
+  per target a status pill, kind (CVE / SAST / Result / Package), the target as the ticket names it, severity,
+  `file:line` or package version, and the evidence line. `VulnRow`.
+- **PR readiness report**: the "Security scan (Checkmarx) clean" gate — Pass when every named target is fixed,
+  Fail when any is open, Not verified otherwise (with the reason) — and one "Checkmarx · <kind>" evidence row per
+  target, in the deterministic base report (AI level None included). `pr_report.vuln_gate`, shared with the
+  AI worker's "Proof · vulnerability fix" table.
 
 ## PR Readiness Reports
 
@@ -186,11 +229,16 @@ chips, where to get it, and one field per key (the optional base-URL fields over
 An unsaved key shows an empty box and a greyed Save; a saved key shows its **masked** value in the box (first 4 + bullets + last 4;
 keys under 16 characters show bullets only, and the length is never revealed) with Save greyed until you type a new one.
 Saving a new base URL clears that service's token, so it is never sent to a host it was not entered for. A new secret is typed
-as a password with an eye toggle; **Remove** (asks twice) clears a key. The empty-state screen of a new install
+as a password with an eye toggle; **Remove** (asks twice) clears a key. **Test** (a small chip on the expanded row, offered
+once the service's non-URL keys are saved) checks the SAVED key and URL with one read-only call through the server
+(`POST /api/keys/test`, `server/keycheck.mjs`) and shows the answer inline — green **✓ Connected · Signed in as … · 240 ms**,
+red **✗ Key rejected (401)** / **Access denied (403)** / **Not found (404)**, amber **Can't reach host** / **Certificate not trusted**,
+grey **Not configured: …** — plus a coloured dot on the collapsed row; saving one of the service's keys clears the stale answer.
+GitHub (planned) is testable once its token is saved. The empty-state screen of a new install
 (no `data.json` yet) has an **Add API keys first** button. Values are written to `setup/.env` by the server
 (`GET`/`POST /api/keys`) — the browser never receives a full secret back. Hidden on `file://` (needs the server);
 works in demo mode (it configures the machine, like Settings).
-`src/components/keys/ApiKeys.tsx`, `src/hooks/useApiKeys.ts`, `src/lib/apiKeys.ts`, `server/secrets.mjs`.
+`src/components/keys/ApiKeys.tsx`, `src/hooks/useApiKeys.ts`, `src/lib/apiKeys.ts`, `server/secrets.mjs`, `server/keycheck.mjs`.
 
 ## Settings
 

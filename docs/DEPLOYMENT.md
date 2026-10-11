@@ -148,6 +148,8 @@ Settings, or `docker exec JIRA-AI-Ollama ollama pull qwen2.5-coder:7b`.
 | Board loads but is empty | No dump yet. Run a fetch (Option A refetches on boot; or run `run-intern.sh`). |
 | "no JIRA_PERSONAL_TOKEN found — skipping fetch" / "no API keys yet" | No Jira token saved yet. Add it with the key button in the board header (stored in `setup/.env`), then Refresh. Check `./setup` is mounted (`docker inspect JIRA-Board`). |
 | Saving a key fails ("could not write setup/.env") | `./setup` is not writable by the container's uid 1000 (Linux hosts): `sudo chown -R 1000 setup`. |
+| No build chips / "Jenkins unreachable — builds carried forward" | Jenkins keys saved? `jenkins.jobs` set in `~/.ai/config.json`? The container must reach the Jenkins host (VPN, DNS, a private CA in `~/.ai/ca-bundle.pem`). See [`INTEGRATIONS.md`](INTEGRATIONS.md#jenkins-multibranch-pipelines-json-api). |
+| "Checkmarx unreachable — vulnerability results carried forward" | Check `CHECKMARX_API_KEY` + `CHECKMARX_BASE_URL` (https), and `CHECKMARX_AUTH_URL` when the IAM host differs. Only vulnerability-fix tickets with a PR are asked. |
 | Port 4321 in use | `scripts/start-jira-board.sh` frees it automatically; otherwise `docker compose down` or stop the process on that port. |
 | `Name or service not known` for your Jira host | Docker DNS (common on VPN). Uncomment the `dns:` block in `docker-compose.yml` and recreate. |
 | Container exits immediately | `docker logs JIRA-Board` — usually a bad token or unreachable host. |

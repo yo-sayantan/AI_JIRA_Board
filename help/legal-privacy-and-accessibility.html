@@ -23,6 +23,7 @@
         <a class="nl" href="08-other-ways-to-run.html"><span class="n">8</span>Other ways</a>
         <a class="nl" href="09-troubleshooting-and-faq.html"><span class="n">9</span>Troubleshooting</a>
         <a class="nl" href="10-developer-documentation.html">Docs</a>
+        <a class="nl" href="11-api-keys-and-integrations.html"><span class="n">11</span>Keys</a>
       </div>
     </nav>
 
@@ -54,6 +55,7 @@
         <a href="08-other-ways-to-run.html">08 · Other ways to run</a>
         <a href="09-troubleshooting-and-faq.html">09 · Troubleshooting and FAQ</a>
         <a href="10-developer-documentation.html">10 · Developer documentation</a>
+        <a href="11-api-keys-and-integrations.html">11 · API keys and integrations</a>
         <a href="legal-privacy-and-accessibility.html" aria-current="page">Policies &amp; privacy</a>
       </aside>
 
@@ -111,7 +113,7 @@
             <td><span class="badge no">No</span> (same AI exception)</td>
           </tr>
           <tr>
-            <td>Your credentials: Jira/Bitbucket/Confluence personal access tokens, optional AI API keys</td>
+            <td>Your credentials: Jira/Bitbucket/Confluence personal access tokens, optional Jenkins, Checkmarx and AI API keys</td>
             <td><code class="inl">setup/.env</code>, written by the board's API keys dialog — <b>git-ignored</b>, kept out
               of the Docker image, never served; the board shows saved keys only masked</td>
             <td>Authenticating the fetches you run</td>
@@ -211,6 +213,8 @@
         <table>
           <tr><th>Destination</th><th>When</th><th>What is sent</th></tr>
           <tr><td>Your company's Jira / Bitbucket / Confluence</td><td>Every fetch you run or schedule</td><td>Your token (auth header) + the queries for your tickets</td></tr>
+          <tr><td>Your company's Jenkins (only the job URLs you list in <code class="inl">jenkins.jobs</code>)</td><td>Every fetch, once a Jenkins user + API token are saved</td><td>Your user + token (basic-auth header) + the branch names of your tickets</td></tr>
+          <tr><td>Your Checkmarx One tenant (only the base URL you set)</td><td>Every fetch, once a Checkmarx API key is saved, and only for vulnerability-fix tickets with a pull request</td><td>Your API key (to the token URL, once per fetch) + the repository and branch names of those pull requests — never ticket text</td></tr>
           <tr><td>Your chosen cloud AI provider (Cursor / Anthropic / Google)</td><td>Only if you enable a cloud model in Settings</td><td>Your API key + the ticket text being summarised</td></tr>
           <tr><td>ollama.com / huggingface.co</td><td>Only when you click to download a local model</td><td>A plain file download request</td></tr>
           <tr><td>Docker Hub / npm registry</td><td>Build &amp; install time only</td><td>Standard package/image pulls</td></tr>

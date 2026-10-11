@@ -61,11 +61,13 @@ validation loudly. An invalid timezone falls back to UTC; legacy `IST` normalize
 every prompt (`{{JIRA_BASE}}` etc.), so ticket/PR links and JQL all point at YOUR instances.
 Env `JIRA_URL` / `CONFLUENCE_URL` / `BITBUCKET_URL` override them for one run or one container.
 
-Optional evidence sources for the AI worker's PR-readiness proof (each disabled while empty):
+Optional evidence sources for PR-readiness proof (each disabled while empty). Checkmarx is read by the daily
+fetch (`jira-intern/checkmarx.py` → `Ticket.vulnFixes`, vulnerability-fix tickets only) and by the AI worker
+through the same module; Dynatrace only by the worker:
 
 | key | meaning |
 |---|---|
-| `checkmarxBase` | Checkmarx One tenant base URL, e.g. `https://<tenant>.cxone.cloud`; leave empty to disable the Checkmarx lookup. Env `CHECKMARX_BASE_URL` (canonical; `CHECKMARX_URL` also accepted) overrides. |
+| `checkmarxBase` | Checkmarx One tenant base URL (https), e.g. `https://your-tenant.cxone.cloud`; leave empty to disable the Checkmarx lookup. Env `CHECKMARX_BASE_URL` (canonical; `CHECKMARX_URL` also accepted) overrides. |
 | `checkmarxAuthUrl` | Full Checkmarx One token endpoint; leave empty to derive from `checkmarxBase`. Only needed when the IAM host differs from the API host. Env `CHECKMARX_AUTH_URL` overrides. |
 | `dynatraceTenants` | Dynatrace tenant ids per environment, e.g. `{"prod": "abc12345", "uat": "", "dev": ""}`; leave empty to disable the Dynatrace proof lookup. Env `DYNATRACE_TENANTS` overrides — a JSON object or the shorthand `prod=abc12345,uat=def67890`. |
 
@@ -91,6 +93,31 @@ requests for the ticket key — but only for projects you list here. Both maps a
 `projectMap` → the Bitbucket project that holds the repos; `repoHints` → which repos to scan
 (up to repos × 3 listings per ticket). A project missing from either map is never scanned.
 Both default to `{}` — there is no built-in project or repository name anywhere in the code.
+
+## `jenkins` — multibranch build jobs (optional)
+The board reads the **latest build of each of your tickets' branches** from Jenkins multibranch
+pipelines, one job per repository and environment (`jira-intern/jenkins.py`). Keyed by
+**repository slug** (as in the Bitbucket URL), then by environment name — any names you like,
+shown in the order you write them:
+
+```json
+"jenkins": {
+  "jobs": {
+    "payments-service": {
+      "qa":  "https://jenkins.example.com/job/team/job/payments-service-qa/",
+      "uat": "https://jenkins.example.com/job/team/job/payments-service-uat/"
+    }
+  }
+}
+```
+Each URL is the **multibranch job itself** (the page listing one child job per branch), not a
+branch or a build, and must be **https** — an `http://` URL is skipped with a WARN (the API token is
+sent with every call). TLS to Jenkins is always verified (`JIRA_INSECURE_TLS` does not apply; see
+`JENKINS_INSECURE_TLS` below). The tracked config ships `"jobs": {}`; put real links in `~/.ai/config.json`
+(deep-merged, so you only write the `jenkins` block). Credentials are `JENKINS_USER` +
+`JENKINS_API_TOKEN` (key button → Jenkins, saved to `setup/.env`). With no jobs or no credentials
+nothing is asked and builds already on the board are kept. Repos not listed here are never looked
+up. Hosts come only from these URLs — the API keys dialog has no Jenkins URL.
 
 ## `connector` — which agent CLI provides the MCP servers
 `active` selects the profile: `"cursor"` (default), `"codex"`, or `"claude"` — add your own
@@ -187,9 +214,10 @@ saved from the board's API keys dialog. Config keys they override are in bracket
 
 | variable | meaning |
 |---|---|
-| `JIRA_PERSONAL_TOKEN` | Jira PAT (required). `BITBUCKET_PAT` (or the Atlassian Cloud `ATLASSIAN_TOKEN`) for Bitbucket; `CHECKMARX_API_KEY` for Checkmarx One. All are entered with the key button. |
+| `JIRA_PERSONAL_TOKEN` | Jira PAT (required). `BITBUCKET_PAT` (or the Atlassian Cloud `ATLASSIAN_TOKEN`) for Bitbucket; `CHECKMARX_API_KEY` for Checkmarx One; `JENKINS_USER` + `JENKINS_API_TOKEN` (HTTP basic) for Jenkins builds [`jenkins.jobs`]. All are entered with the key button. |
 | `JIRA_CA_BUNDLE` | Path to your corporate root-CA bundle (PEM). TLS verification is **on** by default; an on-prem Jira/Bitbucket behind a private CA fails with a certificate error until it is trusted. The bundle is **added** to the system roots (a public-CDN Jira keeps working). Unset, `~/.ai/ca-bundle.pem` is used when it exists — the easiest route, because both containers already mount `~/.ai` (see [SETUP.md](SETUP.md#step-6--trust-your-companys-certificate-authority-optional)). |
 | `JIRA_INSECURE_TLS` | `1` disables TLS verification for Jira and Bitbucket — **last resort only**: the bearer PAT then travels over an unverified channel. Every run announces it with `WARN: TLS verification disabled (JIRA_INSECURE_TLS=1)` on stderr. Prefer `JIRA_CA_BUNDLE`. |
+| `JENKINS_INSECURE_TLS` | `1` disables TLS verification for Jenkins only — Jenkins' own **last resort**, separate from `JIRA_INSECURE_TLS` (which never applies to it). Announced with a WARN on every run. Prefer the CA bundle (`JIRA_CA_BUNDLE` / `~/.ai/ca-bundle.pem`), which Jenkins honours too. Passed through by `docker-compose.yml` and `runner-env.sh` like `JIRA_INSECURE_TLS`. |
 | `JIRA_URL` / `CONFLUENCE_URL` / `BITBUCKET_URL` | Override `endpoints.*Base` for one run or container. |
 | `CHECKMARX_BASE_URL` (or `CHECKMARX_URL`), `CHECKMARX_AUTH_URL`, `DYNATRACE_TENANTS` | Override the optional proof endpoints — see `endpoints` above. |
 | `AI_CONFIG_FILE` | Path of the personal override instead of `~/.ai/config.json`. |

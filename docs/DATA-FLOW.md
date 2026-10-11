@@ -19,6 +19,7 @@ document is the complete inventory: who writes what, when, and the invariants th
 | `jira-intern/logs/`, `_STATUS.md` | every runner | humans | Newest-first audit log (`prepend_status`). |
 | Locks: `.intern.lock` `.completed.lock` `.refresh.lock` `.raised.lock` | each runner (`<pid> <iso>`) | `refuse_if_locked`, `server/locks.mjs` | Dead-PID/stale locks are auto-cleared. |
 | `setup/.env` | the board's API keys dialog → `server/secrets.mjs` (one write queue, temp + rename, mode 0600; keeps comments and unknown lines) | `_config.py::secrets_path`/`load_secrets`, runners (`runner-env.sh` `APP_SECRETS` → `load_agent_secrets`), `docker-entrypoint.sh` (Jira-token check), worker (re-read per cloud call), server (`GET /api/keys`, masked) | Tokens only — the ONLY secrets file. Git-ignored, docker-ignored, never served. Key names: `setup/api-keys.json`. `JB_SECRETS_FILE` moves it. Mounted read-write into JIRA-Board, read-only into AI-Intern. |
+| `setup/api-keys.json` | developers (tracked) | `server/secrets.mjs` (which names may be saved), `src/lib/apiKeys.ts` (the dialog), `tests/test_api_keys.py` | The list of services and keys: `kind` (secret · url · email · text) and `planned`. No values. |
 | `~/.ai/config.json` | **you** (outside repo) | `config.mjs` merge | Identity + company URLs. |
 | localStorage (`jb-settings`, `jb-archived`, `jb-completed-show-context`, `jb-guide-os`) | the app | the app | Preferences only; no cookies exist. |
 
@@ -49,13 +50,39 @@ search: assignee = currentUser() AND (not Done OR resolved >= -10d)   [expand=ch
   → ONE parallel dev-status batch (devinfo.fetch_many) for parents + subtasks
   → build tickets in a ThreadPoolExecutor (REFRESH_WORKERS)
        unchanged fast path: (status, updated) match .state.json → deep-copy prior,
-       BUT still re-apply sprint + re-check PRs (both mutate without touching `updated`)
+       BUT still re-apply sprint + re-check PRs + re-read Jenkins builds + Checkmarx scans (all mutate without touching `updated`)
+       every full ticket: apply_builds → jenkins.py → ticket.builds (latest build per env of its own branches;
+         lookup failed → prior builds carried, each marked `stale: true`; Jenkins not configured → prior
+         builds kept unchanged, nothing asked)
+       every full ticket: apply_vuln_fixes → checkmarx.py → ticket.vulnFixes (vulnerability-fix tickets with a
+         named target and a PR only: branch scan vs base scan per target; lookup failed or Checkmarx not
+         configured → prior vulnFixes kept; not a vulnerability fix / nothing named / no PR → field removed)
   → fetch_raised() rides along (one parallel-paged JQL; see below)
   → write_outputs({tickets, completed: PRESERVED, raised, raisedAt, notes, user, generatedAt})
   → atomic_dump(.state.json)
 ```
 The 10-day Done window is wider than the board's 3-day display window **on purpose**: a ticket
 must never leave `tickets[]` before the weekly archive has captured it.
+
+**`Ticket.builds`** (Jenkins, `src/types.ts::JenkinsBuild`) is written ONLY here and by the per-ticket
+refresh below — `daily_fetch.apply_builds` for every fully built ticket (mine, my sub-tasks, QA extras;
+never a team-mate's basic sub-task). Every other writer carries it untouched: the archive never rewrites
+`tickets[]`, `write_briefs` stamps only `aiSummary*`, the raised refresh touches only `raised[]`, and
+`_merge_ticket` replaces every copy of a ticket (its card and the copy nested under its parent) with the
+freshly built one. A build carried forward because Jenkins could not be read (whole lookup, or just that
+environment) gets `builds[].stale = true`: the chip tooltip says "Stale — Jenkins could not be re-read; this is
+the last build seen", and `pr_report.jenkins_ci` makes the CI gate **Not verified** (never Pass) with the
+build's age. Readers: the card's build chips, the drawer's Proof section, `pr_report.py` (CI gate,
+evidence rows, fingerprint) and `ai-intern/worker.py` (via `pr_report.jenkins_ci`).
+
+**`Ticket.vulnFixes`** (Checkmarx One, `src/types.ts::VulnFixes`) follows the same rules — written ONLY by
+`daily_fetch.apply_vuln_fixes` (full path, fast path `refresh_prs_only`, single-ticket refresh), carried
+untouched by `write_briefs`, the raised refresh and `_merge_ticket`. The archive rebuild never asks Checkmarx:
+`completed_archive.carry_vuln_fixes` keeps the cached row's `vulnFixes`, else the copy in the current
+`tickets[]` / `completed[]`, and `vulnFixes` is in `COMPLETED_KEYS`. Readers: the card's shield chip, the
+drawer's Proof section, `pr_report.py` (security gate, evidence rows, fingerprint) and `ai-intern/worker.py`
+(via `pr_report.vuln_gate` / `vuln_proof_rows`; it looks Checkmarx up live with the same `checkmarx.py` only
+for a vulnerability ticket the dump has no results for, and never writes `data.json`).
 
 ### 2. Archive rebuild — `completed_archive.py` (Archive menu; scopes all/year/since/key)
 

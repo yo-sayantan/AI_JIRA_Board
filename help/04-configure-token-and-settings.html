@@ -23,6 +23,7 @@
         <a class="nl" href="08-other-ways-to-run.html"><span class="n">8</span>Other ways</a>
         <a class="nl" href="09-troubleshooting-and-faq.html"><span class="n">9</span>Troubleshooting</a>
         <a class="nl" href="10-developer-documentation.html">Docs</a>
+        <a class="nl" href="11-api-keys-and-integrations.html"><span class="n">11</span>Keys</a>
       </div>
     </nav>
 
@@ -50,6 +51,7 @@
         <a href="08-other-ways-to-run.html">08 · Other ways to run</a>
         <a href="09-troubleshooting-and-faq.html">09 · Troubleshooting and FAQ</a>
         <a href="10-developer-documentation.html">10 · Developer documentation</a>
+        <a href="11-api-keys-and-integrations.html">11 · API keys and integrations</a>
         <a href="legal-privacy-and-accessibility.html">Policies &amp; privacy</a>
       </aside>
 
@@ -63,7 +65,8 @@
           a new install shows <b>Add API keys first</b>; otherwise click the <b>key button</b> beside Settings in the
           header (it has an amber dot while the Jira token is missing). Expand <b>Jira</b>, paste the token,
           <b>Save</b>, then <b>Refresh</b>. Bitbucket, Confluence and the Cloud AI keys (Claude, Cursor, Gemini) go in
-          the same list — each row says why it's needed and where to get it.</p>
+          the same list, as do Jenkins and Checkmarx One — each row says why it's needed and where to get it. Every key and
+          integration: <a href="11-api-keys-and-integrations.html">page 11</a>.</p>
         <div class="note"><b>Where it is stored:</b> <code class="inl">setup/.env</code> in your copy of the repo —
           git-ignored, kept out of the Docker image, never served by the board. A saved key is only ever shown
           masked (first and last few characters).</div>

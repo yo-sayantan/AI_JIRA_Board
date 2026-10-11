@@ -91,6 +91,129 @@ authoritative, includes reviewers/approvals); a Bitbucket **key-scan** of hinted
 - Review activity never bumps Jira's `updated` → even "unchanged" tickets re-check PRs on the
   daily fast path.
 
+## Jenkins (multibranch pipelines, JSON API)
+
+`jira-intern/jenkins.py` reads the **latest build of each of a ticket's branches, per environment**,
+from the multibranch jobs listed in config → `jenkins.jobs.<repo slug>.<env>` ([CONFIG.md](CONFIG.md)).
+It runs inside the daily fetch (full and fast path — a build never bumps Jira's `updated`, so it is
+re-read on every run like PR state) and the single-ticket refresh (`daily_fetch.apply_builds`).
+
+- **Auth**: HTTP basic, `JENKINS_USER:JENKINS_API_TOKEN` from `setup/.env`, sent only in the
+  `Authorization` header — never in a URL, never logged. Requests go only to the configured
+  job URLs: follow-up calls are built from the configured job, never from the `url` Jenkins returns.
+- **Transport** (`jira-intern/_safe_http.py`): **https job URLs only** — an `http://` entry in
+  `jenkins.jobs` is skipped with a `WARN … job URL is not https — skipped` line (the token travels with
+  every call). Jenkins has its **own** TLS context, always verified: `JIRA_INSECURE_TLS` does NOT apply to
+  it; `JENKINS_INSECURE_TLS=1` is Jenkins' separate last-resort opt-out (logged as a WARN). A private CA
+  from `JIRA_CA_BUNDLE` / `~/.ai/ca-bundle.pem` is still added to the system roots. Redirects are followed
+  only within the same scheme + host + port (`SameOriginRedirect`), so the `Authorization` header never
+  reaches another host and https is never downgraded; a refused redirect is a failed lookup. Every GET
+  goes through `jenkins.get_json` — its own client (not `_jira`'s), one retry on a 5xx or network error,
+  none on a 4xx.
+- **Which branches**: the ticket's `branch`, its open PRs' source branches, its other `branches`,
+  then merged / declined PR branches (usually deleted) — each in the repo devinfo saw it in
+  (dev-status branch URL → `repos`, or the PR URL's slug). Only repos in `jenkins.jobs`; a branch
+  whose repo is unknown is tried in every configured repo. At most 12 (repo, env, branch) lookups
+  per ticket and 800 calls per run; 8 requests in flight.
+- **Branch job name**: multibranch names a branch's child job after the branch with each character
+  Jenkins refuses in an item name written as `%XX` (`/` → `%2F`, `%` → `%25`), and that name is
+  URL-encoded again in the path — so `feature/ABC-1` lives at `<job>/job/feature%252FABC-1/`
+  (`jenkins.item_name` / `branch_segment`, tested).
+- **Endpoints**, per (repo, env, branch):
+  - `<branch job>/lastBuild/api/json?tree=number,result,building,timestamp,duration,url,…,actions[parameters[name,value],failCount,skipCount,totalCount,urlName]`
+    — result (`BUILDING` while `building`), number, link, start time, duration, JUnit totals (the test
+    result action) and build parameters (`DEPLOY_ENV` / `ENVIRONMENT` / `ENV` / `TARGET` → `deployTarget`,
+    else the env name);
+  - only when tests failed: `<build>/testReport/api/json?tree=suites[cases[className,name,status]]` →
+    up to 5 `FAILED` / `REGRESSION` names;
+  - only for `FAILURE` / `UNSTABLE`: `<build>/wfapi/describe` (Pipeline Stage View) → the first stage
+    whose status is `FAILED` / `UNSTABLE` → `failedStage`.
+  The two extras are best-effort: if they fail, the build is stored without them.
+- **Failure semantics**: `404` on the branch job (or on `lastBuild`) = "no build for this branch" — an
+  answer, the build is simply absent. A network error or `401`/`403` = the lookup FAILED: that host is
+  skipped for the rest of the run (one timeout, not one per ticket), the ticket keeps its previous
+  `builds` (only the failed environments' entries when the failure was partial), and the run note says
+  "Jenkins unreachable — builds carried forward". Every carried build is marked `stale: true` — the card
+  and drawer show it as stale ("Jenkins could not be re-read; this is the last build seen") and the
+  report's "CI green" gate cannot Pass on it (it is **Not verified**, with the build's age; a fresh
+  FAILURE / UNSTABLE still fails it). No jobs configured or no credentials → nothing is asked and prior
+  builds are preserved unchanged (not marked stale).
+- **Sub-tasks**: builds are looked up only for the ticket's own branches, after `scope_to_subtask` — a
+  sub-task committed on its parent's branch gets no builds; they are the parent's.
+- **Readers**: the card's build chips, the drawer's Proof section and the PR readiness report's
+  "CI green" gate (`pr_report.jenkins_ci`; Bitbucket's build status is the fallback when a ticket has
+  no builds — [AI-PIPELINE.md](AI-PIPELINE.md)).
+
+## Checkmarx One (vulnerability-fix tickets, REST API)
+
+`jira-intern/checkmarx.py` answers one question for a **vulnerability-fix ticket**: which of the
+vulnerabilities the ticket itself names are fixed on its branch. Nothing else from the scan is shown — the
+scan's other findings are not this ticket's to fix. It runs inside the daily fetch (full and fast path — a
+scan never bumps Jira's `updated`) and the single-ticket refresh (`daily_fetch.apply_vuln_fixes`), stored as
+`Ticket.vulnFixes`. The AI worker uses the same module (no second client).
+
+- **Which tickets** (`is_vuln_fix`): title, type, labels, description or acceptance criteria mention a CVE,
+  Checkmarx, SCA, SAST, a CWE, "vulnerab…", OWASP, Spring4Shell or a dependency upgrade. Comments do not
+  classify. A bare "dependency" no longer counts ("blocked by a dependency").
+- **Targets** (`extract_targets`, from title, description, acceptance criteria, comments and link URLs, at
+  most 12): CVE ids (`CVE-2021-44228`); SAST query names that look like Checkmarx's (Title_Case words joined
+  by `_`, at least one lower-case letter, and a vulnerability word — `SQL_Injection`, `Stored_XSS`; plus a few
+  common spaced forms like "sql injection") and `CWE-<n>`; Checkmarx result links (a `result-id` /
+  `resultId` / `similarityId` query parameter on a host containing `checkmarx` / `cxone` or the configured
+  one) and explicit `resultId=…` / `similarityId: …` in prose; package versions (`lodash@4.17.20`,
+  `group:artifact:1.9`, `log4j-core 2.14.1`, "upgrade jackson-databind [from 2.13] to 2.15"). Env-var style
+  names, plain words with a version ("version 2.3", "node 18.2") and e-mail addresses are not targets.
+- **Which scans** (`scan_plan`): the repo slug and source branch of the ticket's open PR (else its newest
+  merged PR; declined PRs never), compared with the PR's destination branch; without one, the project's
+  `mainBranch`, else the first of `main` / `master` / `develop` with a scan. One repository per ticket.
+- **Auth**: `CHECKMARX_API_KEY` (an API key = OAuth refresh token) is POSTed once per run to the token URL
+  (`CHECKMARX_AUTH_URL`, else `<base>/auth/realms/<tenant>/protocol/openid-connect/token`) with
+  `client_id=ast-app`; the bearer token it returns goes in the `Authorization` header. The key is only ever in
+  that POST body — never in a URL or a log. TLS is always verified (`JIRA_INSECURE_TLS` does not apply to
+  SaaS); a proxy CA is added from `JIRA_CA_BUNDLE` / `~/.ai/ca-bundle.pem`. Keys come from `setup/.env`, the
+  environment wins; hosts only from `CHECKMARX_BASE_URL` / `endpoints.checkmarxBase` (https only).
+  Redirects are followed only within the same origin (`_safe_http.SameOriginRedirect`): neither the key nor
+  the bearer token follows a redirect to another host or down to http. **Any** token failure — 401/403, a
+  5xx, unreadable JSON, a refused redirect, or a response without `access_token` — marks Checkmarx down
+  for the rest of the run.
+- **Endpoints**: `GET /api/projects?limit=20&name=<slug>` — the search is a substring match, so only a project
+  named exactly `<slug>` (case-insensitive) or ending in `/<slug>` is taken; anything else is "no project",
+  never a best guess → `GET /api/scans?project-id=…&branch=…&statuses=Completed&limit=20&sort=-created_at`
+  (the newest 20 completed scans of exactly that branch; per target, the newest one that **ran the target's
+  engine** is used — SCA for CVEs and packages, SAST for queries, CWEs and result ids) → `GET /api/results?scan-id=…&limit=100&offset=…` (pages of
+  100, at most 10 per scan). Projects, scans and results are cached for the run, so the base branch's scan is
+  read once per repository, not once per ticket. At most 300 calls per run.
+- **Status per target**, comparing the branch scan with the base scan:
+  `fixed` — in the base scan and not open on the branch: absent, or there with status `FIXED`, or triaged
+  `NOT_EXPLOITABLE` (the detail says "triaged rather than removed" — Checkmarx no longer counts it, but the
+  code did not change); `open` — still detected on the branch; `not-found` — in neither scan (the ticket may
+  name the wrong id); `unknown` — no verdict can be proved: the branch has no completed scan yet, or none
+  that ran the target's engine ("branch scan did not run SCA/SAST"); the base has none to compare, or none
+  that ran the engine ("base scan did not run SCA/SAST"); the branch scan is **older than** the base scan
+  (a finding present on the base and absent from an older branch scan proves nothing — rescan the branch);
+  the ticket names a per-scan result `id` instead of a `similarityId`; no project matches the repo; or a scan
+  has more than 1,000 results (absence from a truncated read proves nothing). Matching: CVE ↔
+  `vulnerabilityDetails.cveName` (or the SCA result id); query ↔ `data.queryName` ignoring case / `_` /
+  spaces (a longer query name with the same start also matches); CWE ↔ `vulnerabilityDetails.cweId`; result
+  ↔ `similarityId` **only** (stable across scans — a result's own `id` changes with every scan, so a target
+  that matches a row's `id` is `unknown`, with a hint to name the similarityId); package ↔
+  `data.packageIdentifier` (`Maven-org.x:lib-1.2.3`, `Npm-lodash-4.17.20`) — on the base any version (or
+  the named vulnerable one); on the branch the named vulnerable version or one below the upgrade target,
+  and with only a from-version ("lodash 4.17.20", no "to") ANY version still carrying an open finding keeps
+  the target open.
+  Each item stores severity (from the base scan when it was there), location (SAST `file:line`, SCA
+  `package version`) and a one-line detail with both branches and scan dates.
+- **Failure semantics**: a network error, `401`/`403`, another HTTP error, unreadable JSON or the call budget
+  = the lookup FAILED: `vuln_fixes_for` returns None, the ticket keeps its previous `vulnFixes`, and after a
+  network or auth failure Checkmarx is not asked again that run (run note "Checkmarx unreachable —
+  vulnerability results carried forward"). "No project" / "no scan" are answers, stored as `unknown` with a
+  `note`. Not configured → nothing asked, prior results kept. Not a vulnerability-fix ticket, no target named,
+  or no PR → no field and no call.
+- **Sub-tasks**: only the sub-task's own PRs (after `scope_to_subtask`) — it never inherits its parent's scan.
+- **Readers**: the card's shield chip, the drawer's Proof → Vulnerabilities group, and the PR readiness
+  report's "Security scan (Checkmarx) clean" gate + evidence rows (`pr_report.vuln_gate`, in the deterministic
+  base — AI level None included — [AI-PIPELINE.md](AI-PIPELINE.md)).
+
 ## Confluence & links
 
 No Confluence API calls in the scripted path — Confluence/external links are harvested from
@@ -112,6 +235,7 @@ LLM-agent fallback may read Confluence through MCP (policy string from `config.m
 | `GET /api/reports` · `GET /api/reports/<KEY>` · `POST /api/report?key=K` · `POST /api/reports/bulk?scope=…` · `POST /api/reports/stop` | PR-report index / one report / generate one / bulk / stop. |
 | `GET|POST /api/settings` | Machine-wide settings (mirrored to `.settings.json`). |
 | `GET /api/keys` · `POST /api/keys` `{ name, value }` | The API keys dialog: status of every key in `setup/api-keys.json` (`{ set, masked }` — never a full secret) / save one into `setup/.env` (`''` removes it; JSON ≤ 8 KB, single line, no surrounding quotes, ≤ 4096 chars, secrets printable ASCII, URL fields `https://` — and a new URL clears its service's tokens). Details: [API.md](API.md#api-keys). |
+| `POST /api/keys/test` `{ service }` | The dialog's **Test** button: one authenticated read with the saved key (`server/keycheck.mjs`) → `{ ok, service, status, httpStatus?, ms, detail }`; 409 while that service's test runs. Details: [API.md](API.md#api-keys). |
 | `GET /api/ai-status` · `GET /api/ai-models` · `GET /api/cloud-models` · `POST /api/ai-models/pull` · `POST /api/ai-jobs` | Proxied to the AI intern. |
 | static | Allowlist only: `/dist/`, `/help/` (`/help` → `/help/00-start-here.html`), `/docs/`, `/setup/`, `/ai-intern/{models,cursor-prices,cloud-models}.json`, `/jira-intern/data.js(on)`, `/jira-intern/reports/index.js`; never a dotfile (`setup/.env` is 404). Gzip + ETag/304, in-memory cache keyed by mtime. |
 

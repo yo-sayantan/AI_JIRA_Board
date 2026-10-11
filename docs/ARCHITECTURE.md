@@ -16,11 +16,19 @@ that file. Decoupling the two means the app is a fast, dependency-free `dist/ind
 double-click, and refreshing the data **never rebuilds the app**.
 
 ```
-  ┌─────────────┐   fetch (Python/agent)   ┌──────────────────────┐   reads    ┌───────────────┐
-  │    Jira      │ ───────────────────────▶ │  jira-intern/data.js  │ ─────────▶ │  dist/         │
-  │  Confluence  │   tokens from            │  window.__JIRA_DATA__  │            │  index.html    │
-  │  Bitbucket   │   setup/.env (key dialog)│  window.__JIRA_CONFIG  │            │  (React app)   │
-  └─────────────┘                          └──────────────────────┘            └───────────────┘
+  ┌──────────────────┐                        ┌────────────────────────┐  reads  ┌──────────────┐
+  │ Jira · Confluence │   fetch (Python/agent) │  jira-intern/data.json  │ ──────▶ │  dist/        │
+  │ Bitbucket         │ ─────────────────────▶ │  + data.js twin         │         │  index.html   │
+  ├──────────────────┤                        │  tickets[].builds       │         │  (React app)  │
+  │ Jenkins (builds)  │ ── proof sources ────▶ │  tickets[].vulnFixes    │         │  cards·drawer │
+  │ Checkmarx One     │                        └───────────┬────────────┘         └──────┬───────┘
+  └────────▲─────────┘                                    │ reports/<KEY>.json          │ key button
+           │ tokens                                        ▼ (CI + security gates)       ▼
+  ┌────────┴─────────────────────────────────────────────────────────────────────────────────────┐
+  │ setup/.env  ◀── server/secrets.mjs (GET/POST /api/keys, masked) ◀── API keys dialog          │
+  │   read by runner-env.sh → fetch scripts · docker-entrypoint.sh · ai-intern/worker.py         │
+  │   the list of keys + kinds: setup/api-keys.json                                              │
+  └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## The two halves
@@ -42,6 +50,7 @@ Key scripts:
 | `completed_archive.py` | Build the full historical "Completed" archive (also re-fetches `raised[]`). |
 | `raised.py` | Raised-by-me fetch (every non-sub-task ticket you REPORTED): one parallel-paged JQL, assignee hand-off log from the changelog, issue links. Shared by the daily fetch, the archive and the view's own refresh. |
 | `_jira.py` · `devinfo.py` | Shared Jira/Bitbucket HTTP, field formatting, and branch/PR dev-info used by both fetches. |
+| `jenkins.py` · `checkmarx.py` | The proof sources (below): latest Jenkins build per branch and environment → `Ticket.builds`; Checkmarx One branch-vs-base scan comparison for vulnerability-fix tickets → `Ticket.vulnFixes`. |
 | `local-runner/*.sh` | Thin wrappers: daily, weekly, per-ticket refresh, PR reports. All source `runner-env.sh` for locks, timeouts and agent lookup. |
 | `local-runner/config.mjs` | Deep-merges the project config + personal override into shell vars, rendered prompts, MCP policy, and UI defaults. |
 | `prompts/intern-prompt.md` | The schema the fetch must produce, in prose — mirrors `src/types.ts`. |
@@ -62,8 +71,8 @@ the same component. In served mode the app reads `/api/reports*`; on `file://` i
 `reports/index.js`. "Generating" state is a `.status.json` of PIDs that both the server and the
 `file://` sync consult, so a cron-launched generation still shows a spinner in the drawer.
 
-The fetch needs only a **Jira token**. Confluence/Bitbucket tokens and MCP servers are optional
-and only enrich the output (linked docs, real branches, PR state, AI briefings).
+The fetch needs only a **Jira token**. Confluence/Bitbucket/Jenkins/Checkmarx keys and MCP servers are
+optional and only enrich the output (linked docs, real branches, PR state, builds, scan proof, AI briefings).
 
 ### 2. `src/` — the React app
 
@@ -80,7 +89,8 @@ inlined) so it runs from a double-click. It reads `window.__JIRA_DATA__` at load
 | `src/lib/boardView.ts` | Pure derivations: search → columns / On Hold / Next Sprint, the key index, counts. |
 | `src/lib/runner.ts` | Typed client for the local server's API. |
 | `src/lib/columns.ts` · `format.ts` · `search.ts` | Status → column mapping, display helpers, ticket search. |
-| `src/components/` | Feature folders: `board/`, `header/`, `ticket/`, `completed/`, `reports/`, `settings/`, `common/`. |
+| `src/components/` | Feature folders: `board/`, `header/`, `ticket/`, `completed/`, `raised/`, `reports/`, `settings/`, `common/`. Proof UI: `common/Builds.tsx`, `common/VulnFixes.tsx` (card chips), `ticket/Proof.tsx` (drawer section). |
+| `src/lib/apiKeys.ts` | The API keys dialog's model: services, key kinds, planned keys, read from `setup/api-keys.json`. |
 | `tooling/vite.config.ts` | Single-file build; injects the external `../jira-intern/data.js` `<script>`. |
 
 ### 3. `server/` (entry `serve.mjs`) — the optional local server
@@ -95,6 +105,38 @@ Zero-dependency Node. `server/serve.mjs` is the route table; `server/` holds the
 | `reports.mjs` | Report queue, bulk scope resolution, and an mtime-cached index of `reports/`. |
 | `ai.mjs` | JIRA-AI-Intern status (1 s shared cache), its file queue, and the `/api/ai-*` proxy. |
 | `settings.mjs` · `schedule.mjs` | Machine-wide settings and the refresh / report scheduler. |
+| `secrets.mjs` | The API keys store: `GET /api/keys` (masked values only) and `POST /api/keys` (only names in `setup/api-keys.json`; temp file + rename into `setup/.env`, mode 0600). |
+| `keycheck.mjs` | The API keys dialog's Test button: `POST /api/keys/test` makes one authenticated read per service with the saved key (no redirects, 10 s, verified TLS, injectable HTTP layer for tests). |
+
+## API keys — one store, many readers
+
+Every token lives in **`setup/.env`** (git-ignored, docker-ignored, never served; `JB_SECRETS_FILE` moves it).
+`setup/api-keys.json` is the tracked list of what may go in it: services, and per key a `kind` —
+`secret` (masked, the default), `url`, `email` or `text` (shown in full) — plus `planned: true` for a key
+that can be saved before anything reads it. The board's key button writes the file through
+`server/secrets.mjs`; nothing else writes it. Readers: `runner-env.sh::load_agent_secrets` (every fetch
+script), `jira-intern/_config.py::secrets_path`, `docker/docker-entrypoint.sh` and `ai-intern/worker.py`.
+Variables already in the environment win. A new base URL clears its service's secrets, so a token is
+never sent to a host it was not entered for. Details: [`SECURITY.md`](SECURITY.md), [`SETUP.md`](SETUP.md).
+
+## External proof sources
+
+Jira says what a ticket *claims*; the proof layer checks it against the systems that know. Two sources,
+same shape, both optional and both read by the fetch (never by the browser):
+
+| Source | Module → field | Asked for | Shows on |
+|---|---|---|---|
+| Jenkins (multibranch jobs in `jenkins.jobs`) | `jenkins.py` → `Ticket.builds` | the ticket's own branches, per environment | build chips on the card · drawer **Proof → Builds** · report gate "CI green" |
+| Checkmarx One (`endpoints.checkmarxBase`) | `checkmarx.py` → `Ticket.vulnFixes` | vulnerability-fix tickets with a PR: each CVE / query / CWE / package they name, branch scan vs base scan | shield chip · drawer **Proof → Vulnerabilities** · report gate "Security scan clean" |
+
+Shared rules: re-read on the daily fast path (a build or scan never bumps Jira's `updated`); only the
+ticket's own branches / PRs after `scope_to_subtask`; a failed lookup returns None and the prior value is
+**carried forward**; one writer (`daily_fetch.apply_builds` / `apply_vuln_fixes`) — the archive keeps `vulnFixes`
+(`carry_vuln_fixes`) and does not store builds;
+the report fingerprint includes the field only when present. The PR report's gates
+(`pr_report.jenkins_ci`, `pr_report.vuln_gate`) run in the deterministic base, so they work at AI level
+None. Endpoints and failure semantics: [`INTEGRATIONS.md`](INTEGRATIONS.md); adding a third source:
+[`AGENTS.md`](AGENTS.md#how-to-add-a-proof-source-worked-example-jenkins-and-checkmarx).
 
 ## How data reaches the screen
 
@@ -151,4 +193,4 @@ See [`DEPLOYMENT.md`](DEPLOYMENT.md) for step-by-step instructions.
 seconds, then enqueues `{type: enrich-report}` unless the level is None. Local inference is Ollama
 (CPU in Docker, or host Metal via `host.docker.internal`). Cloud uses the HTTP API and keys in
 `setup/.env` (added with the key button in the board header). Local enrichment (Gemma / GPT-OSS / mini / nano included) reads the intern
-volume plus live Jira/Bitbucket REST with those same tokens. CI / Checkmarx / Dynatrace stay **Not verified**.
+volume plus live Jira/Bitbucket REST with those same tokens. CI and Checkmarx gates come from the proof sources above (Not verified when a ticket has no data); Dynatrace stays **Not verified**.
