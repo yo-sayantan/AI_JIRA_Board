@@ -124,7 +124,7 @@ export function ApiKeysDialog({
           <motion.section
             ref={panelRef}
             tabIndex={-1}
-            className="jb-dialog-panel flex h-[min(720px,calc(100dvh-24px))] w-[min(980px,calc(100vw-24px))] flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--bg)] shadow-2xl"
+            className="jb-dialog-panel flex h-[min(800px,calc(100dvh-32px))] w-[min(1200px,calc(100vw-32px))] flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--bg)] shadow-2xl"
             initial={{ y: 20, scale: 0.98 }}
             animate={{ y: 0, scale: 1 }}
             exit={{ y: 12, scale: 0.98 }}
@@ -155,8 +155,8 @@ export function ApiKeysDialog({
               </p>
             )}
 
-            <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[264px_minmax(0,1fr)]">
-              <nav aria-label="Services" className="min-h-0 overflow-y-auto border-b border-[var(--line)] p-3 md:border-b-0 md:border-r">
+            <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[300px_minmax(0,1fr)]">
+              <nav aria-label="Services" className="min-h-0 overflow-y-auto border-b border-[var(--line)] p-4 [scrollbar-gutter:stable] md:border-b-0 md:border-r">
                 {groups.map(({ group, services }) => {
                   const ready = services.filter((s) => serviceReady(s, status)).length
                   return (
@@ -184,7 +184,7 @@ export function ApiKeysDialog({
                 })}
               </nav>
 
-              <div className="min-h-0 overflow-y-auto bg-[var(--bg)] p-4 md:p-5">
+              <div className="min-h-0 overflow-y-auto bg-[var(--bg)] p-5 [scrollbar-gutter:stable] md:px-8 md:py-6">
                 {current && (
                   <ServicePanel
                     key={current.id}
@@ -317,10 +317,10 @@ function ServicePanel({
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.16, ease: 'easeOut' }}
-      className="space-y-4"
+      className="space-y-5"
     >
       <section
-        className="rounded-xl border p-4"
+        className="rounded-2xl border p-5"
         style={{ borderColor: hexToRgba(ready ? service.color : QUIET, 0.35), background: hexToRgba(ready ? service.color : QUIET, 0.05) }}
       >
         <div className="flex flex-wrap items-start gap-3">
@@ -358,19 +358,22 @@ function ServicePanel({
         <span className="sr-only" aria-live="polite">
           {view?.text ?? ''}
         </span>
-        {view && (
-          <p
-            aria-hidden="true"
-            className="mt-3 rounded-lg px-3 py-2 text-[12px] font-semibold leading-snug [overflow-wrap:anywhere]"
-            title={view.title}
-            style={{ color: viewColor, background: hexToRgba(viewColor, 0.08), border: `1px solid ${hexToRgba(viewColor, 0.3)}` }}
-          >
-            {view.text}
-          </p>
-        )}
+        {/* A fixed one-line slot for the result, so a test never changes the card's height. */}
+        <p
+          aria-hidden="true"
+          className="mt-4 flex h-9 items-center gap-2 rounded-lg px-3 text-[12px] font-semibold"
+          title={view?.title ?? (blocker || undefined)}
+          style={
+            view
+              ? { color: viewColor, background: hexToRgba(viewColor, 0.08), border: `1px solid ${hexToRgba(viewColor, 0.3)}` }
+              : { color: 'var(--muted)', background: hexToRgba(QUIET, 0.06), border: `1px dashed ${hexToRgba(QUIET, 0.35)}` }
+          }
+        >
+          <span className="min-w-0 truncate">{busy ? 'Testing…' : view ? view.text : blocker ? `Can't test yet — ${blocker}` : 'Not tested yet'}</span>
+        </p>
       </section>
 
-      <section className="rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] p-4">
+      <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface-solid)] p-5">
         <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-[12px] sm:grid-cols-[6.5rem_minmax(0,1fr)]">
           <dt className="pt-0.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">Used by</dt>
           <dd className="flex flex-wrap gap-1.5">
@@ -389,7 +392,7 @@ function ServicePanel({
         </dl>
       </section>
 
-      <section className="rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] p-4">
+      <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface-solid)] p-5">
         <h4 className="mb-3 text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">
           {service.keys.length === 1 ? 'Key' : 'Keys'}
         </h4>
@@ -470,7 +473,16 @@ function KeyField({
         </label>
         {field.optional && <Tag text="optional" />}
         {field.planned && <Tag text="not used yet" />}
-        <code className="ml-auto font-mono text-[10.5px] text-[var(--muted)]">{field.env}</code>
+        {/* The save note sits on the label line, so saving never changes the field's height. */}
+        <span
+          aria-hidden="true"
+          className="ml-auto max-w-[50%] truncate text-[11.5px] font-semibold"
+          title={note?.text}
+          style={{ color: note?.error ? '#e11d48' : color }}
+        >
+          {note?.text ?? ''}
+        </span>
+        <code className="font-mono text-[10.5px] text-[var(--muted)]">{field.env}</code>
       </div>
       <div className="flex items-center gap-2">
       <div className="relative min-w-0 flex-1">
@@ -537,7 +549,7 @@ function KeyField({
         )}
       </div>
       </div>
-      {hint && !note && (
+      {hint && (
         <p id={hintId} className="text-[11.5px] leading-snug text-[var(--muted)] [text-wrap:pretty]">
           {hint}
         </p>
@@ -548,11 +560,6 @@ function KeyField({
       <span className="sr-only" aria-live="polite">
         {note?.text ?? ''}
       </span>
-      {note?.text && (
-        <p className="text-[11.5px] font-semibold leading-snug" aria-hidden="true" style={{ color: note.error ? '#e11d48' : color }}>
-          {note.text}
-        </p>
-      )}
     </div>
   )
 }
