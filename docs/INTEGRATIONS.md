@@ -111,8 +111,9 @@ LLM-agent fallback may read Confluence through MCP (policy string from `config.m
 | `GET /api/intern-status` | THE poll: run state + job type (daily/archive/raised/external), lastExit, progress, refresh queue, report queues, AI status. |
 | `GET /api/reports` · `GET /api/reports/<KEY>` · `POST /api/report?key=K` · `POST /api/reports/bulk?scope=…` · `POST /api/reports/stop` | PR-report index / one report / generate one / bulk / stop. |
 | `GET|POST /api/settings` | Machine-wide settings (mirrored to `.settings.json`). |
+| `GET /api/keys` · `POST /api/keys` `{ name, value }` | The API keys dialog: status of every key in `setup/api-keys.json` (`{ set, masked }` — never a full secret) / save one into `setup/.env` (`''` removes it; JSON ≤ 8 KB, single line, no surrounding quotes, ≤ 4096 chars, secrets printable ASCII, URL fields `https://` — and a new URL clears its service's tokens). Details: [API.md](API.md#api-keys). |
 | `GET /api/ai-status` · `GET /api/ai-models` · `GET /api/cloud-models` · `POST /api/ai-models/pull` · `POST /api/ai-jobs` | Proxied to the AI intern. |
-| static | Allowlist only: `/dist/`, `/help/` (`/help` → `/help/00-start-here.html`), `/docs/`, `/setup/`, `/ai-intern/{models,cursor-prices,cloud-models}.json`, `/jira-intern/data.js(on)`, `/jira-intern/reports/index.js`. Gzip + ETag/304, in-memory cache keyed by mtime. |
+| static | Allowlist only: `/dist/`, `/help/` (`/help` → `/help/00-start-here.html`), `/docs/`, `/setup/`, `/ai-intern/{models,cursor-prices,cloud-models}.json`, `/jira-intern/data.js(on)`, `/jira-intern/reports/index.js`; never a dotfile (`setup/.env` is 404). Gzip + ETag/304, in-memory cache keyed by mtime. |
 
 Client side, every route has a typed wrapper in `src/lib/runner.ts`; `src/lib/statusPoller.ts`
 multiplexes all watchers onto ONE `/api/intern-status` request at the fastest subscribed rate.
@@ -125,7 +126,8 @@ docker compose (project jira-project)
 ├─ AI-Intern    :4322  worker.py (jobs: briefs, report enrichment, pulls)
 └─ AI-Ollama    :11434 local inference (volume jira-ai-models)
 shared mounts: ./jira-intern (DATA — follows the deploy directory!), ./config,
-               ~/.cursor (read-only, tokens), ~/.ai (read-only, identity)
+               ./setup (API keys in setup/.env — read-write for the board, read-only for
+               the AI-Intern), ~/.ai (read-only, identity)
 ```
 
 Image build: stage `dist-build` (npm ci + vite) **or** stage `dist-prebuilt` (host-built `dist/`
@@ -147,8 +149,10 @@ jira-intern/.settings.json          what you change in the board's Settings (ser
 `local-runner/config.mjs` is the single merger: `shellenv` (vars for the runners, incl.
 `REFRESH_WORKERS`), `policy` (MCP policy string for agent prompts), `path`/`print` for debugging.
 The app receives the non-secret slice as `window.__JIRA_CONFIG__` (written next to the data by
-`datafile._app_config`). Secrets NEVER pass through this chain — scripts read
-`~/.cursor/mcp-secrets.env` directly into process env (`load_agent_secrets` / `load_env`).
+`datafile._app_config`). Secrets NEVER pass through this chain — they live in `setup/.env`
+(filled from the board's API keys dialog; `JB_SECRETS_FILE` moves it) and scripts read it directly
+into process env (`load_agent_secrets` / `load_env`; variables already set in the environment win).
+`JIRA_URL` / `BITBUCKET_URL` / `CONFLUENCE_URL` saved there override `endpoints.*`.
 
 ## Scheduler
 

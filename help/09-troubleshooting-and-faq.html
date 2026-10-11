@@ -58,7 +58,8 @@
         <table>
           <tr><th>Symptom</th><th>Fix</th></tr>
           <tr><td>Board loads but is empty</td><td>No data yet. Wait for the boot fetch, check <code class="inl">docker compose logs -f</code>, or run the fetch by hand.</td></tr>
-          <tr><td>"no JIRA_PERSONAL_TOKEN found — skipping fetch"</td><td>Your secrets file isn't mounted or readable. Confirm <code class="inl">~/.cursor/mcp-secrets.env</code> exists and contains the token.</td></tr>
+          <tr><td>"no JIRA_PERSONAL_TOKEN found — skipping fetch" / "no API keys yet"</td><td>No Jira token saved yet. Open the board, click the key button in the header (or <b>Add API keys first</b>), paste the token under <b>Jira</b>, Save, then Refresh. It is stored in <code class="inl">setup/.env</code>; with plain <code class="inl">docker run</code>, make sure <code class="inl">setup/</code> is mounted.</td></tr>
+          <tr><td>Saving a key fails ("could not write setup/.env")</td><td>On a Linux host the container (uid 1000) can't write <code class="inl">setup/</code>. Run <code class="inl">sudo chown -R 1000 setup</code> once.</td></tr>
           <tr><td><code class="inl">docker: cannot connect to the Docker daemon</code></td><td>Docker Desktop isn't running. Launch it and wait for "Engine running".</td></tr>
           <tr><td>Port 4321 already in use</td><td><code class="inl">bash scripts/start-jira-board.sh</code> frees it; or <code class="inl">docker compose down</code>, or another port: <code class="inl">PORT=8080 bash scripts/start-jira-board.sh</code>.</td></tr>
           <tr><td><code class="inl">Name or service not known</code> for your Jira host</td><td>Docker DNS, common on VPN. Uncomment the <code class="inl">dns:</code> block in <code class="inl">docker-compose.yml</code> and recreate.</td></tr>
@@ -147,11 +148,11 @@ docker compose build --build-arg DIST_SOURCE=prebuilt</pre>
         <summary><span class="qi">+</span> “Jira MCP unavailable — showing last known state” / fetch keeps failing <span class="ftag net">network</span></summary>
         <div class="a">
           <p>Either the VPN is down (on-prem Jira is only reachable on it) or the token expired (Jira returns
-            401). Check the token file and test it directly:</p>
+            401). Test the token directly (set <code class="inl">JIRA_PERSONAL_TOKEN</code> and <code class="inl">JIRA_URL</code> in your shell first):</p>
           <pre><button class="copy">Copy</button>curl -sk -H "Authorization: Bearer $JIRA_PERSONAL_TOKEN" \
   "$JIRA_URL/rest/api/2/myself" | head -c 200</pre>
           <p class="small">A JSON blob with your name = token fine, look at the VPN. HTML or 401 = make a new
-            Personal Access Token and update <code class="inl">~/.cursor/mcp-secrets.env</code>.</p>
+            Personal Access Token and paste it over the old one with the key button in the board header.</p>
         </div>
       </details>
 

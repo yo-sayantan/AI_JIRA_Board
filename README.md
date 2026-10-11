@@ -18,10 +18,9 @@ write the briefings you would otherwise piece together from five tabs.
 
 ```bash
 git clone https://github.com/yo-sayantan/AI-JIRA-Board.git && cd AI-JIRA-Board
-mkdir -p ~/.cursor ~/.ai
-cp setup/mcp-secrets.env.template ~/.cursor/mcp-secrets.env   # add your Jira token
-cp setup/config.example.json      ~/.ai/config.json           # add your name + URLs
-bash scripts/start-jira-board.sh                                      # build, deploy, open :4321
+mkdir -p ~/.ai && cp setup/config.example.json ~/.ai/config.json   # add your name + URLs
+bash scripts/start-jira-board.sh                                     # build, deploy, open :4321
+# then click the key button in the board header and paste your Jira token
 ```
 
 ## ✨ Why you'll like it
@@ -83,7 +82,7 @@ Need help? The **help guide** is plain HTML in [`help/`](help/) — open [`help/
 | I want to… | Open / edit | Notes |
 |---|---|---|
 | Install and deploy, step by step | [`help/00-start-here.html`](help/00-start-here.html) | Double-click it — works with nothing installed |
-| Add my **Jira token** (and Bitbucket / Confluence / AI keys) | `~/.cursor/mcp-secrets.env` | Copy from [`setup/mcp-secrets.env.template`](setup/mcp-secrets.env.template). Outside the repo, never committed |
+| Add my **Jira token** (and Bitbucket / Confluence / AI keys) | The **key button** in the board header | Saved in `setup/.env` — git-ignored, docker-ignored, never served. The list of keys: [`setup/api-keys.json`](setup/api-keys.json) |
 | Set **my name**, company URLs, footer branding | `~/.ai/config.json` | Copy from [`setup/config.example.json`](setup/config.example.json). Outside the repo |
 | Change the **project defaults** (columns, schedules, AI defaults…) | [`config/jira-board.config.json`](config/jira-board.config.json) | Generic, tracked. Every key: [`docs/CONFIG.md`](docs/CONFIG.md) |
 | Add / remove a **cloud AI model** (Cursor, Claude, Gemini), its efforts, the costly line | [`ai-intern/cloud-models.json`](ai-intern/cloud-models.json) | Settings follows within a minute — no rebuild. [Guide](help/07-ai-cloud-models-and-prices.html) |
@@ -101,7 +100,8 @@ Settings are layered: **project defaults** → your **personal override** → wh
 
 | File | Where | In git? | What it holds | Read by |
 |---|---|---|---|---|
-| `mcp-secrets.env` | `~/.cursor/` | **No — never** | Tokens: `JIRA_PERSONAL_TOKEN`, Bitbucket / Confluence PATs, `CURSOR_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` | the fetch, the AI Intern (mounted read-only into both containers) |
+| `.env` | `setup/` | **No — never** (git- and docker-ignored) | Tokens: `JIRA_PERSONAL_TOKEN`, Bitbucket / Confluence PATs, `CURSOR_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` — written by the board's API keys dialog | the fetch, the AI Intern (`./setup` mounted into both containers; read-only for the AI Intern) |
+| [`api-keys.json`](setup/api-keys.json) | `setup/` | Yes | The list of API keys the dialog offers: per service the names, why, what uses it, where to get it | the board, the server |
 | `config.json` | `~/.ai/` | **No** | Your identity (display name as Jira shows it, account id), company URLs, branding — only the keys that differ from the defaults | everything, via `jira-intern/local-runner/config.mjs` |
 | `ca-bundle.pem` | `~/.ai/` | **No** | Your company's root certificate(s), added to the system roots | the fetch, the AI Intern |
 | [`jira-board.config.json`](config/jira-board.config.json) | `config/` | Yes (generic only) | Project defaults: columns, refresh windows, AI defaults, report settings, Bitbucket hints. Validated by [`jira-board.config.schema.json`](config/jira-board.config.schema.json) | the board, the server, the fetch, the AI Intern |
@@ -113,9 +113,9 @@ Settings are layered: **project defaults** → your **personal override** → wh
 | [`docker-compose.yml`](docker-compose.yml) | repo root | Yes | The three containers (`JIRA-Board`, `AI-Intern`, `AI-Ollama`), port 4321, mounts, environment | Docker |
 | Browser `localStorage` | your browser | — | `jb-settings` (theme, toggles), `jb-archived`, `jb-guide-os` … — no cookies | the board, the help guide |
 
-Templates for the files outside the repo live in [`setup/`](setup/): `mcp-secrets.env.template`, `config.example.json`,
-`mcp.cursor.json.template` / `mcp.claude.json.template` / `mcp-with-secrets.sh.template` (Jira & Confluence MCP for
-your editor), and `Start Jira Board.command.template` (a macOS double-click launcher). Step by step:
+Templates for the files outside the repo live in [`setup/`](setup/): `config.example.json`,
+`mcp.cursor.json.template` / `mcp.claude.json.template` / `mcp-with-secrets.sh.template` + `mcp-secrets.env.template`
+(Jira & Confluence MCP for your editor — the board itself reads only `setup/.env`), and `Start Jira Board.command.template` (a macOS double-click launcher). Step by step:
 [`docs/SETUP.md`](docs/SETUP.md).
 
 ### Repository index — every folder
@@ -124,13 +124,13 @@ your editor), and `Start Jira Board.command.template` (a macOS double-click laun
 |---|---|---|
 | [`help/`](help/) | **The help guide** — plain HTML pages, numbered in the order you need them (below). One `help.css`, one `help.js`, and `help-data.js` (generated by every build so tables and docs work offline) | setting up, deploying, troubleshooting |
 | [`docs/`](docs/) | **Developer documentation** (markdown) — architecture, data flow, API, config reference, changelog | changing the code |
-| [`setup/`](setup/) | Templates for your secrets, personal config, editor MCP and the Desktop launcher — no real values | first setup |
+| [`setup/`](setup/) | `api-keys.json` (the list of keys), your keys in the git-ignored `.env` (written by the board), and templates for personal config, editor MCP and the Desktop launcher | first setup |
 | [`config/`](config/) | Project defaults (`jira-board.config.json`) and its JSON schema | changing defaults |
 | [`scripts/`](scripts/) | `start-jira-board.sh` (build + deploy + open), `open-guide.sh` / `open-guide.bat` (open the help guide), `build-help-data.mjs`, `Open Board.html` | deploying |
 | [`docker/`](docker/) | `Dockerfile` (built with the repo root as context) and `docker-entrypoint.sh` | changing the image |
 | [`docker-compose.yml`](docker-compose.yml) | The containers, port and mounts | changing ports or mounts |
 | [`src/`](src/) | The React 19 board — built into one self-contained `dist/index.html`. `src/types.ts` is the data contract | changing the UI |
-| [`server/`](server/) | The zero-dependency Node server (`serve.mjs`): serves the board and the help guide, runs jobs, proxies the AI Intern | changing the API |
+| [`server/`](server/) | The zero-dependency Node server (`serve.mjs`): serves the board and the help guide, runs jobs, saves API keys (`secrets.mjs`), proxies the AI Intern | changing the API |
 | [`jira-intern/`](jira-intern/) | **The fetch pipeline** (Python): `daily_fetch.py` (your tickets), `completed_archive.py`, `raised.py`, `devinfo.py` (PRs / branches), `pr_report.py`, `transition.py` (drag → Jira), `local-runner/*.sh` (what the server runs). Also **your data** (below) | changing what is fetched |
 | [`ai-intern/`](ai-intern/) | **The AI Intern** container: `worker.py` (job queue, local or cloud models), `brief.py`, `cloud_config.py` + `cloud-models.json`, `models.json`, `cursor-prices.json` | changing AI behaviour or models |
 | [`tests/`](tests/) | Python tests (`npm test` runs them with the JavaScript ones in `src/**/*.test.ts`) | before every commit |
@@ -164,7 +164,7 @@ Every file, its writer and its reader: [`docs/RUNTIME-FILES.md`](docs/RUNTIME-FI
 | [`01-requirements.html`](help/01-requirements.html) | Know what to install (Docker, Git, a Jira token) and where to get it |
 | [`02-install-the-tools.html`](help/02-install-the-tools.html) | Install them on Windows, macOS or Linux, and check they work |
 | [`03-get-the-code-with-git.html`](help/03-get-the-code-with-git.html) | Clone the repository; everyday Git |
-| [`04-configure-token-and-settings.html`](help/04-configure-token-and-settings.html) | Create the secrets file and your personal config |
+| [`04-configure-token-and-settings.html`](help/04-configure-token-and-settings.html) | Get your Jira token (pasted in the board's key dialog) and create your personal config |
 | [`05-deploy-with-docker.html`](help/05-deploy-with-docker.html) | Deploy, redeploy, manage the containers |
 | [`06-ai-local-models.html`](help/06-ai-local-models.html) | Run AI on your own machine (Ollama, GGUF) |
 | [`07-ai-cloud-models-and-prices.html`](help/07-ai-cloud-models-and-prices.html) | Use Cursor, Claude or Gemini; prices; `cloud-models.json` |

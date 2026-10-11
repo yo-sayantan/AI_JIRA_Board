@@ -20,13 +20,13 @@ written against the current code; file paths are given so you can check.
 - Another user on the same machine: there is no authentication on either HTTP surface. The board
   trusts anyone who can reach `127.0.0.1:4321` (or the LAN hosts you opt into).
 - The security of your Jira / Bitbucket / Confluence servers or of the cloud AI providers.
-- Someone with read access to your home directory (they have `~/.cursor/mcp-secrets.env` anyway).
+- Someone with read access to your checkout (they have `setup/.env` anyway).
 
 ## What is stored where
 
 | Data | Where | Leaves the machine? |
 |---|---|---|
-| Your tokens | `~/.cursor/mcp-secrets.env` only (git-ignored patterns `*.env`, `mcp-secrets.env`). Mounted read-only into the containers as a **directory**. | Only to the service each token belongs to. |
+| Your tokens | `setup/.env` only — written by the board's API keys dialog (`server/secrets.mjs`, mode 0600). Git-ignored (`.env`), docker-ignored (`**/.env`, `**/.env.*`, `**/*.env`), never served. `./setup` is mounted as a **directory** — read-write into JIRA-Board, read-only into AI-Intern. | Only to the service each token belongs to. |
 | Your identity and company URLs | `~/.ai/config.json` (or `$AI_CONFIG_FILE`), outside the repo. The tracked `config/jira-board.config.json` holds placeholders. | Never. |
 | Ticket content, comments, PR metadata | `jira-intern/data.json` / `data.js`, `cache/`, `.state.json`, `_STATUS.md`, `logs/` — all git-ignored and excluded from the Docker build context except the baked seed copy of `data.*` (see below). | Only if you choose **Cloud AI** (next section). |
 | PR Readiness Reports | `jira-intern/reports/*.json` + `reports/index.js` — git-ignored, not in the image. | Same. |
@@ -54,10 +54,11 @@ self-contained file and the guide uses system fonts.
 
 ## Secrets read
 
-The secrets file is **parsed, never sourced**: `KEY=value`, optional `export `, one layer of
+The secrets file (`setup/.env`) is **parsed, never sourced**: `KEY=value`, optional `export `, one layer of
 quotes, `#` comments; `$VAR`, `$(…)` and backticks are literal (`jira-intern/_config.py
-load_secrets`, `runner-env.sh export_secrets_from_file`, `setup/mcp-with-secrets.sh.template`,
-`ai-intern/worker.py load_secrets`). These are the only names ever read:
+load_secrets`, `runner-env.sh export_secrets_from_file`, `server/secrets.mjs parseEnv`,
+`ai-intern/worker.py load_secrets`; the IDE wrapper `setup/mcp-with-secrets.sh.template` parses its own
+file the same way). These are the only names ever read:
 
 | Name | Read by | Purpose |
 |---|---|---|
@@ -72,10 +73,36 @@ load_secrets`, `runner-env.sh export_secrets_from_file`, `setup/mcp-with-secrets
 | `DYNATRACE_PAT` | AI worker | Optional production-proof rows. |
 
 Process boundaries: the Docker entrypoint **does not export** the secrets file into the Node
-server's environment — the Python scripts load the file themselves, and `runner-env.sh` exports
+server's environment (the server reads it only to mask values for the dialog) — the Python scripts load the file themselves, and `runner-env.sh` exports
 only the allow-list above to its children. The worker exports only the Jira/Bitbucket/Confluence
 values its imported modules read; cloud keys never enter `os.environ`. Nothing logs a token; the
 entrypoint only greps for the *presence* of `JIRA_PERSONAL_TOKEN=`.
+
+## The API keys dialog
+
+The board's key button writes `setup/.env` through `GET`/`POST /api/keys` (`server/secrets.mjs`):
+
+- **No full value ever leaves the server.** `GET /api/keys` returns `{ set, masked }` per key: first 4
+  + `••••••••` + last 4 for 16+ characters, all bullets below that — the length is never revealed.
+  Only the base-URL fields (`secret: false` in `setup/api-keys.json`) come back in full. The browser
+  keeps no copy; a new secret is typed into a password field (the saved mask is only its placeholder).
+- **Only known names, only clean values.** The name must be in `setup/api-keys.json`; the value must
+  be one line, ≤ 4096 characters, without surrounding quotes. Secrets are printable ASCII only (which
+  also refuses a mask sent back as a key); URL fields must be `https://` (`http://` only for localhost)
+  with no user name, password, `?` or `#`. A save can never inject a second `KEY=` line. Body ≤ 8 KB,
+  `Content-Type: application/json`.
+- **A token stays with its host.** Saving a new base URL (`JIRA_URL`, `BITBUCKET_URL`, `CONFLUENCE_URL`)
+  clears that service's tokens in the same write (`cleared` in the reply), so a stored token is never
+  sent to a host it was not entered for — re-pointing a service needs the token re-entered.
+- **Safe writes.** One write queue; a randomly named temp file opened exclusive, no-follow, mode 0600,
+  synced, then renamed over the old one (and deleted if anything fails); comments and lines the board
+  does not own are kept. The log records key names, never a value.
+- **Never served.** The static handler refuses any path with a dot-segment, and under `/setup/` only
+  `*.template` and `*.json` are served, so `/setup/.env` (or a stray `secrets.env`) is a 404.
+- **Who can save a key:** anyone whose request passes the Host/Origin guards below — by default only
+  local processes and pages served by the board itself (loopback). Exposing the board on the LAN
+  extends that to the LAN; there is no separate authentication. (Env vars set on the container still
+  win over `setup/.env`, in Python and bash alike.)
 
 ## Data flow per AI backend
 
@@ -143,13 +170,14 @@ endpoints always verify and ignore `JIRA_INSECURE_TLS`).
 - **Cross-site writes** (`originAllowed`): every non-GET must carry an `Origin`/`Referer` whose
   host equals `Host`, and `Sec-Fetch-Site` must be `same-origin` or `none`. Requests with neither
   header (curl, scripts) are allowed — there is no page they could have been forged from.
-- JSON routes require `Content-Type: application/json`; bodies are capped (4 KB settings, 64 KB
-  proxied, 1 MB at the worker); queues are bounded (50 refreshes, 500 reports).
-- Static serving is an **allow-list** (`/dist`, `/docs`, `/setup`, `models.json`, `data.*`,
-  `reports/index.js`); every response has `X-Content-Type-Options: nosniff` and
+- JSON routes require `Content-Type: application/json`; bodies are capped (4 KB settings, 8 KB API
+  keys, 64 KB proxied, 1 MB at the worker); queues are bounded (50 refreshes, 500 reports).
+- Static serving is an **allow-list** (`/dist`, `/help`, `/docs`, `/setup`, `models.json`, `data.*`,
+  `reports/index.js`) that never matches a dotfile (`setup/.env`, `.settings.json` are 404); every response has `X-Content-Type-Options: nosniff` and
   `Referrer-Policy: no-referrer`; Jira data is `Cache-Control: no-store`.
 - **Exposing on the LAN** (`BIND_IP=0.0.0.0 ALLOWED_HOSTS=my-laptop.local,192.168.1.20`) means
-  anyone on that network can read your tickets and start jobs. Do it only on a network you trust,
+  anyone on that network can read your tickets, start jobs and overwrite your API keys (never read
+  them back in full). Do it only on a network you trust,
   and keep the list of names tight.
 
 ## Input validation at the edges

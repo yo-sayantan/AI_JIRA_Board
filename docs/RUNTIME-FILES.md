@@ -144,7 +144,7 @@ pending on start. `summarize-active` and `pull-model` run one at a time; enrich 
    file once you are sure nothing is running.
 6. **TLS.** `certificate verify failed` → `JIRA_CA_BUNDLE` ([SECURITY.md](SECURITY.md#tls-posture)).
 7. **Reproduce by hand.** `docker exec -it JIRA-Board bash jira-intern/local-runner/run-intern.sh`
-   (or on the host, with Python 3.11+ and your secrets file in place). `python3
+   (or on the host, with Python 3.11+ and `setup/.env` in place). `python3
    jira-intern/daily_fetch.py` runs the fast path alone and prints its JSON summary.
 8. **Data sanity.** `node -e 'JSON.parse(require("fs").readFileSync("jira-intern/data.json","utf8"))'`
    — the runners restore the pre-run snapshot automatically if a run leaves `data.json` invalid.

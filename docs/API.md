@@ -20,11 +20,11 @@ params unless marked `body:`.
 |---|---|
 | `Host` must be loopback (`localhost`, `127.0.0.1`, `[::1]`, `*.localhost`), the `BIND_HOST` address, or listed in `ALLOWED_HOSTS` (comma-separated `host[:port]`) | **403** `forbidden host` (+ `hint`) |
 | Non-GET/HEAD: `Origin` (or `Referer`) host must equal `Host`, and `Sec-Fetch-Site`, when sent, must be `same-origin` or `none` | **403** `forbidden origin` |
-| `POST /api/settings`, `/api/ai-models/pull`, `/api/ai-jobs` need `Content-Type: application/json` | **415** `unsupported media type` |
+| `POST /api/settings`, `/api/keys`, `/api/ai-models/pull`, `/api/ai-jobs` need `Content-Type: application/json` | **415** `unsupported media type` |
 | Undecodable path | **400** `bad url` |
 | Unknown `/api/*` | **404** `not found` |
 | Non-GET on a static path | **405** `method not allowed` |
-| Body larger than the route's limit (4 KB settings, 64 KB proxied) | **413** `too large` |
+| Body larger than the route's limit (4 KB settings, 8 KB keys, 64 KB proxied) | **413** `too large` |
 | Client went away mid-body | **400** `aborted` |
 | Queue at capacity | **429** `queue full` |
 | Unhandled exception | **500** `internal error` |
@@ -46,7 +46,8 @@ params unless marked `body:`.
 
 Only paths matching the allow-list in `server/serve.mjs` are ever opened (`server/http.mjs`
 `createStaticHandler`); everything else under the repo is 404, including `jira-intern/*.py`,
-`.settings.json` and `reports/*.json` (reports are served through the API instead).
+`.settings.json` and `reports/*.json` (reports are served through the API instead). Any path with a
+dot-segment (`setup/.env`, `.settings.json`, …) is 404 whatever the allow-list says.
 
 ### Data writers
 
@@ -86,6 +87,19 @@ Accepted fields (`server/settings.mjs` `SCHEMA`): `aiLevel` (none/low/moderate/f
 `fullRefresh` and `reportRefresh` (off/daily/weekly/twice-weekly). Model ids must match
 `^[\w.:/-]*$`. Unknown keys are ignored; one invalid value rejects the whole patch.
 
+### API keys
+
+The values live in `setup/.env` (`server/secrets.mjs`); the names that exist are `setup/api-keys.json`.
+
+| Route | Response |
+|---|---|
+| `GET /api/keys` | **200** `{ ok, keys: { ENV: { set, masked } } }` — one entry per key in `api-keys.json`. A secret's `masked` is first 4 + `••••••••` + last 4 (≥ 16 chars), all bullets below that — never the full value or its length; URL fields (`secret: false`) come back as they are · **500** `could not read setup/.env` |
+| `POST /api/keys` `body: { name, value }`, ≤ 8 KB | **200** `{ ok, keys, cleared }` — the new status, and the tokens cleared because their service's base URL changed (a new `*_URL` clears its service's secrets) · **400** `bad json` / `unknown key …` / `value must be a single line` / `remove the surrounding quotes` / `value too long` (> 4096) / a secret that is not printable ASCII / a URL that is not `https://` (`http://` only for localhost) or carries a user, password, `?` or `#` · **413** · **415** · **500** `could not write setup/.env` |
+
+`name` must be in `api-keys.json`; `value: ''` removes the key. A save rewrites only that line (comments
+and unknown lines are kept) through one write queue — temp file, mode 0600, rename. The log records the key
+name only. The same Host/Origin guards as every POST apply.
+
 ### AI intern (proxied to `AI_INTERN_URL`)
 
 When the worker is unreachable these answer **503** `{ ok: false, down: true, state: 'down', error }`
@@ -118,7 +132,7 @@ network only**. The board is its only intended client.
 | `GET /health` | **200** `{ ok: true, workers }` · **503** `{ ok: false, error: 'worker thread died', dead }` (the Docker `HEALTHCHECK`) |
 | `GET /api/status` | **200** `{ ok, state: idle \| working \| pulling \| down, backend, model, cloudProvider, cloudEffort, useHostOllama, ollamaOk, ollamaError, installedModels, catalog, memGb, parallel, current, active[], lastError, pulling, pullProgress, queued, updatedAt }` — the `.ai-status.json` record plus live settings and Ollama facts |
 | `GET /api/models` | **200** `{ ok, catalog, installed, ollamaOk, memGb }` |
-| `GET /api/cloud-models` | **200** `{ ok, claude: { configured, models, error }, cursor: {…}, gemini: {…} }` — curated lists, cached 60 s; `configured` is false when the key is absent from `mcp-secrets.env` |
+| `GET /api/cloud-models` | **200** `{ ok, claude: { configured, models, error }, cursor: {…}, gemini: {…} }` — curated lists, cached 60 s; `configured` is false when the key is absent from `setup/.env` |
 | `POST /api/jobs` `body:` `{ type: enrich-report \| summarize-active \| pull-model, key?, model?, level?, backend?, cloudProvider?, cloudEffort?, useHostOllama? }` | **202** `{ ok, job }` · **400** bad key / bad model tag / validation error |
 | `POST /api/models/pull` `body: { model, useHostOllama? }` | **202** `{ ok, job }` · **400** `missing model` / bad tag |
 | anything else | **404** |

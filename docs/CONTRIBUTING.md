@@ -22,8 +22,9 @@ bash -n jira-intern/local-runner/*.sh docker/docker-entrypoint.sh scripts/start-
 python3 -m py_compile jira-intern/*.py ai-intern/worker.py                       # Python syntax
 ```
 
-To test the fetch against a real Jira you need `~/.cursor/mcp-secrets.env` and `~/.ai/config.json`
-as described in [`../setup/README.md`](../setup/README.md); `python3 jira-intern/daily_fetch.py`
+To test the fetch against a real Jira you need `setup/.env` (a Jira token — save it from the board's
+key button, or write `JIRA_PERSONAL_TOKEN=…` into it by hand) and `~/.ai/config.json` as described in
+[`SETUP.md`](SETUP.md); `python3 jira-intern/daily_fetch.py`
 runs the fast path alone and prints a JSON summary. To test the worker without Docker:
 `INTERN_DIR=$PWD/jira-intern OLLAMA_HOST=http://127.0.0.1:11434 python3 ai-intern/worker.py`
 (needs Ollama on the host) and `AI_INTERN_URL=http://127.0.0.1:4322 npm run serve`.
@@ -44,7 +45,8 @@ commands above.
   functions; never call a real Jira.
 - **TypeScript** (`vitest`, jsdom): put `*.test.ts(x)` next to the module under `src/`. Pure
   helpers (`src/lib/*`) are the sweet spot — `columns.ts`, `format.ts`, `search.ts`,
-  `settings.ts parseSettings`, `boardView.ts`.
+  `settings.ts parseSettings`, `boardView.ts`, `apiKeys.ts`. Server modules get `*.test.mjs` beside them
+  under `server/` (e.g. `secrets.test.mjs`; `tooling/vitest.config.ts` includes `server/**/*.test.mjs`).
 - A behaviour change in the pipeline, the server or a contract needs a test in the matching suite.
 
 ## The three keep-in-sync contracts
@@ -58,7 +60,15 @@ commands above.
 Two more pairs are worth knowing: `jira-intern/_config.py` mirrors `local-runner/config.mjs`
 (deep-merge and resolution order; `tests/test_config.py` enforces parity), and `datafile.py`
 mirrors `sync-datajs.mjs` byte for byte (`tests/test_datafile.py NodeParity`). The lock rules in
-`lock-util.sh` and `server/locks.mjs` must stay identical too.
+`lock-util.sh` and `server/locks.mjs` must stay identical too. The `setup/.env` parser exists three
+times — `_config.py load_secrets`, `runner-env.sh export_secrets_from_file`, `server/secrets.mjs
+parseEnv` — and must agree (`tests/test_api_keys.py`, `server/secrets.test.mjs`); every key in
+`setup/api-keys.json` must be read by something (`tests/test_api_keys.py`).
+
+**Add an API key.** One row in `setup/api-keys.json` (service colour, why, usedBy, getIt, the `env`
+name) — the dialog and `POST /api/keys` follow. Then read it: add the name to
+`runner-env.sh load_agent_secrets` (fetch / agent CLI), to `ai-intern/worker.py` (cloud call), or set it as a
+connector's `apiKeyEnv`. `tests/test_api_keys.py` fails until one of those reads it.
 
 ## Recipes
 
