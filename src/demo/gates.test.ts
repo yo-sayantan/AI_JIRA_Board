@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { Ticket } from '../types'
-import { isQaTicket } from '../lib/moveRules'
+import { MOVE_TARGETS } from '../lib/columns'
+import { isAssignedToMe } from '../lib/format'
+import { checkMove, DONE_LOCKED, isQaTicket, moveTargetOf, readinessOf } from '../lib/moveRules'
 import { demoDump } from './index'
 import { demoMoveVerdict, evaluateMove } from './gates'
 
@@ -104,10 +106,113 @@ describe('demo dump', () => {
     expect(d.completed.some((c) => c.mine === false)).toBe(true)
     expect((d.raised ?? []).some((r) => (r.assigneeLog ?? []).length >= 4)).toBe(true)
     expect((d.raised ?? []).some((r) => r.assignee == null)).toBe(true)
+    // The Raised "With me" chip needs a row handed back to the demo user.
+    expect((d.raised ?? []).some((r) => isAssignedToMe(r.assignee, d.user))).toBe(true)
   })
 
   it('never points at a real host', () => {
     const json = JSON.stringify(d)
     for (const url of json.match(/https?:\/\/[^"\\\s]+/g) ?? []) expect(url).toMatch(/\/\/[a-z.]*example\.com(\/|$)/)
+  })
+})
+
+describe('demo dump — every move scenario', () => {
+  const d = demoDump()
+  const index = new Map(d.tickets.flatMap(function flat(t): Ticket[] { return [t, ...(t.subtasks ?? []).flatMap(flat)] }).map((t) => [t.key, t] as const))
+  const byKey = (k: string) => d.tickets.find((t) => t.key === k)!
+  const nested = (k: string) => index.get(k)!
+
+  it('puts at least one ticket in every move target', () => {
+    const at = new Set(d.tickets.map((t) => moveTargetOf(t)))
+    for (const target of MOVE_TARGETS) expect(at, target).toContain(target)
+  })
+
+  it('locks a Done ticket: every move is refused, never forcible, and only Undo moves it', () => {
+    const done = d.tickets.filter((t) => t.column === 'done')
+    expect(done.length).toBeGreaterThan(0)
+    for (const t of done) {
+      for (const to of MOVE_TARGETS) {
+        if (to === 'done') continue
+        expect(checkMove(t, to)).toMatchObject({ kind: 'lane', reason: DONE_LOCKED })
+      }
+    }
+    expect(demoMoveVerdict(byKey('DEMO-250'), 'rev', 'force')).toMatchObject({ ok: false, forcible: false })
+    expect(demoMoveVerdict(byKey('DEMO-250'), 'rev', 'undo')).toMatchObject({ ok: true })
+  })
+
+  it('takes Next Sprint entrants from To Do, Blocked, the QA shelf and On Hold only', () => {
+    for (const k of ['DEMO-201', 'DEMO-210', 'DEMO-246', 'DEMO-260', 'DEMO-249']) expect(checkMove(byKey(k), 'next').reason, k).toBeNull()
+    for (const k of ['DEMO-220', 'DEMO-230', 'DEMO-245']) expect(checkMove(byKey(k), 'next'), k).toMatchObject({ kind: 'lane', reason: expect.stringContaining('Only To Do') })
+  })
+
+  it('lets a Next Sprint ticket go back to To Do and nowhere else — from every kind of future sprint', () => {
+    for (const k of ['DEMO-270', 'DEMO-271', 'DEMO-273']) {
+      expect(moveTargetOf(byKey(k)), k).toBe('next')
+      expect(checkMove(byKey(k), 'todo').reason).toBeNull()
+      expect(checkMove(byKey(k), 'prog')).toMatchObject({ kind: 'lane', reason: expect.stringContaining('back to To Do') })
+    }
+  })
+
+  it('recognises QA tickets by type, by label and by title, and keeps each in the lane', () => {
+    expect(byKey('DEMO-245').type).toMatch(/QA/) // by type
+    expect(byKey('DEMO-248').type).toBe('Task') // by its qa-ticket label only
+    expect(byKey('DEMO-249').type).toBe('Task') // by its [QA] title only
+    for (const k of ['DEMO-245', 'DEMO-248', 'DEMO-249']) {
+      expect(isQaTicket(byKey(k)), k).toBe(true)
+      expect(checkMove(byKey(k), 'prog'), k).toMatchObject({ kind: 'lane', reason: expect.stringContaining('A QA ticket can only') })
+      expect(checkMove(byKey(k), 'qa').reason, k).toBeNull()
+    }
+    expect(byKey('DEMO-248').column).toBe('blocked') // the lane from Blocked
+    expect(byKey('DEMO-249').column).toBe('hold') // …and from On Hold
+    expect(checkMove(byKey('DEMO-220'), 'qaip')).toMatchObject({ kind: 'lane', reason: expect.stringContaining('Only QA tickets') })
+  })
+
+  it('shows a QA ticket I raised, linked to my Blocked ticket, in To Do', () => {
+    const qa = byKey('DEMO-247')
+    expect(isQaTicket(qa)).toBe(true)
+    expect(qa.reporter).toMatch(/^Demo User/)
+    expect(qa.assignee).not.toMatch(/^Demo User/)
+    expect(qa.column).toBe('todo')
+    const blocked = byKey((qa.related ?? [])[0].key!)
+    expect(blocked).toMatchObject({ column: 'blocked', assignee: expect.stringMatching(/^Demo User/) })
+    expect((d.raised ?? []).some((r) => r.key === 'DEMO-247')).toBe(true) // and it is listed under Raised by me
+  })
+
+  it('refuses In Review for a declined-only PR and for a sub-ticket whose parent has no open PR', () => {
+    expect(evaluateMove('rev', byKey('DEMO-226')).blocker).toContain('no pull request raised')
+    expect(evaluateMove('rev', nested('DEMO-225-1'), index).blocker).toContain('its parent DEMO-225 has no open one')
+  })
+
+  it('judges sub-tickets against their parent for Done', () => {
+    expect(evaluateMove('done', nested('DEMO-220-2'), index).blocker).toBeNull() // no PR of its own, parent has a QA ticket
+    const refused = evaluateMove('done', byKey('DEMO-223-1'), index).blocker
+    expect(refused).toContain('#428 still open')
+    expect(refused).toContain('no QA ticket raised (on it or its parent)')
+  })
+
+  it('passes the Done gate on a linked QA ticket, not only a QA sub-task', () => {
+    const t = byKey('DEMO-237')
+    expect(t.subtasks ?? []).toHaveLength(0)
+    expect(evaluateMove('done', t).blocker).toBeNull()
+  })
+
+  it('warns, without refusing, when a ticket with an open PR goes On Hold', () => {
+    const v = evaluateMove('hold', byKey('DEMO-220'))
+    expect(v.blocker).toBeNull()
+    expect(v.warnings.join(' ')).toContain('#430 is still open')
+  })
+
+  it('lets ⌥ force a gate but never the lane', () => {
+    expect(demoMoveVerdict(byKey('DEMO-241'), 'done')).toMatchObject({ ok: false, forcible: true })
+    expect(demoMoveVerdict(byKey('DEMO-241'), 'done', 'force')).toMatchObject({ ok: true, status: 'Done' })
+    expect(demoMoveVerdict(byKey('DEMO-248'), 'prog', 'force')).toMatchObject({ ok: false, forcible: false })
+  })
+
+  it('has cards with all-green and with amber readiness dots, and none on To Do or QA tickets', () => {
+    expect(readinessOf(byKey('DEMO-242'), index)).toMatchObject({ rev: null, done: { reason: null } })
+    expect(readinessOf(byKey('DEMO-210'), index)?.rev?.reason).toBeNull() // its PR is enough for In Review…
+    expect(readinessOf(byKey('DEMO-210'), index)?.done.reason).toBeTruthy() // …but not for Done
+    expect(readinessOf(byKey('DEMO-201'), index)).toBeNull()
+    expect(readinessOf(byKey('DEMO-248'), index)).toBeNull()
   })
 })

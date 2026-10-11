@@ -168,3 +168,23 @@ describe('Next Sprint moves', () => {
   })
 })
 
+
+describe('reset (Demo mode → Reset)', () => {
+  it('drops every move, so each card is back where the dump puts it', async () => {
+    const { moves } = mountMoves()
+    await act(async () => moves().moveTicket(dump, 'hold'))
+    expect(moves().moved).toBe(1)
+    act(() => moves().reset())
+    expect(moves().applyOverrides([dump])[0].column).toBe('blocked')
+    expect(moves().bottomOrder.size).toBe(0)
+    expect(moves().moved).toBe(0)
+  })
+
+  it('a card can be moved again right after a reset', async () => {
+    const { moves } = mountMoves()
+    await act(async () => moves().moveTicket(dump, 'hold'))
+    act(() => moves().reset())
+    await act(async () => moves().moveTicket(dump, 'hold'))
+    expect(moves().applyOverrides([dump])[0].column).toBe('hold')
+  })
+})

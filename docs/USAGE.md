@@ -14,6 +14,7 @@ A tour of what's on screen and how to drive it.
 - **On Hold** — its own small space under Blocked, in the same column: drop a card on it to put the ticket On Hold in Jira; held tickets are listed there. Blocked, On Hold and QA In Progress can each be switched off in Settings → Board sections — a switched-off section and its tickets are not shown at all.
 - **Demo mode** (Settings → Features) — swaps in a sample board to try drag-and-drop and the
   gates on. Nothing reaches Jira while it is on, and your real board returns when you turn it off.
+  **Reset demo** in its banner puts every ticket back where the sample board started.
 - **Next Sprint** — a space at the end of the To Do column for tickets queued in a sprint that hasn't started (see below).
 - **Completed** — the full historical archive (top-right trophy chip).
 

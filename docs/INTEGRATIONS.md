@@ -50,7 +50,7 @@ authoritative, includes reviewers/approvals); a Bitbucket **key-scan** of hinted
   short call per branch and only for tickets that have several.
 - **Primary branch.** A ticket can carry several branches (renames, a restarted attempt, one per
   repo). The ticket's `branch` is the one with the **newest commit**: Jira's dev-status has no
-  commit time per branch, so `devinfo.latest_commit_time` asks Bitbucket for each branch's newest
+  commit time per branch, so `devinfo.branch_head` asks Bitbucket for each branch's newest
   commit (`/commits?until=refs/heads/<branch>&limit=1`), only when there is more than one branch.
   The primary PR (`pr`) is then that branch's own PR, and `branches` / `prs` are reordered with
   the primary first and nothing dropped. When the branch has no PR in dev-status (the index can

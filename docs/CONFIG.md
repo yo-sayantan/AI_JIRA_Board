@@ -38,7 +38,7 @@ or `... export` to inspect the effective configuration.
 Consumed by:
 - `local-runner/config.mjs` — resolver. Runners call it for shell vars (`shellenv`), rendered
   prompts (`render`, substituting the `{{TOKENS}}` below), and the MCP policy block (`policy`).
-- `local-runner/*.sh` — daily / weekly / summary / per-ticket runners (connector, models, timeouts).
+- `local-runner/*.sh` — daily / weekly / per-ticket runners (connector, models, timeouts).
 - `jira-board/server/serve.mjs` — port.
 - `local-runner/sync-datajs.mjs` — injects the `app` section into `data.js` as
   `window.__JIRA_CONFIG__`, so the **built** app re-themes at runtime (no rebuild needed).
@@ -52,8 +52,8 @@ validation loudly. An invalid timezone falls back to UTC; legacy `IST` normalize
 ## `user` — who you are
 | key | meaning |
 |---|---|
-| `name` | Your display name exactly as Jira shows it. Used for prompt tokens and attribution only — "assigned to me" is resolved by Jira itself (`currentUser()` in JQL), not by matching this string. |
-| `accountId` | Your corporate user id (e.g. `ABC1234`). Decides which sub-tasks are *mine*: compared case-insensitively and **exactly** with the assignee's `name` / `key` / `accountId`; the display name only counts when it contains the id as a whole word. |
+| `name` | Your display name exactly as Jira shows it. Used for prompt tokens and attribution; the fetch resolves "assigned to me" through Jira itself (`currentUser()` in JQL). In the board it is the fallback for spotting *me* in a stored assignee (`"Display Name (ID)"`) when there is no id to compare — `src/lib/format.ts::isAssignedToMe`. |
+| `accountId` | Your corporate user id (e.g. `ABC1234`). Decides which sub-tasks are *mine*: compared case-insensitively and **exactly** with the assignee's `name` / `key` / `accountId`; the display name only counts when it contains the id as a whole word. The board does the same on the dump (Raised "With me", the drawer's sub-ticket tree): the `(ID)` suffix of a stored assignee must equal this id — a namesake with another id is not you. |
 | `email` | Informational, plus an exact match against the assignee's `emailAddress`. |
 
 ## `endpoints` — your company's servers
@@ -159,8 +159,8 @@ absolute path of this folder), so the prompts are path-portable with zero config
 ## `models`
 | key | meaning |
 |---|---|
+| `summary` | Ignored — nothing reads it any more. Still accepted so older personal configs keep validating; safe to delete from yours. |
 | `main` | Model for the daily/weekly/refresh runs. `"auto"` = let the connector pick (no flag passed). Env `MODEL=` overrides per run. |
-| `summary` | Model for the cheap local AI-summary pass — set a fast/cheap one (e.g. `haiku-4.5`, `gpt-4o-mini`, `gemini-2.5-flash`). Env `SUMMARY_MODEL=` overrides. |
 
 ## `ai`
 Defaults for Settings and the intern worker: `level`, `backend`, local/cloud models,
@@ -204,8 +204,7 @@ Defaults for Settings → Jobs. A choice saved in the app wins over this file.
 | `reportRefresh` | `off`, `daily`, `weekly`, `twice-weekly` | PR reports that are missing, stale, or under 100. |
 
 ## `timeouts` (seconds)
-`dailySec` (default 1800), `weeklySec` (7200, env `TIMEOUT_SEC` overrides), `summarySec` (600),
-`refreshSec` (600).
+`dailySec` (default 1800), `weeklySec` (7200, env `TIMEOUT_SEC` overrides), `refreshSec` (600).
 
 ## Environment variables read by the Python fetch scripts
 Set these in the shell, the Docker environment, or `setup/.env` (loaded by `load_env()` before the

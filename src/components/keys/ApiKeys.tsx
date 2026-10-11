@@ -370,7 +370,7 @@ function KeyField({
     setNote({ text: (value ? 'Saved' : 'Removed') + cleared, error: false })
   }
 
-  const hint = field.hint ?? (secret && saved.set ? 'Saved. Paste a new key to replace it.' : '')
+  const hint = field.hint ?? ''
 
   return (
     <div className="grid grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0.5">

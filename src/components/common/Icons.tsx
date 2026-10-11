@@ -392,15 +392,6 @@ export function ShieldIcon({ size = 12, className = '', color = 'currentColor' }
 }
 
 /** Padlock — a shelf only another team moves cards onto. */
-export function LockIcon({ size = 12, className = '', color = 'currentColor' }: IP) {
-  return (
-    <svg {...svg(size, className)}>
-      <rect x="5" y="11" width="14" height="10" rx="2.2" stroke={color} strokeWidth="1.9" />
-      <path d="M8 11V8a4 4 0 0 1 8 0v3" {...line(color, 1.9)} />
-    </svg>
-  )
-}
-
 export function EyeOffIcon({ size = 13, className = '', color = 'currentColor' }: IP) {
   return (
     <svg {...svg(size, className)}>

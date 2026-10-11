@@ -5,6 +5,8 @@ __pycache__/
 .claude/*
 !.claude/CLAUDE.md
 *.swap
+# IDE scanner state (the Checkmarx plugin rewrites it on every scan)
+.vscode/.checkmarxIgnored
 
 # ── SECRETS — never commit real tokens ──────────────────────────────────────
 # The board's API keys live in setup/.env (written by the board's API keys dialog;

@@ -144,7 +144,6 @@ the `jira-ai-models` volume). GGUF files you downloaded by hand become visible o
 | `jira-intern/prompts/intern-prompt.md` | LLM-agent **fallback** for the daily fetch (`run-intern.sh` when the Python fast path fails) | Restates the whole data contract in prose; preservation rules for `completed[]`/`raised[]`. |
 | `jira-intern/prompts/intern-completed-prompt.md` | agent fallback for the archive | Same, for history. |
 | `jira-intern/prompts/pr-readiness-prompt.md` | `enrich-report` jobs | Evidence-chain rules, block vocabulary, release-gate logic — mirrors `src/lib/reportTypes.ts`. |
-| `jira-intern/prompts/intern-summary-prompt.md` | summarize jobs (agent path) | Brief style rules. |
 
 The **primary** fetch path is always the deterministic Python; the agent prompts are the fallback
 when scripts fail (auth drift, Jira quirks). Keep prompts in sync with `src/types.ts` — the

@@ -16,7 +16,6 @@
     "test": "npm run test:py && npm run test:js",
     "test:py": "python3 -m unittest discover -s tests -p 'test_*.py'",
     "test:js": "vitest run --config tooling/vitest.config.ts",
-    "demo:split": "node jira-intern/demo/build.mjs",
     "test:config": "python3 tests/test_config.py",
     "config:validate": "node jira-intern/local-runner/config.mjs validate",
     "preview": "vite preview --config tooling/vite.config.ts",

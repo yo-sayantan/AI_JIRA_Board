@@ -373,6 +373,9 @@ export function vulnTooltip(vf: VulnFixes): string {
 /**
  * Is `assignee` me? An exact, case-insensitive, trimmed match on the dump's user by accountId,
  * name or email. Exact on purpose: a substring test let a colleague called "Ann" match "Joanne".
+ * The intern writes people as "Display Name (ID)" (`_jira.py::person_fmt`), so that form is split:
+ * the id must equal my accountId, or — when either side has no id — the name must equal my name.
+ * A namesake with a different id is not me.
  */
 export function isAssignedToMe(
   assignee?: string | null,
@@ -380,8 +383,15 @@ export function isAssignedToMe(
 ): boolean {
   const a = assignee?.trim().toLowerCase()
   if (!a || !user) return false
-  const same = (v?: string | null) => !!v && v.trim().toLowerCase() === a
-  return same(user.accountId) || same(user.name) || same(user.email)
+  const norm = (v?: string | null) => v?.trim().toLowerCase() || ''
+  const same = (v?: string | null) => !!norm(v) && norm(v) === a
+  if (same(user.accountId) || same(user.name) || same(user.email)) return true
+  const m = /^(.*?)\s*\(([^()]*)\)$/.exec(a)
+  if (!m) return false
+  const [, name, id] = m
+  const myId = norm(user.accountId)
+  if (id && myId) return id.trim() === myId
+  return !!name && name === norm(user.name)
 }
 
 export function projectOf(key?: string | null): string {
