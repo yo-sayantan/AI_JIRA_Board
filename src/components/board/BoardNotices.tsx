@@ -1,4 +1,4 @@
-import { FlaskIcon, EyeOffIcon } from '../common/Icons'
+import { FlaskIcon, EyeOffIcon, RefreshIcon } from '../common/Icons'
 
 export function NoMatches({ query, onClear }: { query: string; onClear: () => void }) {
   return (
@@ -31,8 +31,9 @@ export function ArchivedUndo({ keys, onUndo }: { keys: string[]; onUndo: () => v
 
 const DEMO = '#f59e0b'
 
-/** Demo mode is on: say so loudly, and offer the way out. */
-export function DemoBanner({ onExit }: { onExit: () => void }) {
+/** Demo mode is on: say so loudly, offer a reset to the starting layout, and the way out. */
+export function DemoBanner({ onExit, onReset, changes }: { onExit: () => void; onReset: () => void; changes: number }) {
+  const pristine = changes === 0
   return (
     <div
       role="status"
@@ -45,6 +46,17 @@ export function DemoBanner({ onExit }: { onExit: () => void }) {
       <span className="min-w-0 flex-1 text-[11.5px] text-[var(--ink-soft)]">
         These tickets are invented. Drag them anywhere — the PR and QA gates still run, but nothing is sent to Jira or the AI intern.
       </span>
+      <button
+        type="button"
+        onClick={onReset}
+        disabled={pristine}
+        title={pristine ? 'Nothing to reset — the demo board is as it started' : 'Put every ticket back where the demo started'}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11.5px] font-semibold transition-colors hover:bg-[var(--surface-2)] disabled:cursor-default disabled:opacity-45 disabled:hover:bg-transparent"
+        style={{ borderColor: `${DEMO}73`, color: DEMO, background: pristine ? undefined : `${DEMO}12` }}
+      >
+        <RefreshIcon size={12} color={DEMO} />
+        Reset demo{pristine ? '' : ` · ${changes} ${changes === 1 ? 'change' : 'changes'}`}
+      </button>
       <button
         type="button"
         onClick={onExit}

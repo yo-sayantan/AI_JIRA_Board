@@ -54,12 +54,15 @@ export default function App() {
   // off. Set during render, not in an effect, so no fetch can slip out before the flag lands.
   const demo = features.demoMode
   setDemoMode(demo)
-  const { toasts, toast, dismiss } = useToasts(settings.toastSeconds, settings.toastMax)
+  const { toasts, toast, dismiss, clear: clearToasts } = useToasts(settings.toastSeconds, settings.toastMax)
   toastRef.current = toast
-  const { data, source, userArchived, reload, archive, restoreArchived } = useBoardData(served, (m) => toast(m, 'error'), demo)
+  const { data, source, userArchived, reload, archive, restoreArchived, resetDemo } = useBoardData(served, (m) => toast(m, 'error'), demo)
   const jobs = useInternJobs({ served, toast, dismiss, reload, demo })
   const moves = useTicketMoves({ served, toast, refreshTicket: jobs.refreshTicket, demo })
   const exitDemo = useCallback(() => setSettings((s) => ({ ...s, features: { ...s.features, demoMode: false } })), [setSettings])
+  // Moves made on one board mean nothing on the other: entering or leaving Demo mode starts clean.
+  const resetMoves = moves.reset
+  useEffect(() => resetMoves(), [demo, resetMoves])
 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [completedOpen, setCompletedOpen] = useState(false)
@@ -83,6 +86,16 @@ export default function App() {
   // Dropped cards show in their new column at once; Jira confirms (or refuses) in the background.
   const boardTickets = useMemo(() => moves.applyOverrides(data.tickets), [moves, data.tickets])
   const drawers = useDrawerStack(byKey)
+  // Demo mode → Reset: every card back where the sample board starts, hand-archived ones restored,
+  // and the old Undo toasts gone (they would undo moves that no longer exist).
+  const demoChanges = moves.moved + userArchived.length
+  const resetDemoBoard = useCallback(() => {
+    clearToasts()
+    moves.reset()
+    resetDemo()
+    drawers.closeAll()
+    toast('Demo board reset — every ticket is back where it started.', 'success')
+  }, [clearToasts, moves, resetDemo, drawers.closeAll, toast])
   useScrollLock(drawers.open || completedOpen || raisedOpen || settingsOpen || !!reports.openReport)
   useShortcuts(features.shortcuts && !drawers.open && !completedOpen && !raisedOpen && !settingsOpen && !reports.openReport, jobs.refreshBoard)
 
@@ -205,7 +218,7 @@ export default function App() {
       </ErrorBoundary>
 
       {/* Counts follow the search. The Completed chip counts MY tickets only, like the archive's default scope. */}
-      {demo && <DemoBanner onExit={exitDemo} />}
+      {demo && <DemoBanner onExit={exitDemo} onReset={resetDemoBoard} changes={demoChanges} />}
 
       <Stats
         tickets={statTickets}

@@ -156,5 +156,15 @@ export function useTicketMoves({
   /** key → drop order, for the Board to sort dropped cards to the bottom of their column. */
   const bottomOrder = useMemo(() => new Map([...pins].map(([k, p]) => [k, p.seq] as const)), [pins])
 
-  return useMemo(() => ({ moveTicket, applyOverrides, bottomOrder, movingKeys }), [moveTicket, applyOverrides, bottomOrder, movingKeys])
+  /** Demo mode → Reset: forget every move, so each card is back where the dump puts it. */
+  const reset = useCallback(() => {
+    setPins((prev) => (prev.size ? new Map() : prev))
+    setMovingKeys((prev) => (prev.size ? new Set() : prev))
+    inFlight.current.clear()
+  }, [])
+
+  return useMemo(
+    () => ({ moveTicket, applyOverrides, bottomOrder, movingKeys, reset, moved: pins.size }),
+    [moveTicket, applyOverrides, bottomOrder, movingKeys, reset, pins.size],
+  )
 }
