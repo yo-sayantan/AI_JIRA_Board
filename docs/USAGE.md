@@ -117,7 +117,7 @@ Backfill a whole year by hand: `bash jira-intern/local-runner/pr-reports-backfil
 
 ## API keys
 
-The key button in the header (beside Settings) opens one list with a row per service — Jira (required), Atlassian Cloud, Bitbucket, Confluence, Jenkins, Checkmarx One, Claude, Cursor, Gemini, OpenAI, GitHub. A row is lit in its colour once its keys are saved,
+The key button in the header (beside Settings) opens one list, clustered into **Atlassian · Code hosting · CI/CD & security · AI models** and alphabetical inside each, with a row per service — Jira (required), Atlassian Cloud, Bitbucket, Confluence, Jenkins, Checkmarx One, Claude, Cursor, Gemini, OpenAI, GitHub. A row is lit in its colour once its keys are saved,
 grey until then; a key marked **Not used yet** (GitHub, the Atlassian Cloud email and site) can be filled in now for
 integrations that are coming. Click a row to see why it is needed, what uses it and where to get it, then paste the key
 and **Save**. A saved key shows masked (first and last few characters only); paste a new key into the box to replace it,

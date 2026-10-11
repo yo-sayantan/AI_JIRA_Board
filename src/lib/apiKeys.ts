@@ -18,9 +18,18 @@ export interface ApiKeyField {
 
 export const kindOf = (field: ApiKeyField): KeyKind => field.kind ?? 'secret'
 
+export interface ApiGroup {
+  id: string
+  name: string
+}
+
 export interface ApiService {
   id: string
   name: string
+  /** One of `groups[].id` — the dialog shows services clustered by group. */
+  group: string
+  /** The full explanation, shown when the row is opened (`why` is the one-line summary). */
+  details: string
   color: string
   required: boolean
   why: string
@@ -33,6 +42,15 @@ export interface ApiService {
 export type KeyStatus = Record<string, { set: boolean; masked: string }>
 
 export const API_SERVICES: ApiService[] = registry.services as ApiService[]
+export const API_GROUPS: ApiGroup[] = registry.groups
+
+/** Groups in registry order (empty ones dropped), services alphabetical by name inside each. */
+export function groupedServices(): { group: ApiGroup; services: ApiService[] }[] {
+  return API_GROUPS.map((group) => ({
+    group,
+    services: API_SERVICES.filter((s) => s.group === group.id).sort((a, b) => a.name.localeCompare(b.name)),
+  })).filter((g) => g.services.length > 0)
+}
 
 /** The bullet run server/secrets.mjs puts in a mask. A value containing it is a mask, not a key. */
 const MASK_BULLET = '•'
