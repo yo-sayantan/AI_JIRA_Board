@@ -162,7 +162,34 @@ describe('request shapes, one per service', () => {
     const r = await c.test('atlassian')
     expect(r.status).toBe('auth-failed')
     expect(r.detail).toMatch(/email/i)
-    expect(r.detail).toMatch(/scoped/i)
+    expect(r.detail).toMatch(/gateway 401/i)
+  })
+
+  it('atlassian: both 401s are reported with the HTTP code of each attempt and Atlassian\'s own login reason', async () => {
+    const { c } = checker({
+      reply: (opts) =>
+        opts.url.endsWith('/_edge/tenant_info')
+          ? { status: 200, body: JSON.stringify({ cloudId: '11111111-2222-3333-4444-555555555555' }) }
+          : { status: 401, headers: { 'x-seraph-loginreason': 'AUTHENTICATED_FAILED' }, body: '{}' },
+    })
+    const r = await c.test('atlassian')
+    expect(r.status).toBe('auth-failed')
+    expect(r.detail).toMatch(/site 401/i)
+    expect(r.detail).toMatch(/gateway 401/i)
+    expect(r.detail).toMatch(/AUTHENTICATED_FAILED/)
+  })
+
+  it('atlassian: a gateway 403 (token lacks the read:jira-user scope) is reported as forbidden, not rejected', async () => {
+    const { c } = checker({
+      reply: (opts) => {
+        if (opts.url.endsWith('/_edge/tenant_info')) return { status: 200, body: JSON.stringify({ cloudId: '11111111-2222-3333-4444-555555555555' }) }
+        if (opts.url.startsWith('https://api.atlassian.com/')) return { status: 403, body: '{}' }
+        return { status: 401, body: '{}' }
+      },
+    })
+    const r = await c.test('atlassian')
+    expect(r.status).toBe('forbidden')
+    expect(r.detail).toMatch(/scope/i)
   })
 
   it('atlassian: a 401 whose cloud id cannot be found stays a plain key rejection', async () => {
