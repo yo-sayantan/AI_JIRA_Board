@@ -1,4 +1,4 @@
-// Deterministically carry `aiSummary` (+ its `aiSummaryAt` timestamp) forward across a
+// Deterministically carry `aiSummary` (+ its `aiSummaryAt` timestamp and `aiSummaryEvidence` fingerprint) forward across a
 // data.json rewrite. Any script that re-fetches tickets (daily run, per-ticket refresh) can
 // drop the AI summaries; this restores them by key from a pre-run snapshot, so summaries
 // never vanish regardless of what the agent wrote. The timestamp MUST travel with the text —
@@ -24,7 +24,7 @@ try {
   const harvest = (arr) => {
     for (const t of arr || []) {
       if (t && t.key && typeof t.aiSummary === 'string' && t.aiSummary.trim())
-        map.set(t.key, { aiSummary: t.aiSummary, aiSummaryAt: t.aiSummaryAt ?? null })
+        map.set(t.key, { aiSummary: t.aiSummary, aiSummaryAt: t.aiSummaryAt ?? null, aiSummaryEvidence: t.aiSummaryEvidence ?? null })
       if (t) harvest(t.subtasks)
     }
   }
@@ -37,6 +37,7 @@ try {
         const prev = map.get(t.key)
         t.aiSummary = prev.aiSummary
         if (prev.aiSummaryAt && t.aiSummaryAt == null) t.aiSummaryAt = prev.aiSummaryAt
+        if (prev.aiSummaryEvidence && t.aiSummaryEvidence == null) t.aiSummaryEvidence = prev.aiSummaryEvidence
         applied++
       }
       if (t) apply(t.subtasks)

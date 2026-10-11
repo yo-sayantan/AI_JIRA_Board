@@ -52,11 +52,16 @@ services:
       - ALLOWED_HOSTS
       # TLS to Jira/Bitbucket is verified by default. Private corporate CA: mount the PEM
       # (volume below) and set JIRA_CA_BUNDLE=/etc/ssl/private-ca.pem. JIRA_INSECURE_TLS=1
-      # switches verification off entirely — last resort only. Jenkins is verified on its own:
-      # JIRA_INSECURE_TLS never applies to it; JENKINS_INSECURE_TLS=1 is its separate opt-out.
+      # switches verification off entirely — last resort only. Jenkins and Dynatrace are verified on their
+      # own: JIRA_INSECURE_TLS never applies to them; JENKINS_INSECURE_TLS=1 and DYNATRACE_INSECURE_TLS=1 are
+      # their separate opt-outs.
       - JIRA_CA_BUNDLE
       - JIRA_INSECURE_TLS
       - JENKINS_INSECURE_TLS
+      - DYNATRACE_INSECURE_TLS
+      # Dynatrace tenants the fetch may read (prod=abc12345,uat=def67890), read-only; may instead live in
+      # setup/.env or endpoints.dynatraceTenants (a value set here wins).
+      - DYNATRACE_TENANTS
       # The board starts/stops AI-Ollama to match the AI settings (server/ollama.mjs).
       - OLLAMA_URL=http://ollama:11434
       - OLLAMA_CONTAINER=AI-Ollama
@@ -128,6 +133,7 @@ services:
       - JIRA_CA_BUNDLE
       - JIRA_INSECURE_TLS
       - JENKINS_INSECURE_TLS
+      - DYNATRACE_INSECURE_TLS
       # Optional scanner / observability endpoints the intern can read; these may instead
       # live in config/jira-board.config.json under endpoints.*.
       - CHECKMARX_BASE_URL
@@ -151,6 +157,16 @@ services:
       # - ${JIRA_CA_BUNDLE_HOST:-/dev/null}:/etc/ssl/private-ca.pem:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    # A report's CI row saying "<host> could not be resolved from the AI-Intern container" (or an
+    # AI-Intern log line with "Temporary failure in name resolution") means Docker's DNS proxy
+    # flapped — common on a VPN. Your Bitbucket / Jenkins hosts are usually INTERNAL, so pin the DNS
+    # server your laptop uses on the VPN (macOS: `scutil --dns | grep nameserver`; Linux:
+    # `resolvectl status`), not a public one. Uncomment, put your server(s) in, and recreate:
+    #   docker compose up -d --force-recreate jira-ai
+    # dns:
+    #   - <your corporate / VPN DNS server>
+    #   - <a second one, optional>
+    # See docs/DEPLOYMENT.md → DNS. (Off by default: a public resolver cannot see internal hosts.)
     depends_on:
       ollama:
         # Ollama defines a healthcheck; a full `up` waits for it. start-jira-board.sh brings this

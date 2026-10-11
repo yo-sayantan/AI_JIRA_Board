@@ -16,6 +16,8 @@ const NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/
 /** A registry field's kind: secret (masked — the default), url, email or text (shown in full). */
 export const kindOf = (field) => field?.kind || 'secret'
 const PRINTABLE = /^[\x21-\x7e]+$/
+/** A `text` value is shown in full and may be read by scripts: no quotes, backticks or $( / ${ inside it. */
+const TEXT_UNSAFE = /["'`]|\$[({]/
 const EMAIL = /^[\x21-\x3f\x41-\x7e]+@[\x21-\x3f\x41-\x7e]+\.[\x21-\x3f\x41-\x7e]+$/
 const MAX_VALUE = 4096
 const BULLETS = '••••••••'
@@ -106,7 +108,11 @@ export function validateValue(field, raw) {
     return error ? { error } : { value }
   }
   if (kind === 'email') return EMAIL.test(value) ? { value } : { error: 'must be an email address' }
-  if (kind === 'text') return PRINTABLE.test(value) ? { value } : { error: 'one word — letters, digits and symbols, no spaces' }
+  if (kind === 'text') {
+    if (!PRINTABLE.test(value)) return { error: 'one word — letters, digits and symbols, no spaces' }
+    if (TEXT_UNSAFE.test(value)) return { error: 'must not contain quotes, backticks, $( or ${' }
+    return { value }
+  }
   // Tokens are printable ASCII. This also refuses a mask sent back as a key, and the unicode and
   // control characters that Python's strip() would trim but bash and JS keep.
   if (!PRINTABLE.test(value)) return { error: 'paste the key exactly — letters, digits and symbols only, no spaces' }

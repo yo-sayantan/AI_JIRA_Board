@@ -161,6 +161,14 @@ function build(now: number): PrReport[] {
         summary: 'Two separate things are in the way.',
         blocks: [
           { kind: 'callout', tone: 'danger', title: 'Blocked, and under review', body: 'The serialiser change is sound, but the reviewer has asked for a cap on the retry backoff. Separately, the ticket is waiting on capacity numbers before the approach (shard vs. longer budget) can be settled.' },
+          {
+            kind: 'callout',
+            tone: 'warning',
+            title: 'Issue insight',
+            provenance: 'derived',
+            body: '<p>The Dynatrace trace linked from the ticket has <b>6 failed spans out of 38</b>, and the failure originates in <code>object-storage-gateway: PUT /exports/{id}</code> (HTTP 504 ×4 · 500 ×2, <i>SocketTimeoutException: Read timed out</i> ×4, slowest span 30.0 s). The linked Davis problem P-24100731 (response time degradation) is CLOSED.</p><p>The timeouts sit in the storage call, not in the serialiser this PR changes — worth settling together with the capacity numbers before choosing between sharding and a longer budget.</p>',
+            note: 'From the 2 Dynatrace links in the ticket · read-only',
+          },
           { kind: 'list', title: 'What has to happen', ordered: true, items: [{ text: 'Get the per-node capacity figures from the platform team.', tone: 'warning' }, { text: 'Cap the retry backoff as the reviewer asked.', tone: 'danger' }, { text: 'Raise a QA sub-task — closure will need one.', tone: 'warning' }] },
         ],
       },

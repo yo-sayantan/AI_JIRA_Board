@@ -15,7 +15,9 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import checkmarx  # noqa: E402
 import devinfo  # noqa: E402  (needs the path fix above when run from another cwd)
+import dynatrace  # noqa: E402
 import jenkins  # noqa: E402
+import _sources  # noqa: E402
 from _config import bitbucket_hints, identity, today_str  # noqa: E402
 from _jira import (  # noqa: E402
     BITBUCKET_BASE,
@@ -262,14 +264,16 @@ def apply_code(ticket, key, prior=None):
 
 
 def apply_builds(ticket, key, prior=None):
-    """Latest Jenkins build per environment for the ticket's branches (jenkins.py), stored as
-    `builds`. The branches are the ticket's OWN, already scoped by code_for — so a sub-task never
-    picks up builds of its parent's branch. Carry-forward rules, as for PRs:
-      • Jenkins not configured (no jenkins.jobs, or no JENKINS_USER / JENKINS_API_TOKEN) → nothing
-        is asked and `prior`'s builds are kept as they were;
+    """Latest Jenkins build per environment and pipeline for the ticket's branches (jenkins.py: the
+    explicit jenkins.jobs, plus the pipelines discovered under the Jenkins root), stored as `builds`.
+    The branches are the ticket's OWN, already scoped by code_for — so a sub-task never picks up
+    builds of its parent's branch. Carry-forward rules, as for PRs:
+      • Jenkins not configured (no jenkins.jobs and no root, or no JENKINS_USER / JENKINS_API_TOKEN)
+        → nothing is asked and `prior`'s builds are kept as they were;
       • the lookup failed (network, auth) → `prior`'s builds are kept (a partial failure keeps the
-        prior build for just the environments that failed);
-      • no branch in a configured repo, or Jenkins has no build for any of them → no `builds`.
+        prior build for just the pipelines that failed); so are the builds of a repository whose
+        discovery failed with no cached answer to fall back on;
+      • no branch in a configured / discovered repo, or Jenkins has no build for any of them → no `builds`.
     `prior` defaults to the ticket itself (the fast path's deep copy of the previous card)."""
     prior = ticket if prior is None else (prior or {})
     prior_builds = prior.get("builds") if isinstance(prior.get("builds"), list) else None
@@ -282,18 +286,64 @@ def apply_builds(ticket, key, prior=None):
     jobs = jenkins.jobs_config()
     if not jenkins.enabled(jobs):
         return keep()
-    targets = jenkins.targets_for(ticket, (DEV.get(key) or {}).get("repos"), jobs)
+    repos = (DEV.get(key) or {}).get("repos")
+    discovered, failed = jenkins.discovery_for(jenkins.candidate_repos(ticket, repos))
+    targets = jenkins.targets_for(ticket, repos, jobs, discovered)
+    # A repository whose pipelines could not be discovered keeps the builds it had (marked stale).
+    lost = [{**b, "stale": True} for b in copy.deepcopy(prior_builds or []) if isinstance(b, dict) and any(jenkins._norm(b.get("repo")) == jenkins._norm(f) for f in failed)]
     if not targets:
-        ticket.pop("builds", None)
+        if lost:
+            ticket["builds"] = lost
+        else:
+            ticket.pop("builds", None)
         return ticket
     builds = jenkins.builds_for(targets, prior_builds)
     if builds is None:
         return keep(stale=True)  # Jenkins could not be read: carried forward, marked stale
+    seen = {(b.get("repo"), b.get("env"), b.get("pipeline"), b.get("branch")) for b in builds}
+    builds += [b for b in lost if (b.get("repo"), b.get("env"), b.get("pipeline"), b.get("branch")) not in seen]
+    # A failed build of a ticket about a build / pipeline failure carries the scrubbed tail of its console.
+    jenkins.add_console_tails(ticket, builds, targets, prior_builds)
     if builds:
         ticket["builds"] = builds
     else:
         ticket.pop("builds", None)
     return ticket
+
+
+# What a vulnerability-fix ticket with no (fresh) Checkmarx answer says in its Vulnerabilities group.
+PROOF_NOTE_TEXT = {
+    "not-configured": "Checkmarx not configured — add the URL and key in API keys",
+    "auth-failed": "Checkmarx rejected the API key — results not refreshed",
+    "unreachable": "Checkmarx could not be reached — results not refreshed",
+    "budget-exhausted": "Checkmarx call budget for this fetch was used up — results not refreshed",
+}
+
+
+DYNATRACE_NOTE_TEXT = {
+    "not-configured": "Dynatrace not configured — add DYNATRACE_PAT and DYNATRACE_TENANTS in API keys",
+    "auth-failed": "Dynatrace rejected the token — linked traces and problems not refreshed",
+    "unreachable": "Dynatrace could not be reached — linked traces and problems not refreshed",
+    "budget-exhausted": "Dynatrace call budget for this fetch was used up — linked traces and problems not refreshed",
+}
+NOTE_TEXT = {"checkmarx": PROOF_NOTE_TEXT, "dynatrace": DYNATRACE_NOTE_TEXT}
+
+
+def _proof_note(ticket, source, state=None):
+    """Set (state given) or clear `ticket.proofNotes[source]`: why this ticket has no fresh answer from the source."""
+    notes = dict(ticket.get("proofNotes") or {})
+    if state:
+        before = notes.get(source) if isinstance(notes.get(source), dict) else {}
+        # `at` = since when the ticket has been in this state: an unchanged state keeps its stamp, so a fast-path
+        # refresh every few minutes does not rewrite the card.
+        at = before.get("at") if before.get("state") == state and before.get("at") else _utc_now()
+        notes[source] = {"state": state, "detail": NOTE_TEXT.get(source, PROOF_NOTE_TEXT)[state], "at": at}
+    else:
+        notes.pop(source, None)
+    if notes:
+        ticket["proofNotes"] = notes
+    else:
+        ticket.pop("proofNotes", None)
 
 
 def apply_vuln_fixes(ticket, key, prior=None):
@@ -305,30 +355,100 @@ def apply_vuln_fixes(ticket, key, prior=None):
         `prior`'s results are kept as they were;
       • the lookup failed (network, auth, budget) → `prior`'s results are kept.
     The PRs are the ticket's OWN, already scoped by code_for — a sub-task never inherits its
-    parent's scan. `prior` defaults to the ticket itself (the fast path's copy of the last card)."""
+    parent's scan. `prior` defaults to the ticket itself (the fast path's copy of the last card).
+    Nothing is silent: every ticket is reported to `_sources` (skipped / looked up / waiting, for the run's
+    "Checkmarx: …" line) and a candidate that gets no fresh answer carries `proofNotes.checkmarx` — the reason
+    the drawer shows in its Vulnerabilities group."""
     prior = ticket if prior is None else (prior or {})
     prior_vf = prior.get("vulnFixes") if isinstance(prior.get("vulnFixes"), dict) else None
 
-    def keep():
+    def keep(state, reason=""):
+        _sources.waiting("checkmarx", key, state, reason)
+        _proof_note(ticket, "checkmarx", state)
         if prior_vf:
             ticket["vulnFixes"] = copy.deepcopy(prior_vf)
         return ticket
 
-    if not checkmarx.is_vuln_fix(ticket):
+    def drop(why=None):
+        if why:
+            _sources.skipped("checkmarx", key, why)
+        _proof_note(ticket, "checkmarx")
         ticket.pop("vulnFixes", None)
         return ticket
+
+    if not checkmarx.is_vuln_fix(ticket):
+        return drop()
     targets = checkmarx.extract_targets(ticket)
     repos = (DEV.get(key) or {}).get("repos")
-    if not targets or not checkmarx.scan_plan(ticket, repos):
-        ticket.pop("vulnFixes", None)
-        return ticket
+    if not targets:
+        return drop("no-targets")
+    if not checkmarx.scan_plan(ticket, repos):
+        return drop("no-plan")
     if not checkmarx.enabled():
-        return keep()
+        return keep("not-configured")
     found = checkmarx.vuln_fixes_for(ticket, targets, repos)
     if found is None:
-        return keep()
+        state, reason = checkmarx.failure() or ("unreachable", "Checkmarx could not be read")
+        return keep(state, reason)
+    _sources.looked("checkmarx", key, [i.get("status") for i in found.get("items") or []])
+    _proof_note(ticket, "checkmarx")
     ticket["vulnFixes"] = found
     return ticket
+
+
+DYNATRACE_NOUN = "ticket|with Dynatrace links"
+
+
+def apply_dynatrace(ticket, key, prior=None):
+    """What Dynatrace says about the Dynatrace links in the ticket's text (dynatrace.py), stored as `dynatrace`. Same
+    carry-forward rules as builds, PRs and vulnerability fixes:
+      • no Dynatrace link in the ticket's text → no `dynatrace` (nothing is asked, nobody is told);
+      • Dynatrace not configured (no DYNATRACE_PAT / DYNATRACE_TENANTS) → nothing is asked and `prior`'s answer is kept;
+      • a lookup that failed (network, token, budget) → that link's previous answer is kept, marked `stale`;
+      • a link to a tenant that is not listed is stored as `unconfigured-tenant` and never fetched;
+      • a recent answer is not asked for again (a read link: 24 h, an open problem: 1 h, an empty answer: 1 h).
+    Only tickets that HAVE such a link are touched (a cheap text search first). Nothing is silent: every candidate is
+    reported to `_sources` (looked up / waiting) and one without a fresh answer carries `proofNotes.dynatrace`.
+    `prior` defaults to the ticket itself (the fast path's copy of the last card)."""
+    prior = ticket if prior is None else (prior or {})
+    prior_ev = prior.get("dynatrace") if isinstance(prior.get("dynatrace"), dict) else None
+    if not dynatrace.has_links(ticket):
+        ticket.pop("dynatrace", None)
+        _proof_note(ticket, "dynatrace")
+        return ticket
+    try:
+        got = dynatrace.lookup(ticket, prior_ev)
+    except Exception as e:  # noqa: BLE001 — links are other people's text: a parse bug must never take the whole fetch down
+        sys.stderr.write(f"WARN dynatrace lookup for {key} failed unexpectedly ({type(e).__name__}); the previous answer is kept\n")
+        got = {"evidence": copy.deepcopy(prior_ev) if prior_ev else None, "waiting": ("unreachable", "the Dynatrace lookup failed unexpectedly"), "statuses": [], "flagged": False, "links": 1}
+    if not got["links"]:
+        ticket.pop("dynatrace", None)
+        _proof_note(ticket, "dynatrace")
+        return ticket
+    if got["evidence"]:
+        ticket["dynatrace"] = got["evidence"]
+    else:
+        ticket.pop("dynatrace", None)
+    if got["waiting"]:
+        state, reason = got["waiting"]
+        _sources.waiting("dynatrace", key, state, reason)
+        _proof_note(ticket, "dynatrace", state)
+    else:
+        _sources.looked("dynatrace", key, got["statuses"], flagged=got["flagged"])
+        _proof_note(ticket, "dynatrace")
+    return ticket
+
+
+def proof_sources_status():
+    """The run's per-source account (`_sources`) — stored as data.json → proofSources[source], and its line goes to the
+    run notes. Checkmarx and Dynatrace so far; Jenkins joins by adding its own `_sources.finish` call here."""
+    cx_gap = ", ".join(checkmarx.missing_settings()) if not checkmarx.enabled() else None
+    dt_gap = ", ".join(dynatrace.missing_settings()) if not dynatrace.enabled() else None
+    return {
+        "checkmarx": _sources.finish("checkmarx", "Checkmarx", "vulnerability-fix ticket", gap=cx_gap),
+        "dynatrace": _sources.finish("dynatrace", "Dynatrace", DYNATRACE_NOUN, gap=dt_gap, statuses=("read", "empty", "unconfigured-tenant"),
+                                     unit="link", flag="with failed requests or problems"),
+    }
 
 
 def is_mine(assignee):
@@ -460,8 +580,9 @@ def build_basic_subtask(si, parent_key, prior=None):
 def refresh_prs_only(ticket, key):
     """Review activity lives in Bitbucket and does NOT bump Jira's `updated` — so even an
     otherwise-unchanged in-flight ticket needs its PR badges refreshed. Jenkins builds and
-    Checkmarx scans do not bump it either, so they are re-read here too."""
-    return apply_vuln_fixes(apply_builds(apply_code(ticket, key), key), key)
+    Checkmarx scans do not bump it either, so they are re-read here too. Dynatrace answers age (a problem closes, spans
+    arrive late), so the links are looked at again too — dynatrace.lookup skips what was read recently."""
+    return apply_dynatrace(apply_vuln_fixes(apply_builds(apply_code(ticket, key), key), key), key)
 
 
 def build_ticket(issue, prior, state_entry, force_refresh=False):
@@ -536,6 +657,8 @@ def build_ticket(issue, prior, state_entry, force_refresh=False):
                 ticket_obj["aiSummary"] = prior["aiSummary"]
             if prior.get("aiSummaryAt") and not ticket_obj.get("aiSummaryAt"):
                 ticket_obj["aiSummaryAt"] = prior["aiSummaryAt"]
+            if prior.get("aiSummaryEvidence") and not ticket_obj.get("aiSummaryEvidence"):
+                ticket_obj["aiSummaryEvidence"] = prior["aiSummaryEvidence"]
         return ticket_obj
 
     ticket = {
@@ -580,6 +703,7 @@ def build_ticket(issue, prior, state_entry, force_refresh=False):
     apply_sprint(ticket, f.get("customfield_10404"))
     apply_builds(ticket, key, prior or {})
     apply_vuln_fixes(ticket, key, prior or {})
+    apply_dynatrace(ticket, key, prior or {})
     if (prior or {}).get("estDays"):
         ticket["estDays"] = prior["estDays"]
 
@@ -679,6 +803,7 @@ def _main(existing_path, state_path):
     carried_qa = []
     jenkins.reset_run()
     checkmarx.reset_run()
+    dynatrace.reset_run()
 
     # Probe Bitbucket once; the key-scan supplement is skipped for the run when it is down.
     BB_OK = True
@@ -854,7 +979,6 @@ def _main(existing_path, state_path):
     jenkins_down = jenkins.hosts_down()
     notes = [f"{day}: Daily fetch — Jira REST" + ("" if BB_OK else "; Bitbucket unreachable — PR/branch data carried forward")
              + ("; Jenkins unreachable — builds carried forward" if jenkins_down else "")
-             + ("; Checkmarx unreachable — vulnerability results carried forward" if checkmarx.unreachable() else "")
              + ("" if raised_ok else "; raised-tickets search failed — previous list kept") + "."]
     if changes["new"]:
         notes.append("New: " + ", ".join(k.split(":")[0] for k in changes["new"]))
@@ -862,6 +986,13 @@ def _main(existing_path, state_path):
         notes.append("Marked done: " + ", ".join(changes["done"]))
     if failed:
         notes.append("Build failed (previous card kept): " + ", ".join(failed))
+    # What each proof source did this run — a skip is never silent (_sources.py): one line each, and the record
+    # goes to data.json → proofSources so the board can show it too.
+    proof_status = proof_sources_status()
+    for status in proof_status.values():
+        if _sources.noteworthy(status):
+            notes.append(status["detail"])
+            sys.stderr.write(f"INFO {status['detail']}\n")
 
     with data_lock(INTERN):
         # The archive may have rewritten completed[] while this run was talking to Jira — take
@@ -880,6 +1011,7 @@ def _main(existing_path, state_path):
             "completed": completed_preserved,
             "raised": raised_rows,
             "raisedAt": _utc_now() if raised_ok else existing.get("raisedAt"),
+            "proofSources": {**(existing.get("proofSources") or {}), **proof_status},
         }
         write_outputs(out)
         atomic_dump(state_path, new_state)
@@ -983,6 +1115,7 @@ def refresh_one(key):
 
     jenkins.reset_run()
     checkmarx.reset_run()
+    dynatrace.reset_run()
     # Skip Bitbucket entirely for single-ticket refresh. A hung BB from Docker was
     # timing out the shell (and before that, making the agent-only path look "successful"
     # while never writing). Status/column come from Jira; PR badges from Jira's own

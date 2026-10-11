@@ -309,6 +309,7 @@ function planDeck(report: PrReport, tabs: ReportTab[]): Deck {
   const titled = (re: RegExp, kind?: ReportBlock['kind']) => (b: ReportBlock) => (!kind || b.kind === kind) && re.test(b.title ?? '')
 
   const decision = take(titled(/^decision$/i, 'callout'))
+  const issueInsight = take(titled(/^issue insight$/i, 'callout'))
   take((b) => b.kind === 'stats' && sameStats(b.items, report.stats))
   const gates = take<ReportTableBlock>(titled(/gate checklist/i, 'table'))
   const releaseGate = take(titled(/^release gate$/i, 'callout'))
@@ -346,6 +347,8 @@ function planDeck(report: PrReport, tabs: ReportTab[]): Deck {
     contTitle: 'Delivery gates (continued)',
     audience: ['PM / Scrum Master', 'Leadership'],
     blocks: [
+      // What the issue was, in plain words — for the reader who will not open Dynatrace, Checkmarx or Jenkins.
+      issueInsight?.kind === 'callout' ? atom('gates-insight', <Callout title="Issue insight" tone={issueInsight.tone} html={issueInsight.body} report={r} />) : null,
       gateTally ? atom('gates-bar', <GateBar tally={gateTally} />) : null,
       gates ? tableDef('gates-table', gates, r, { status: true }) : null,
       releaseGate?.kind === 'callout' ? atom('gates-release', <Callout title="Release gate" tone={releaseGate.tone} html={releaseGate.body} report={r} />) : null,

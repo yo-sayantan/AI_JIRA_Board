@@ -106,8 +106,17 @@ class ConfigParityTest(unittest.TestCase):
         self.assertEqual(py["jenkins"]["jobs"], jobs)
         self.assertEqual(list(py["jenkins"]["jobs"]["payments-service"]), ["qa", "uat"])  # env order kept
 
+    def test_jenkins_root_and_discovery_merge_the_same_in_both(self):
+        discovery = {"appFolderRegex": "^{slug}(-.*)?$", "envPatterns": {"stage": ["qa-eu"]}, "maxDepth": 3, "cacheMinutes": 30}
+        py, node = self.merged({"jenkins": {"root": "https://jenkins.example.com/job/portfolio/", "discovery": discovery}})
+        self.assertEqual(py, node)
+        self.assertEqual(py["jenkins"]["root"], "https://jenkins.example.com/job/portfolio/")
+        self.assertEqual(py["jenkins"]["discovery"], discovery)
+        self.assertEqual(py["jenkins"]["jobs"], {})  # the tracked default survives the merge
+
     def test_schema_rejects_a_malformed_jenkins_section(self):
-        for bad in ({"jenkins": {"jobs": {"svc": "https://x"}}}, {"jenkins": {"jobs": {"svc": {"qa": 1}}}}, {"jenkins": {"servers": {}}}):
+        for bad in ({"jenkins": {"root": 3}}, {"jenkins": {"discovery": {"maxDepth": 0}}}, {"jenkins": {"discovery": {"envPatterns": {"dev": "dev"}}}},
+                    {"jenkins": {"discovery": {"cacheMinutes": "soon"}}}, {"jenkins": {"discovery": {"nope": 1}}}, {"jenkins": {"jobs": {"svc": "https://x"}}}, {"jenkins": {"jobs": {"svc": {"qa": 1}}}}, {"jenkins": {"servers": {}}}):
             with self.subTest(bad=bad):
                 with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
                     json.dump(bad, f)

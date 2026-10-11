@@ -110,6 +110,46 @@ class RegistryContractTest(unittest.TestCase):
         if '"JIRA_INSECURE_TLS"' in env_export:
             self.assertIn('"JENKINS_INSECURE_TLS"', env_export)
 
+    def test_dynatrace_tls_opt_out_passes_through_wherever_jira_one_does(self):
+        """DYNATRACE_INSECURE_TLS is Dynatrace's own switch (neither JIRA_ nor JENKINS_INSECURE_TLS applies to
+        it), so it must reach every place JIRA_INSECURE_TLS does: both compose services, the runner, the worker."""
+        compose = (ROOT / "docker-compose.yml").read_text()
+        bare = lambda name: len(re.findall(rf"^\s*- {name}\s*$", compose, re.M))
+        self.assertGreaterEqual(bare("JIRA_INSECURE_TLS"), 2)
+        self.assertEqual(bare("DYNATRACE_INSECURE_TLS"), bare("JIRA_INSECURE_TLS"))
+        runner = (INTERN / "local-runner" / "runner-env.sh").read_text()
+        exported = re.search(r"load_agent_secrets\(\) \{(.*?)\n\}", runner, re.S).group(1)
+        self.assertIn("DYNATRACE_INSECURE_TLS", exported)
+        worker = (ROOT / "ai-intern" / "worker.py").read_text()
+        env_export = re.search(r"_ENV_EXPORT = \((.*?)\)", worker, re.S).group(1)
+        if '"JIRA_INSECURE_TLS"' in env_export:
+            self.assertIn('"DYNATRACE_INSECURE_TLS"', env_export)
+
+    def test_dynatrace_keys_reach_the_fetch_and_the_board(self):
+        """The token and the tenant list are read by the fetch (runner exports them), the board (both compose
+        services see a shell-set tenant list) and the worker; the tenant list is a text field."""
+        runner = (INTERN / "local-runner" / "runner-env.sh").read_text()
+        exported = re.search(r"load_agent_secrets\(\) \{(.*?)\n\}", runner, re.S).group(1)
+        for name in ("DYNATRACE_PAT", "DYNATRACE_TENANTS"):
+            self.assertIn(name, exported)
+        compose = (ROOT / "docker-compose.yml").read_text()
+        board, ai = re.split(r"(?m)^  jira-ai:", compose, maxsplit=1)
+        self.assertRegex(board, r"(?m)^\s*- DYNATRACE_TENANTS\s*$")
+        self.assertRegex(ai, r"(?m)^\s*- DYNATRACE_TENANTS\s*$")
+
+    def test_dynatrace_registry_entry(self):
+        service = next(s for s in REGISTRY["services"] if s["id"] == "dynatrace")
+        keys = {k["env"]: k for k in service["keys"]}
+        self.assertEqual(list(keys), ["DYNATRACE_PAT", "DYNATRACE_TENANTS"])
+        self.assertEqual(keys["DYNATRACE_PAT"].get("kind", "secret"), "secret")
+        self.assertEqual(keys["DYNATRACE_TENANTS"]["kind"], "text")
+        for k in service["keys"]:
+            self.assertNotIn("planned", k, f"{k['env']} is read now (fetch, worker, Test)")
+        self.assertFalse(service["required"])
+        self.assertLessEqual(len(service["why"]), 44)
+        self.assertIn(service["group"], [g["id"] for g in REGISTRY["groups"]])
+        self.assertTrue(service["usedBy"])
+
     def test_registry_shape(self):
         ids = [s["id"] for s in REGISTRY["services"]]
         self.assertEqual(len(ids), len(set(ids)))

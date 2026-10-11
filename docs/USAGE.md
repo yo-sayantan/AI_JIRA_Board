@@ -84,11 +84,11 @@ The report opens as a tabbed overlay. Tabs are **colour-coded by relevance** so 
 
 | Tab | Colour | What's in it |
 |---|---|---|
-| **Verdict** | the verdict's colour | Decision + next action (owner → action → due sprint), 5 at-a-glance tiles, the **gate checklist** (approvals, comments, changes requested, merged, QA sub-task, dependencies, fixVersion, release branch, CI, security scan — the first *Fail* is the reason for the verdict), release-gate warning when triggered |
-| **Evidence** | worst row wins | Evidence chain — *Source · Observed · Conclusion*, one row per fact; every PR (cards, or a worst-first table when >4); timeline |
+| **Verdict** | the verdict's colour | Decision + next action (owner → action → due sprint), 5 at-a-glance tiles, the **gate checklist** (approvals, comments, changes requested, merged, QA sub-task, dependencies, fixVersion, release branch, CI, security scan — the first *Fail* is the reason for the verdict), release-gate warning when triggered. When Dynatrace links, a Checkmarx scan or a failed Jenkins build say something about the ticket, an **Issue insight** callout sits right after the Decision: 2–4 plain sentences on what the issue was |
+| **Evidence** | worst row wins | Evidence chain — *Source · Observed · Conclusion*, one row per fact (a Dynatrace link, the deciding lines of a failed build's console, each Jenkins build, each Checkmarx target); every PR (cards, or a worst-first table when >4); timeline |
 | **Open scope** | red / amber / green | What still blocks closure with an **Owner** column (UNASSIGNED in red), ≤3 next actions, status-consistency warning (e.g. closed in Jira but PR never merged) |
 | **AI assessment** | violet | Only after the AI pass: per-file change classification (Required / Neutral / Risky), review focus, production proof (Dynatrace), deployment & rollback facts, risks, the ticket-specific release gate |
-| **Sources** | grey | Every link, run metadata, fingerprint |
+| **Sources** | grey | Every link (the ticket's Dynatrace links included), run metadata, fingerprint |
 
 Verdicts: *Ready to merge · Merge-ready, scope open · Awaiting approvals · Blocked (unresolved comments /
 changes requested) · Merged, awaiting verification · Ready to close · Shipped · Shipped, no fixVersion ·
@@ -106,9 +106,11 @@ or **not verified** (a gap — shown, never hidden). A ring shows the 0–100 re
    reads `ANTHROPIC_API_KEY`, `CURSOR_API_KEY`, or `GEMINI_API_KEY` only from `setup/.env` — add them with the key button.
    Cursor lists a few Gemini Flash models, GPT-4o, Grok, and Chinese models (Qwen, DeepSeek, Kimi, GLM).
    The models in the dropdown are the ones in `ai-intern/cloud-models.json` — add or delete a row there and it follows. Effort is **Auto** (default — the model's own), **Low**, **Medium** or **High**, as listed for each model; a **costly** model (⚠, output at or above the file's `costlyOutputUsd`, $10 by default) is fixed at **Medium** and its effort dropdown is shown disabled. An effort the model cannot take as a parameter is passed as guidance in the prompt. Local models see on-disk
-   intern data plus live Jira/Bitbucket (MCP tokens). Live Dynatrace stays Not verified; CI is read from the
-   ticket's Jenkins builds when it has them, and the Checkmarx gate from the vulnerability results the fetch
-   stored for a vulnerability-fix ticket (both at every level, None included).
+   intern data plus live Jira/Bitbucket (MCP tokens). CI is read from the ticket's Jenkins builds when it has them,
+   the Checkmarx gate from the vulnerability results the fetch stored for a vulnerability-fix ticket, and the
+   Dynatrace links in the ticket are read by the fetch too — so the **Issue insight** callout and the Dynatrace /
+   console evidence rows are there at every level, None included. The AI pass may reword the insight; it can never
+   add a fact to it. A ticket with no Dynatrace link and no matching text search stays Not verified for Dynatrace.
 
 **When they are generated.** Automatically after every fetch for any ticket whose PR appeared or
 changed (background, capped by `reports.maxPerRun`), after a single-ticket refresh, or on demand from
@@ -117,13 +119,13 @@ Backfill a whole year by hand: `bash jira-intern/local-runner/pr-reports-backfil
 
 ## API keys
 
-The key button in the header (beside Settings) opens a window laid out like Settings: a sidebar clusters the services into **Atlassian · Code hosting · CI/CD & security · AI models** (alphabetical inside each, with a set/total count per group) and the selected service fills the panel beside it — Jira (required), Atlassian Cloud, Bitbucket, Confluence, Jenkins, Checkmarx One, Claude, Cursor, Gemini, OpenAI, GitHub. A service is lit in its colour once its keys are saved,
+The key button in the header (beside Settings) opens a window laid out like Settings: a sidebar clusters the services into **Atlassian · Code hosting · CI/CD & security · Observability · AI models** (alphabetical inside each, with a set/total count per group) and the selected service fills the panel beside it — Jira (required), Atlassian Cloud, Bitbucket, Confluence, Jenkins, Checkmarx One, Dynatrace, Claude, Cursor, Gemini, OpenAI, GitHub. A service is lit in its colour once its keys are saved,
 grey until then; a key marked **Not used yet** (GitHub, the Atlassian Cloud email and site) can be filled in now for
 integrations that are coming. Pick a service to see why it is needed, what uses it and where to get it, then paste the key
 and **Save**. A saved key shows masked (first and last few characters only); paste a new key into the box to replace it,
 or **Remove** it (asks to confirm). **Test** checks the saved key against its host and answers inline — **✓ Connected**
 with the account name, **Key rejected (401)**, **Can't reach host**, a certificate problem, or what is still missing — and
-refines the row's dot. **The dot on every service is permanent**: it follows the latest real calls the board and its AI make with that key, so you see a problem without pressing Test — green **working** · orange **needs attention** (wrong or unreachable URL, network, certificate, server error) · red **key rejected / access denied** · no dot = never called; hover it for *Working · last OK 2h ago* or *Key rejected (401) since 09:14*. The header key button carries the same colour (red beats orange) when any saved key needs attention. Keys are stored in `setup/.env` on this machine — git-ignored, never
+refines the row's dot. **The dot on every service is permanent**: it follows the latest real calls the board and its AI make with that key, so you see a problem without pressing Test — green **working** · orange **needs attention** (wrong or unreachable URL, network, certificate, server error) · red **key rejected / access denied** · no dot = never called; hover it for *Working · last OK 2h ago* or *Key rejected (401) since 09:14*. The header key button carries the same colour (red beats orange) when any saved key needs attention. The proof sources (**Checkmarx One** and **Dynatrace** today) also have a one-line **Last fetch** under the dot — what the latest refresh did with them (*3 vulnerability-fix tickets looked up … — 2 with open findings*, *3 tickets with Dynatrace links looked up (5 links: 4 read · 1 empty) — 2 with failed requests or problems*, *not configured — missing CHECKMARX_API_KEY*, *carried forward — the API key was rejected*): green after a read, orange when unreachable, red when the key was rejected, grey when not configured or nothing qualified. **Dynatrace** takes a Platform token and the *Tenants* you want read (`prod=abc12345,uat=def67890`); **Test** asks each listed tenant one tiny read-only question and answers **✓ Connected · 2 tenants**. Keys are stored in `setup/.env` on this machine — git-ignored, never
 served — and take effect on the next fetch or AI call, no restart. A brand-new board with no data yet
 shows **Add API keys first** on its empty screen. The button is hidden when the board is opened as a file.
 
@@ -135,13 +137,15 @@ border** means the ticket carried across more than one sprint. Done cards spark 
 paint after a page load. **Click a card** to open its full detail drawer. On a Done card, the
 trophy button retires it to Completed immediately (undo from the strip under the board).
 
-**Build chips.** When Jenkins is set up (key button → Jenkins, plus `jenkins.jobs` in your config), a
-card shows one small chip per environment for its branch's latest build: `QA ✓ #412` (green, passed),
+**Build chips.** When Jenkins is set up (key button → Jenkins: your user, token and the **Projects folder** — or job links in
+`jenkins.jobs`), a card shows one small chip per environment for its branch's latest build: `QA ✓ #412` (green, passed),
 `✗` red (failed), amber `!` (unstable), a spinning blue ring (building now), grey (aborted / not
 built). Hover for the branch, when it ran, how long it took, test counts and the stage that failed.
 If Jenkins could not be reached on the last refresh, the chip keeps the previous build and its tooltip says
 **stale** ("Jenkins could not be re-read; this is the last build seen"); the PR report's CI gate then shows
-**Not verified** rather than Pass. Only https Jenkins job links are read.
+**Not verified** rather than Pass. Only https Jenkins job links are read. When an environment has both a build and a deploy
+pipeline the chip shows the one that failed (if any), else the deploy; the drawer's Proof → Builds lists every pipeline with
+its Build / Deploy pill. To see which pipelines were found for a repository, run `python3 jira-intern/jenkins.py discover <repo>`.
 
 **Vulnerability chip.** On a vulnerability-fix ticket (it names a CVE, a Checkmarx query or CWE, a Checkmarx
 result link or a vulnerable package version) with a pull request, and with Checkmarx One set up (key button →
@@ -160,7 +164,25 @@ Confluence/docs, proposed solution, effort, open questions, a copy-able branch, 
 up to five failing test names, the stage that failed and the deploy target. **Proof → Vulnerabilities ·
 Checkmarx** names the two scans compared (the PR's branch and its base, with scan dates) and gives each target a
 status — Fixed, Open, Not found, Unknown — with its kind, severity, file and line or package version, and one line of
-evidence. Nothing to show → no section.
+evidence, then a "Read N results …" line saying what each scan returned (so a Not found can be told from nothing
+having been read). A vulnerability-fix ticket Checkmarx could not look up still shows the group, with the reason
+("Checkmarx not configured — add the URL and key in API keys", "could not be reached — results not refreshed").
+Nothing to show → no section. If every target says Not found, run
+`python3 jira-intern/checkmarx.py diagnose <KEY>` in a terminal — it prints what Checkmarx returned and why
+each target did or did not match ([INTEGRATIONS.md](INTEGRATIONS.md#checkmarx-one-vulnerability-fix-tickets-rest-api)).
+**Proof → Linked traces & problems · Dynatrace** lists the Dynatrace links found in the ticket's description, comments and links
+(at most five): per link a status — **Read**, **Nothing found**, **Unreachable**, **Token rejected** (red: the key needs your
+attention) or **Tenant not listed** (muted: its tenant is not in the Tenants setting, so it was never read) — its kind (trace,
+problem, logs, service), the environment, the time window that was read, short findings ("38 spans across 4 services",
+"6 failed spans; the failure originates in …", the top error message and how often, the Davis problem and its root cause)
+and **Open in Dynatrace ↗**. A link whose last re-read failed shows the earlier answer marked "Last read 3h ago; Dynatrace
+could not be re-read". A failed or unstable build of a ticket about a failing build or pipeline also has a collapsed
+**Console (last lines)** box under its row: the last ~40 lines of its console with secrets, e-mail addresses and IPs
+replaced. Nothing is read for a ticket without such links, and nothing outside the listed tenants is ever contacted.
+The **AI brief** at the top of the drawer ends with an **Evidence from linked systems** section when there is evidence: one
+bullet per source (Dynatrace, Checkmarx, Jenkins) and a *What this means* line — only what those systems said.
+To see exactly what the board makes of a Dynatrace link, run `python3 jira-intern/dynatrace.py inspect "<link>"` (or a
+ticket key) in a terminal ([INTEGRATIONS.md](INTEGRATIONS.md#dynatrace-links-in-a-ticket-read-only-dql)).
 Open a sub-task to stack another drawer on top; **Esc** or the backdrop closes.
 
 ## Completed archive

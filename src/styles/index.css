@@ -282,6 +282,11 @@ select.jb-field:disabled {
 .prose-mini li > p + p {
   margin-top: 0.4em;
 }
+/* A brief's section label — a paragraph that is one bold line leading into a list, like "Evidence from linked
+   systems" — gets room above it and sits close to the list it introduces. */
+.prose-mini p:not(:first-child):has(> b:only-child):has(+ ul, + ol) {
+  margin: 0.95em 0 0.2em;
+}
 .prose-mini ul ul {
   list-style: circle outside;
 }

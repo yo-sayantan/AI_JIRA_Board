@@ -333,7 +333,102 @@
           "durationMs": null,
           "deployTarget": "qa"
         }
-      ]
+      ],
+      "dynatrace": {
+        "fetchedAt": "2026-10-08T06:00:00Z",
+        "items": [
+          {
+            "url": "https://abc12345.live.dynatrace.com/#trace;gtf=2026-10-08T02:15:00+05:30%20to%202026-10-08T02:30:00+05:30;gf=all;traceId=9f3c1d5e7a2b4c6d8e0f1a2b3c4d5e6f;timeframe=custom1791405900000to1791406800000;serviceId=SERVICE-1A2B3C4D5E6F7A8B",
+            "kind": "trace",
+            "host": "classic",
+            "tenant": "prod",
+            "window": {
+              "from": "2026-10-07T20:40:00Z",
+              "to": "2026-10-07T21:05:00Z"
+            },
+            "status": "read",
+            "findings": [
+              "38 spans across 4 services (scheduler → export-worker → renderer → object-storage-gateway); root: POST /internal/exports/nightly",
+              "6 failed spans; the failure originates in object-storage-gateway: PUT /exports/{id}",
+              "HTTP 504 ×4 · 500 ×2",
+              "Top error: SocketTimeoutException: Read timed out (×4)",
+              "Slowest span: object-storage-gateway PUT /exports/{id}, 30.0 s"
+            ],
+            "summary": {
+              "spans": 38,
+              "services": [
+                "scheduler",
+                "export-worker",
+                "renderer",
+                "object-storage-gateway"
+              ],
+              "root": "POST /internal/exports/nightly",
+              "failedSpans": 6,
+              "statusCodes": {
+                "504": 4,
+                "500": 2
+              },
+              "errors": [
+                {
+                  "message": "SocketTimeoutException: Read timed out",
+                  "count": 4
+                },
+                {
+                  "message": "HTTP 500 from object-storage-gateway",
+                  "count": 2
+                }
+              ],
+              "slowest": {
+                "name": "object-storage-gateway PUT /exports/{id}",
+                "ms": 30000
+              },
+              "firstFailure": {
+                "service": "object-storage-gateway",
+                "name": "PUT /exports/{id}"
+              }
+            },
+            "fetchedAt": "2026-10-08T06:00:00Z"
+          },
+          {
+            "url": "https://abc12345.live.dynatrace.com/#problems/problemdetails;pid=-4821907364518203397_1759866000000V2",
+            "kind": "problem",
+            "host": "classic",
+            "tenant": "prod",
+            "window": {
+              "from": "2026-10-07T19:55:00Z",
+              "to": "2026-10-07T21:35:00Z"
+            },
+            "status": "read",
+            "findings": [
+              "Davis problem P-24100731: Response time degradation (CLOSED, SLOWDOWN)",
+              "Root cause: object-storage-gateway — response time increase",
+              "Affected: export-worker, object-storage-gateway"
+            ],
+            "summary": {
+              "problems": [
+                {
+                  "id": "-4821907364518203397_1759866000000V2",
+                  "displayId": "P-24100731",
+                  "title": "Response time degradation",
+                  "status": "CLOSED",
+                  "severity": "SLOWDOWN",
+                  "start": "2026-10-07T20:00:00Z",
+                  "end": "2026-10-07T21:30:00Z",
+                  "rootCause": "object-storage-gateway — response time increase",
+                  "affected": [
+                    "export-worker",
+                    "object-storage-gateway"
+                  ]
+                }
+              ]
+            },
+            "fetchedAt": "2026-10-08T06:00:00Z"
+          }
+        ]
+      },
+      "aiSummary": "<div data-brief=\"2\"><p>The nightly export for the <b>largest tenant</b> overruns its 30-minute budget about one night in three. The ticket is <b>Blocked</b> on per-node capacity numbers from the platform team, and the fix (<code>#412</code>) has changes requested: the third retry can outlast the budget.</p><b>Code / PRs</b><ul><li><code>#412</code> — serialiser change and retry backoff. 0 approvals, 5 unresolved comments.</li></ul><p><b>Evidence from linked systems</b></p><ul><li><b>Dynatrace:</b> the linked trace has 6 failed spans out of 38, and the failure originates in <code>object-storage-gateway: PUT /exports/{id}</code> (HTTP 504 ×4 · 500 ×2, <i>SocketTimeoutException: Read timed out</i> ×4, slowest span 30.0 s). The linked Davis problem P-24100731 (response time degradation) is CLOSED.</li></ul><p><i>What this means: the timeouts sit in the storage call, not in the serialiser the PR changes — worth settling together with the capacity numbers before choosing between sharding and a longer budget.</i></p></div>",
+      "aiSummaryAt": "2026-10-08T06:30:00Z",
+      "aiSummaryEvidence": "3f9a1c07b2d84e56"
     },
     {
       "key": "DEMO-211",
@@ -663,6 +758,92 @@
       ],
       "builds": [
         {
+          "env": "dev",
+          "repo": "demo-service",
+          "branch": "feature/DEMO-220_delivery_worker",
+          "number": 214,
+          "result": "SUCCESS",
+          "url": "https://jenkins.example.com/job/demo/job/demo-service/job/demo-service-build/job/feature%252FDEMO-220_delivery_worker/214/",
+          "at": "2026-10-08T05:10:00Z",
+          "durationMs": 388000,
+          "deployTarget": "dev",
+          "tests": {
+            "total": 318,
+            "failed": 0,
+            "skipped": 4
+          },
+          "pipeline": "demo-service-build",
+          "kind": "build",
+          "via": "branch-job"
+        },
+        {
+          "env": "dev",
+          "repo": "demo-service",
+          "branch": "feature/DEMO-220_delivery_worker",
+          "number": 88,
+          "result": "SUCCESS",
+          "url": "https://jenkins.example.com/job/demo/job/demo-service/job/deploy-dev/88/",
+          "at": "2026-10-08T05:25:00Z",
+          "durationMs": 95000,
+          "deployTarget": "dev-eu",
+          "pipeline": "deploy-dev",
+          "kind": "deploy",
+          "via": "parameter"
+        },
+        {
+          "env": "stage",
+          "repo": "demo-service",
+          "branch": "feature/DEMO-220_delivery_worker",
+          "number": 215,
+          "result": "SUCCESS",
+          "url": "https://jenkins.example.com/job/demo/job/demo-service/job/demo-service-build/job/feature%252FDEMO-220_delivery_worker/215/",
+          "at": "2026-10-08T07:30:00Z",
+          "durationMs": 401000,
+          "deployTarget": "stage",
+          "tests": {
+            "total": 318,
+            "failed": 0,
+            "skipped": 4
+          },
+          "pipeline": "demo-service-build",
+          "kind": "build",
+          "via": "branch-job"
+        },
+        {
+          "env": "stage",
+          "repo": "demo-service",
+          "branch": "feature/DEMO-220_delivery_worker",
+          "number": 31,
+          "result": "FAILURE",
+          "url": "https://jenkins.example.com/job/demo/job/demo-service/job/deploy-stage/31/",
+          "at": "2026-10-08T07:45:00Z",
+          "durationMs": 62000,
+          "deployTarget": "stage",
+          "failedStage": "Apply manifests",
+          "pipeline": "deploy-stage",
+          "kind": "deploy",
+          "via": "parameter"
+        },
+        {
+          "env": "prod",
+          "repo": "demo-service",
+          "branch": "feature/DEMO-220_delivery_worker",
+          "number": 9,
+          "result": "SUCCESS",
+          "url": "https://jenkins.example.com/job/demo/job/demo-service/job/demo-service-release/job/feature%252FDEMO-220_delivery_worker/9/",
+          "at": "2026-10-08T08:05:00Z",
+          "durationMs": 540000,
+          "deployTarget": "prod",
+          "tests": {
+            "total": 318,
+            "failed": 0,
+            "skipped": 4
+          },
+          "pipeline": "demo-service-release",
+          "kind": "both",
+          "via": "branch-job"
+        },
+        {
           "env": "qa",
           "repo": "demo-service",
           "branch": "feature/DEMO-220_delivery_worker",
@@ -962,8 +1143,8 @@
         "A link issued for one user cannot be used by another",
         "Expired links return 403, never the file"
       ],
-      "aiSummary": "<p>Replaces guessable export URLs with <b>15-minute signed links</b> scoped to the requesting user. PR is approved with two approvals and no open comments — this is ready to merge.</p>",
-      "aiSummaryAt": "2026-10-08T02:00:00Z",
+      "aiSummary": "<div data-brief=\"2\"><p>Replaces guessable export URLs with <b>15-minute signed links</b> scoped to the requesting user. PR <code>#425</code> has two approvals and no open comments.</p><p><b>Evidence from linked systems</b></p><ul><li><b>Checkmarx:</b> compared with <code>main</code>, <code>CVE-2022-23529</code> and the <code>jsonwebtoken 8.5.1</code> package are gone on the branch (fixed). The <code>Path_Traversal</code> finding at <code>/src/export/DownloadController.java:88</code> is <b>still open</b>.</li></ul><p><i>What this means: the dependency fix is verified, but the ticket also names a path-traversal finding that is still open on the branch — confirm it is out of scope, or fix it, before merging.</i></p></div>",
+      "aiSummaryAt": "2026-10-08T06:30:00Z",
       "confluence": [
         {
           "title": "Link signing standard",
@@ -1022,6 +1203,24 @@
         "baseBranch": "main",
         "branchScanAt": "2026-10-07T22:00:00Z",
         "baseScanAt": "2026-10-06T03:00:00Z",
+        "read": {
+          "branch": {
+            "total": 214,
+            "sca": 171,
+            "sast": 36,
+            "other": 7,
+            "truncated": false,
+            "reported": 214
+          },
+          "base": {
+            "total": 219,
+            "sca": 176,
+            "sast": 36,
+            "other": 7,
+            "truncated": false,
+            "reported": 219
+          }
+        },
         "items": [
           {
             "target": "CVE-2022-23529",
@@ -1045,10 +1244,15 @@
             "status": "fixed",
             "severity": "HIGH",
             "location": "jsonwebtoken 8.5.1",
-            "detail": "Fixed — gone on feature/DEMO-230_signed_links (scan 2026-10-07) · was HIGH on main (scan 2026-10-06)."
+            "detail": "Fixed — gone on feature/DEMO-230_signed_links (scan 2026-10-07) · was HIGH on main (scan 2026-10-06).",
+            "foundOnBase": [
+              "8.5.1"
+            ],
+            "foundOnBranch": []
           }
         ]
-      }
+      },
+      "aiSummaryEvidence": "a41d7e20c9b3f658"
     },
     {
       "key": "DEMO-231",
@@ -1148,7 +1352,8 @@
               "reports.ApiContractTest.pageSizeCapped"
             ]
           },
-          "failedStage": "Integration tests"
+          "failedStage": "Integration tests",
+          "consoleTail": "> Task :reports:integrationTest\n[test-client] GET /api/saved-reports?limit=20 Authorization: ••• -> 200 (212 ms)\n[test-client] GET /api/saved-reports?limit=20&cursor=ey•••= Authorization: ••• -> 200 (187 ms)\n\nSavedReportPagingTest > lastPageIsPartial() FAILED\n    org.opentest4j.AssertionFailedError: expected: <7> but was: <0>\n        at reports.SavedReportPagingTest.lastPageIsPartial(SavedReportPagingTest.java:61)\nSavedReportPagingTest > cursorSurvivesRefresh() FAILED\n    java.lang.IllegalStateException: cursor no longer matches the sort key\nApiContractTest > pageSizeCapped() FAILED\n    org.opentest4j.AssertionFailedError: expected: <100> but was: <250>\n\n296 tests completed, 3 failed\n\n> Task :reports:integrationTest FAILED\nBUILD FAILED in 8m 58s"
         },
         {
           "env": "uat",
@@ -1166,7 +1371,10 @@
             "skipped": 0
           }
         }
-      ]
+      ],
+      "aiSummary": "<div data-brief=\"2\"><p>Switches the saved-reports list to <b>keyset pagination</b> so it stops loading every report at once. The first attempt (offset paging, <code>#418</code>) was declined for skew problems; this one is in review.</p><b>Code / PRs</b><ul><li><code>#426</code> — keyset paging for the list endpoint. 1 approval, 4 of 11 comments still open.</li></ul><p><b>Evidence from linked systems</b></p><ul><li><b>Jenkins:</b> the QA build <code>#88</code> failed at <i>Integration tests</i> — 3 of 296 tests fail: <code>SavedReportPagingTest.lastPageIsPartial</code> (expected 7 rows on the last page, got 0), <code>SavedReportPagingTest.cursorSurvivesRefresh</code> (the cursor no longer matches the sort key) and <code>ApiContractTest.pageSizeCapped</code> (page size 250, cap 100).</li></ul><p><i>What this means: all three failures are in the paging code this PR adds, not in the environment — fix them before asking for another review.</i></p></div>",
+      "aiSummaryAt": "2026-10-08T06:30:00Z",
+      "aiSummaryEvidence": "7c2e95b0d18a43f6"
     },
     {
       "key": "DEMO-232",
@@ -1817,12 +2025,30 @@
         "baseBranch": "main",
         "branchScanAt": "2026-10-05T07:30:00Z",
         "baseScanAt": "2026-10-04T03:00:00Z",
+        "read": {
+          "branch": {
+            "total": 58,
+            "sca": 0,
+            "sast": 51,
+            "other": 7,
+            "truncated": false,
+            "reported": 58
+          },
+          "base": {
+            "total": 61,
+            "sca": 0,
+            "sast": 54,
+            "other": 7,
+            "truncated": false,
+            "reported": 61
+          }
+        },
         "items": [
           {
             "target": "CVE-2023-26136",
             "kind": "cve",
             "status": "not-found",
-            "detail": "Not found — in neither scan: not on feature/DEMO-243_report_permissions (scan 2026-10-05) nor on main (scan 2026-10-04). Check the id on the ticket."
+            "detail": "Not found — in neither scan: not on feature/DEMO-243_report_permissions (scan 2026-10-05) nor on main (scan 2026-10-04). Read 58 results on feature/DEMO-243_report_permissions (SAST 51 · other 7); 61 results on main (SAST 54 · other 7). Check the id on the ticket."
           },
           {
             "target": "CWE-639",
@@ -2107,7 +2333,41 @@
           "status": "Blocked",
           "relation": "tests"
         }
-      ]
+      ],
+      "dynatrace": {
+        "fetchedAt": "2026-10-08T06:00:00Z",
+        "items": [
+          {
+            "url": "https://abc12345.live.dynatrace.com/#newservices/serviceOverview;id=SERVICE-9C8B7A6D5E4F3A2B;gtf=2026-10-08T02:00:00+05:30%20to%202026-10-08T03:00:00+05:30;gf=all",
+            "kind": "service",
+            "host": "classic",
+            "tenant": "prod",
+            "window": {
+              "from": "2026-10-07T20:25:00Z",
+              "to": "2026-10-07T21:35:00Z"
+            },
+            "status": "empty",
+            "findings": [],
+            "summary": {
+              "requests": {
+                "total": 0,
+                "failed": 0
+              }
+            },
+            "note": "No requests were recorded for this service in the window — nothing to check yet",
+            "fetchedAt": "2026-10-08T06:00:00Z"
+          },
+          {
+            "url": "https://zzz99999.live.dynatrace.com/#trace;gtf=2026-10-08T02:15:00+05:30%20to%202026-10-08T02:30:00+05:30;gf=all;traceId=1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d",
+            "kind": "trace",
+            "host": "classic",
+            "tenant": "zzz99999",
+            "status": "unconfigured-tenant",
+            "findings": [],
+            "note": "Tenant zzz99999 is not in DYNATRACE_TENANTS — not read"
+          }
+        ]
+      }
     },
     {
       "key": "DEMO-250",
@@ -2775,7 +3035,107 @@
           "when": "2026-10-06",
           "text": "Opened"
         }
-      ]
+      ],
+      "dynatrace": {
+        "fetchedAt": "2026-10-08T06:00:00Z",
+        "items": [
+          {
+            "url": "https://abc12345.live.dynatrace.com/#trace;gtf=2026-10-07T23:10:00+05:30%20to%202026-10-07T23:25:00+05:30;gf=all;traceId=5d8a2c4e6f10a3b7c9e1d2f4a6b8c0e2;serviceId=SERVICE-4E5F6A7B8C9D0E1F",
+            "kind": "trace",
+            "host": "classic",
+            "tenant": "prod",
+            "window": {
+              "from": "2026-10-07T17:35:00Z",
+              "to": "2026-10-07T18:00:00Z"
+            },
+            "status": "read",
+            "findings": [
+              "9 spans across 3 services (api-gateway → export-api → key-service); root: GET /exports/{id}/download",
+              "3 failed spans; the failure originates in key-service: GET /tenants/{id}/signing-key",
+              "HTTP 403 ×3",
+              "Top error: SignatureMismatch: key id not found (×3)"
+            ],
+            "summary": {
+              "spans": 9,
+              "services": [
+                "api-gateway",
+                "export-api",
+                "key-service"
+              ],
+              "root": "GET /exports/{id}/download",
+              "failedSpans": 3,
+              "statusCodes": {
+                "403": 3
+              },
+              "errors": [
+                {
+                  "message": "SignatureMismatch: key id not found",
+                  "count": 3
+                }
+              ],
+              "slowest": {
+                "name": "key-service GET /tenants/{id}/signing-key",
+                "ms": 412
+              },
+              "firstFailure": {
+                "service": "key-service",
+                "name": "GET /tenants/{id}/signing-key"
+              }
+            },
+            "fetchedAt": "2026-10-08T06:00:00Z"
+          },
+          {
+            "url": "https://abc12345.apps.dynatrace.com/ui/apps/dynatrace.logs/?gtf=2026-10-07T04%3A05%3A00Z&gtt=2026-10-07T05%3A55%3A00Z&sortDirection=desc",
+            "kind": "logs",
+            "host": "platform",
+            "tenant": "prod",
+            "window": {
+              "from": "2026-10-07T04:00:00Z",
+              "to": "2026-10-07T06:00:00Z"
+            },
+            "status": "unreachable",
+            "findings": [
+              "Top error lines: key-service: SignatureMismatch: key id not found (×42) · export-api: download failed: 403 from key-service (×41)"
+            ],
+            "summary": {
+              "logGroups": [
+                {
+                  "message": "key-service: SignatureMismatch: key id not found",
+                  "count": 42
+                },
+                {
+                  "message": "export-api: download failed: 403 from key-service",
+                  "count": 41
+                }
+              ]
+            },
+            "note": "The log query timed out — showing the answer from the previous run",
+            "fetchedAt": "2026-10-07T06:00:00Z",
+            "stale": true
+          },
+          {
+            "url": "https://def67890.live.dynatrace.com/#newservices/serviceOverview;id=SERVICE-7A6B5C4D3E2F1A0B;gtf=-2h;gf=all",
+            "kind": "service",
+            "host": "classic",
+            "tenant": "uat",
+            "window": {
+              "from": "2026-10-08T04:05:00Z",
+              "to": "2026-10-08T06:05:00Z"
+            },
+            "status": "auth-failed",
+            "findings": [],
+            "note": "Dynatrace rejected the token for tenant uat (HTTP 403) — check the Dynatrace token in API keys",
+            "fetchedAt": "2026-10-08T06:00:00Z"
+          }
+        ]
+      },
+      "proofNotes": {
+        "dynatrace": {
+          "state": "unreachable",
+          "detail": "Dynatrace did not answer one link in time — its earlier answer is shown, marked stale",
+          "at": "2026-10-08T06:00:00Z"
+        }
+      }
     },
     {
       "key": "DEMO-225",
@@ -4713,6 +5073,31 @@
     }
   ],
   "raisedAt": "2026-10-08T02:00:00Z",
+  "proofSources": {
+    "checkmarx": {
+      "state": "read",
+      "detail": "Checkmarx: 3 vulnerability-fix tickets looked up (7 targets: 4 fixed · 1 open · 1 not found · 1 unknown) — 1 with open findings",
+      "at": "2026-10-08T06:00:00Z",
+      "looked": 3,
+      "counts": {
+        "fixed": 4,
+        "open": 1,
+        "not-found": 1,
+        "unknown": 1
+      }
+    },
+    "dynatrace": {
+      "state": "read",
+      "detail": "Dynatrace: 3 tickets looked up (5 links: 3 read · 1 empty · 1 unconfigured tenant) — 2 with failed requests",
+      "at": "2026-10-08T06:00:00Z",
+      "looked": 3,
+      "counts": {
+        "read": 3,
+        "empty": 1,
+        "unconfigured-tenant": 1
+      }
+    }
+  },
   "notes": [
     "Demo mode is on — these tickets are invented. Nothing here is fetched from or written to Jira."
   ]

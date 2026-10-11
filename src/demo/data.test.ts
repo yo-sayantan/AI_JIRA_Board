@@ -4,7 +4,7 @@ import { bundledDemoDump, rebaseDemoDump } from './data'
 import type { Ticket } from '../types'
 import { loadData } from '../data'
 import { countMyCompleted, countRaised, indexByKey } from '../lib/boardView'
-import { cardBranches, cycleTime, effectiveType, futureSprintOf, isNextSprint, prListOf, priorityMeta, releaseEnvOf, typeMeta, unwrapBrief, yearOf } from '../lib/format'
+import { consoleTailLines, dynatraceKindLabel, dynatraceSummary, cardBranches, cardBuilds, cycleTime, effectiveType, futureSprintOf, isNextSprint, prListOf, priorityMeta, releaseEnvOf, typeMeta, unwrapBrief, yearOf } from '../lib/format'
 import { matches, parseQuery } from '../lib/search'
 
 const HOUR = 3_600_000
@@ -87,6 +87,20 @@ describe('demo builds', () => {
     expect(all.some((b) => b.deployTarget && b.deployTarget !== b.env)).toBe(true)
   })
 
+  it('has an environment with a build pipeline next to a deploy pipeline, both kinds, and both ways of finding a branch', () => {
+    const t = d.tickets.find((x) => x.key === 'DEMO-220')!
+    const perEnv = new Map<string, string[]>()
+    for (const b of t.builds ?? []) if (b.pipeline) perEnv.set(b.env, [...(perEnv.get(b.env) ?? []), b.kind ?? ''])
+    expect([...perEnv.values()].some((kinds) => kinds.includes('build') && kinds.includes('deploy'))).toBe(true)
+    expect(new Set(all.map((b) => b.kind).filter(Boolean))).toEqual(new Set(['build', 'deploy', 'both']))
+    expect(new Set(all.map((b) => b.via).filter(Boolean))).toEqual(new Set(['branch-job', 'parameter']))
+    // …and the card still shows one chip for it, red when a pipeline failed
+    const chips = cardBuilds(t)
+    expect(chips.filter((c) => c.env === 'stage')).toHaveLength(1)
+    expect(chips.find((c) => c.env === 'stage')!.result).toBe('FAILURE')
+    expect(chips.find((c) => c.env === 'dev')!.kind).toBe('deploy')
+  })
+
   it('re-dates build times with everything else', () => {
     const shift = NOW - Date.parse(raw._demoNow)
     const before = raw.tickets.find((t) => t.key === 'DEMO-220')!.builds![0]
@@ -133,6 +147,130 @@ describe('demo vulnerability fixes (Checkmarx)', () => {
 
   it('links stay on the example tenant', () => {
     for (const t of withVf) expect(t.description ?? '').not.toMatch(/https?:\/\/(?!your-tenant\.cxone\.cloud|[\w.-]*example\.com)/)
+  })
+})
+
+describe('demo Dynatrace evidence', () => {
+  const d = rebaseDemoDump(raw, NOW)
+  const withDt = d.tickets.filter((t) => t.dynatrace)
+  const items = withDt.flatMap((t) => t.dynatrace!.items.map((i) => ({ key: t.key, ...i })))
+
+  it('is on three QA / support-style tickets and shows every status', () => {
+    expect(withDt.map((t) => t.key).sort()).toEqual(['DEMO-210', 'DEMO-213', 'DEMO-247'])
+    expect(new Set(items.map((i) => i.status))).toEqual(new Set(['read', 'empty', 'unreachable', 'auth-failed', 'unconfigured-tenant']))
+  })
+
+  it('has a trace with failures, a closed Davis problem, a log link and a service link, on both URL flavours', () => {
+    expect(new Set(items.map((i) => i.kind))).toEqual(new Set(['trace', 'problem', 'logs', 'service']))
+    expect(new Set(items.map((i) => i.host))).toEqual(new Set(['classic', 'platform']))
+    const trace = items.find((i) => i.status === 'read' && i.kind === 'trace' && (i.summary?.failedSpans ?? 0) > 0)!
+    expect(trace.findings.some((f) => /failed spans; the failure originates in /.test(f))).toBe(true)
+    expect(trace.summary!.errors![0].message).toMatch(/Read timed out/)
+    expect(trace.url).toMatch(/^https:\/\/abc12345\.live\.dynatrace\.com\/#trace;gtf=.*;traceId=[0-9a-f]{32};.*;serviceId=SERVICE-[0-9A-F]{16}$/)
+    const problem = items.find((i) => i.kind === 'problem')!
+    expect(problem.status).toBe('read')
+    expect(problem.summary!.problems![0]).toMatchObject({ status: 'CLOSED', severity: 'SLOWDOWN' })
+    expect(problem.findings[0]).toMatch(/^Davis problem P-\d+: .* \(CLOSED, SLOWDOWN\)$/)
+  })
+
+  it('lists a tenant that is not configured, never read, with the reason', () => {
+    const t = items.find((i) => i.status === 'unconfigured-tenant')!
+    expect(t.url).toMatch(/^https:\/\/zzz99999\.live\.dynatrace\.com\//)
+    expect(t.note).toBe('Tenant zzz99999 is not in DYNATRACE_TENANTS — not read')
+    expect(t.findings).toEqual([])
+    expect(t.summary ?? null).toBeNull()
+    expect(t.fetchedAt ?? null).toBeNull()
+  })
+
+  it('keeps to the contract: at most five links, https only, findings short, a window only where one could be read', () => {
+    for (const t of withDt) {
+      expect(t.dynatrace!.items.length).toBeLessThanOrEqual(5)
+      for (const i of t.dynatrace!.items) {
+        expect(i.url).toMatch(/^https:\/\/(abc12345|def67890|zzz99999)\.(live|apps)\.dynatrace\.com\//)
+        expect(i.url.length).toBeLessThanOrEqual(600)
+        expect(i.findings.length).toBeLessThanOrEqual(8)
+        for (const f of i.findings) expect(f.length).toBeLessThanOrEqual(200)
+        if (i.window) expect(Date.parse(i.window.to) - Date.parse(i.window.from)).toBeLessThanOrEqual(2 * HOUR + 1)
+      }
+    }
+  })
+
+  it('summarises and labels in words the drawer can use', () => {
+    const t = d.tickets.find((x) => x.key === 'DEMO-213')!
+    expect(dynatraceSummary(t.dynatrace!)).toBe('1 read · 1 unreachable · 1 token rejected · 3 failed spans')
+    expect(dynatraceKindLabel('logs')).toBe('Logs')
+  })
+})
+
+describe('demo failed build with a console tail', () => {
+  const d = rebaseDemoDump(raw, NOW)
+  const withTail = d.tickets.flatMap((t) => (t.builds ?? []).filter((b) => b.consoleTail).map((b) => ({ key: t.key, ...b })))
+
+  it('is on exactly one failed build, whose tail is a dozen-odd lines with a scrubbed Authorization header', () => {
+    expect(withTail.map((b) => `${b.key}#${b.number}`)).toEqual(['DEMO-231#88'])
+    expect(withTail[0].result).toBe('FAILURE')
+    const lines = consoleTailLines(withTail[0].consoleTail)
+    expect(lines.length).toBeGreaterThanOrEqual(10)
+    expect(lines.length).toBeLessThanOrEqual(40)
+    expect(withTail[0].consoleTail!.length).toBeLessThanOrEqual(4096)
+    expect(lines.some((l) => /Authorization: •••/.test(l))).toBe(true)
+    expect(lines.some((l) => /FAILED/.test(l))).toBe(true)
+  })
+
+  it('names the tests the build says failed', () => {
+    const [b] = withTail
+    for (const name of b.tests!.failing!) {
+      const [cls, method] = name.split('.').slice(-2)
+      expect(b.consoleTail).toContain(`${cls} > ${method}()`)
+    }
+  })
+
+  it('carries no secret, address or token-looking string', () => {
+    const tail = withTail[0].consoleTail!
+    expect(tail).not.toMatch(/Bearer\s|password\s*[=:]|[A-Za-z0-9+/]{40,}|\b\d{1,3}(?:\.\d{1,3}){3}\b|[\w.-]+@[\w.-]+\.\w+/i)
+  })
+})
+
+describe('demo briefs with an "Evidence from linked systems" section', () => {
+  const d = rebaseDemoDump(raw, NOW)
+  const evidence = d.tickets.filter((t) => t.aiSummaryEvidence)
+
+  it('is on a Dynatrace ticket, a vulnerability-fix ticket and a build-failure ticket', () => {
+    expect(evidence.map((t) => t.key).sort()).toEqual(['DEMO-210', 'DEMO-230', 'DEMO-231'])
+    expect(evidence.find((t) => t.key === 'DEMO-210')!.dynatrace).toBeTruthy()
+    expect(evidence.find((t) => t.key === 'DEMO-230')!.vulnFixes).toBeTruthy()
+    expect(evidence.find((t) => t.key === 'DEMO-231')!.builds!.some((b) => b.consoleTail)).toBe(true)
+  })
+
+  it('is stamped with the current brief version, fingerprinted, and newer than the ticket', () => {
+    for (const t of evidence) {
+      expect(t.aiSummary!.startsWith('<div data-brief="2">')).toBe(true)
+      expect(t.aiSummary!.endsWith('</div>')).toBe(true)
+      expect(t.aiSummaryEvidence).toMatch(/^[0-9a-f]{16}$/)
+      expect(Date.parse(t.aiSummaryAt!)).toBeGreaterThanOrEqual(Date.parse(t.lastUpdate!))
+    }
+    expect(new Set(evidence.map((t) => t.aiSummaryEvidence)).size).toBe(evidence.length)
+  })
+
+  it('has the section: a heading, a list that names its system, and a "What this means" line', () => {
+    for (const t of evidence) {
+      const html = unwrapBrief(t.aiSummary)!
+      expect(html).toContain('<p><b>Evidence from linked systems</b></p><ul><li><b>')
+      expect(html).toMatch(/<p><i>What this means: [^<]+<\/i><\/p><\/div>$/)
+    }
+    expect(unwrapBrief(evidence.find((t) => t.key === 'DEMO-210')!.aiSummary)).toContain('<b>Dynatrace:</b>')
+    expect(unwrapBrief(evidence.find((t) => t.key === 'DEMO-230')!.aiSummary)).toContain('<b>Checkmarx:</b>')
+    expect(unwrapBrief(evidence.find((t) => t.key === 'DEMO-231')!.aiSummary)).toContain('<b>Jenkins:</b>')
+  })
+
+  it('says only what the ticket’s own evidence says', () => {
+    const b210 = evidence.find((t) => t.key === 'DEMO-210')!
+    const trace = b210.dynatrace!.items.find((i) => i.kind === 'trace')!
+    expect(b210.aiSummary).toContain(`${trace.summary!.failedSpans} failed spans out of ${trace.summary!.spans}`)
+    const b230 = evidence.find((t) => t.key === 'DEMO-230')!
+    for (const i of b230.vulnFixes!.items.filter((x) => x.status === 'open')) expect(b230.aiSummary).toContain(i.target)
+    const b231 = evidence.find((t) => t.key === 'DEMO-231')!
+    for (const name of b231.builds![0].tests!.failing!) expect(b231.aiSummary).toContain(name.split('.').slice(-2).join('.'))
   })
 })
 

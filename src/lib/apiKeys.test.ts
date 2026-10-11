@@ -10,6 +10,7 @@ import {
   healthView,
   keyCounts,
   keysBadge,
+  kindOf,
   latestHealth,
   missingRequired,
   recordFromTest,
@@ -111,6 +112,13 @@ describe('testability', () => {
     expect(testBlocker(svc('jenkins'), { JENKINS_API_TOKEN: set })).toMatch(/User name/)
   })
 
+  it('Dynatrace tests with the platform token alone — tenants may come from the config', () => {
+    const dynatrace = svc('dynatrace')
+    expect(testBlocker(dynatrace, { DYNATRACE_PAT: set })).toBeNull()
+    expect(testBlocker(dynatrace, {})).toMatch(/Platform token/)
+    expect(serviceReady(dynatrace, { DYNATRACE_PAT: set })).toBe(true)
+  })
+
   it('Bitbucket can test with the Atlassian token instead of its own', () => {
     expect(testBlocker(bitbucket, { ATLASSIAN_TOKEN: set })).toBeNull()
     expect(testBlocker(bitbucket, {})).not.toBeNull()
@@ -190,7 +198,36 @@ describe('grouped, alphabetical, readable', () => {
   })
 })
 
+describe('Dynatrace', () => {
+  const dynatrace = API_SERVICES.find((s) => s.id === 'dynatrace')!
+  it('is its own Observability group, in use (not planned), with a token and a text field for tenants', () => {
+    expect(dynatrace.group).toBe('observability')
+    expect(API_GROUPS.find((g) => g.id === 'observability')?.name).toBe('Observability')
+    expect(servicePlanned(dynatrace)).toBe(false)
+    expect(dynatrace.required).toBe(false)
+    expect(dynatrace.keys.map((k) => [k.env, kindOf(k)])).toEqual([
+      ['DYNATRACE_PAT', 'secret'],
+      ['DYNATRACE_TENANTS', 'text'],
+    ])
+    expect(dynatrace.keys.some((k) => k.planned)).toBe(false)
+    expect(dynatrace.usedBy.length).toBeGreaterThan(0)
+  })
+  it('shows in the grouped dialog list under Observability', () => {
+    const group = groupedServices().find((g) => g.group.id === 'observability')
+    expect(group?.services.map((s) => s.id)).toEqual(['dynatrace'])
+  })
+  it('is saved as a text value, so the tenants stay readable in the dialog', () => {
+    expect(canSave('prod=abc12345', { set: true, masked: 'prod=abc12345' }, false)).toBe(false)
+    expect(canSave('prod=abc12345,uat=def67890', { set: true, masked: 'prod=abc12345' }, false)).toBe(true)
+  })
+})
+
 describe('service colours', () => {
+  it('every service has its own colour', () => {
+    const colours = API_SERVICES.map((s) => s.color.toLowerCase())
+    expect(new Set(colours).size).toBe(colours.length)
+  })
+
   /** Hue in degrees of a #rrggbb colour (0 for greys). */
   const hue = (hex: string) => {
     const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)

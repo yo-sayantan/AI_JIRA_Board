@@ -38,6 +38,16 @@ describe('PDF deck', () => {
     expect(el.querySelector('[data-probe]')).toBeNull()
   })
 
+  it('puts the Issue insight with the delivery gates, not under "Additional detail"', () => {
+    const report = reports.find((r) => r.tabs.some((t) => t.blocks.some((b) => b.title === 'Issue insight')))
+    expect(report, 'a demo report carries an Issue insight').toBeTruthy()
+    const el = render(report!)
+    const text = el.textContent ?? ''
+    expect(text).toContain('Issue insight')
+    const extra = [...el.querySelectorAll('.jb-slide')].find((s) => /Additional detail/.test(s.textContent ?? ''))
+    expect(extra?.textContent ?? '').not.toContain('Issue insight')
+  })
+
   it('places every block of the report on some slide', () => {
     const report = reports[0]
     const el = render(report)

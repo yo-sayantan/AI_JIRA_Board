@@ -179,7 +179,7 @@ export default function App() {
   // keeps its state when a first fetch turns the empty state into the board.
   const keysDialog = (
     <ErrorBoundary label="API keys" overlay onClose={closeKeys}>
-      <ApiKeysDialog open={keysOpen} status={apiKeys.status} failed={apiKeys.failed} onClose={closeKeys} onRefresh={apiKeys.refresh} onSave={apiKeys.save} onTest={testKey} health={keyHealthShown} />
+      <ApiKeysDialog open={keysOpen} status={apiKeys.status} failed={apiKeys.failed} onClose={closeKeys} onRefresh={apiKeys.refresh} onSave={apiKeys.save} onTest={testKey} health={keyHealthShown} lastFetch={data.proofSources} />
     </ErrorBoundary>
   )
   const openCompleted = useCallback(() => setCompletedOpen(true), [])

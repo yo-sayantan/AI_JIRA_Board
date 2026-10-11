@@ -8,7 +8,7 @@ AI agent to make a correct change without re-deriving the architecture.
 
 ```
  Jira / Bitbucket / Confluence  ──(your tokens)──▶  jira-intern/*.py  ──▶  jira-intern/data.json + data.js
- Jenkins / Checkmarx One (proof) ─────────────────▶  (the "intern")           │  (+ builds, vulnFixes)
+ Jenkins / Checkmarx / Dynatrace (proof) ────────▶  (the "intern")           │  (+ builds, vulnFixes, dynatrace)
  setup/.env ◀── server/secrets.mjs ◀── key dialog   tokens read from setup/.env │
  AI-Intern container (worker.py) ◀── .ai-queue jobs ◀── server ◀─────────────────┤ reads
         │ writes aiSummary/reports back into data.json / reports/                ▼
@@ -35,13 +35,13 @@ AI agent to make a correct change without re-deriving the architecture.
 | `src/lib/` | Pure logic: `boardView` (derivations/index), `search` (query grammar), `columns` (status→column), `format` (every display helper), `runner` (typed API client), `settings` (feature registry), `statusPoller`. |
 | `src/hooks/` | Stateful glue: `useBoardData`, `useInternJobs` (daily/archive/raised/per-ticket jobs), `useReports`, `useDrawerStack`, `useBoardSettings`, `useToasts`. |
 | `src/components/` | Feature folders: `board/` `header/` `ticket/` `completed/` `raised/` `reports/` `settings/` `common/`. |
-| `jira-intern/` | The data pipeline. `daily_fetch.py` (active tickets + raised list + single-ticket refresh), `completed_archive.py` (historical archive), `raised.py` (raised-by-me fetch, shared), `_jira.py` (HTTP + field formatting), `devinfo.py` (branches/PRs via Jira dev-status), `jenkins.py` (latest Jenkins multibranch build per branch and environment → `Ticket.builds`), `checkmarx.py` (Checkmarx One: which vulnerabilities a fix ticket fixed, branch scan vs base scan → `Ticket.vulnFixes`; also the worker's Checkmarx client), `_safe_http.py` (the proof clients' hardened urllib: verified TLS context with an opt-out per source, same-origin-only redirects), `pr_report.py` (deterministic PR reports), `_health.py` (per-service health files `.health/<id>.json` every outside client writes after a real call — the API keys dialog's dots), `datafile.py` (atomic writes, data.js sync), `progress.py` (progress file for button fills). |
+| `jira-intern/` | The data pipeline. `daily_fetch.py` (active tickets + raised list + single-ticket refresh), `completed_archive.py` (historical archive), `raised.py` (raised-by-me fetch, shared), `_jira.py` (HTTP + field formatting), `devinfo.py` (branches/PRs via Jira dev-status), `jenkins.py` (latest Jenkins build per branch, environment and pipeline → `Ticket.builds`) with `jenkins_discovery.py` (finds the pipelines under the Jenkins root; cache `.jenkins-discovery.json`), `checkmarx.py` (Checkmarx One: which vulnerabilities a fix ticket fixed, branch scan vs base scan → `Ticket.vulnFixes`; also the worker's Checkmarx client; `diagnose` from the terminal), `dynatrace.py` (the Dynatrace links in a ticket's text, read-only DQL at listed tenants only → `Ticket.dynatrace`; `inspect` from the terminal), `evidence.py` (the ONE builder of "what Dynatrace / Checkmarx / Jenkins say about a ticket": headline, templated insight, sections, fingerprint — read by the AI brief, the PR report and the worker), `_scrub.py` (cleans outside text — Dynatrace messages, Jenkins console lines — before it is stored or sent to a model), `_sources.py` (what each proof source did this run → `proofSources`, the run notes), `_safe_http.py` (the proof clients' hardened urllib: verified TLS context with an opt-out per source, same-origin-only redirects), `pr_report.py` (deterministic PR reports), `_health.py` (per-service health files `.health/<id>.json` every outside client writes after a real call — the API keys dialog's dots), `datafile.py` (atomic writes, data.js sync), `progress.py` (progress file for button fills). |
 | `jira-intern/local-runner/` | Shell entrypoints the server invokes: `run-intern.sh`, `update-completed.sh`, `refresh-ticket.sh`, `refresh-raised.sh`, `pr-report.sh`; `runner-env.sh` (env, locks, timeouts), `config.mjs` (config merge → shellenv/prompts), `sync-datajs.mjs`. |
 | `server/` (entry: `server/serve.mjs`) | Zero-dependency Node server: static allowlist + the `/api/*` routes (jobs, reports, settings, API keys, AI proxy, status). `secrets.mjs` reads/writes `setup/.env` for the API keys dialog; `keycheck.mjs` is the dialog's Test button (`POST /api/keys/test`: one cheap authenticated call per service, redirects never followed); `health.mjs` reads/writes `jira-intern/.health/` (`GET /api/keys/health`). |
 | `docker/` | `Dockerfile` (build context is the repo root — `docker-compose.yml` sets `dockerfile: docker/Dockerfile`) and `docker-entrypoint.sh`. `docker-compose.yml` stays at the root on purpose. |
 | `scripts/` | `start-jira-board.sh` (host build + Docker deploy), `open-guide.sh` / `open-guide.bat` (open `help/00-start-here.html`, no server), `build-help-data.mjs` (writes `help/help-data.js`; `npm run build` runs it first) and `Open Board.html`. |
 | `tooling/` | `vite.config.ts`, `vitest.config.ts` — selected by `--config` in the npm scripts. `src/tsconfig.json` is the TypeScript config; `.claude/CLAUDE.md` is the agent entry point. |
-| `ai-intern/` | The AI worker container: `worker.py` (job queue + HTTP; Ollama local or Claude/Cursor/Gemini cloud), `models.json` (local model catalog), `cloud-models.json` (THE cloud model list: models, efforts, costly line) + `cloud_config.py`, `cursor-prices.json` (Cursor's price table — reference data). |
+| `ai-intern/` | The AI worker container: `worker.py` (job queue + HTTP; Ollama local or Claude/Cursor/Gemini cloud), `brief.py` (the AI brief's facts, prompt and post-checks, incl. the Evidence section), `models.json` (local model catalog), `cloud-models.json` (THE cloud model list: models, efforts, costly line) + `cloud_config.py`, `cursor-prices.json` (Cursor's price table — reference data). |
 | `config/` | `jira-board.config.json` — tracked, **generic** project defaults (+ JSON schema). Personal values live OUTSIDE the repo in `~/.ai/config.json`. |
 | `setup/` | `api-keys.json` (tracked: THE list of API keys the board knows), the git-ignored `.env` the board's API keys dialog writes (the only secrets file the board reads), and templates (personal config, IDE MCP servers, Desktop launcher) — the guide is `docs/SETUP.md`. Shipped into the Docker image minus `.env` (docker-ignored); compose mounts `./setup` instead. |
 | `help/` | **The help guide** (the board's **?** button): plain HTML pages that open straight from disk, numbered in deploy order — `00-start-here.html` … `11-api-keys-and-integrations.html`, `developer-doc-viewer.html` (renders `docs/*.md`), `legal-privacy-and-accessibility.html`. One `help.css`, one `help.js`, and `help-data.js` — a GENERATED copy of `ai-intern/models.json`, `cursor-prices.json`, `cloud-models.json` and `docs/*.md` so tables and docs work offline (`scripts/build-help-data.mjs`; a test fails when it is stale). |
@@ -106,7 +106,9 @@ assignee, hand-off history) is the most recent full-stack feature — copy its s
 ## How to add a proof source (worked example: Jenkins and Checkmarx)
 
 A proof source is an outside system that confirms what a ticket claims — Jenkins builds
-(`Ticket.builds`) and Checkmarx One fixes (`Ticket.vulnFixes`) are the two so far. Copy their shape:
+(`Ticket.builds`), Checkmarx One fixes (`Ticket.vulnFixes`) and the Dynatrace links in a ticket (`Ticket.dynatrace`) are the three
+so far. Copy their shape (Dynatrace is the example of a source that reads *links found in the ticket's text* rather than the
+ticket's branches, and that has its own status words):
 
 1. **Key** — a service row in `setup/api-keys.json` (id, colour, why, usedBy, getIt, keys with a `kind`).
    Add the key names to `runner-env.sh::load_agent_secrets` (and the worker if it reads them), or
@@ -117,19 +119,27 @@ A proof source is an outside system that confirms what a ticket claims — Jenki
 3. **Client** — one module in `jira-intern/` (`jenkins.py`, `checkmarx.py`): credentials only in headers or
    POST bodies, never URLs or logs; follow-up URLs built from config, never from what the server returns; a
    per-run call budget and a "host unreachable → stop asking this run" switch. Return **None when the lookup
-   failed**, an empty/absent answer when there is genuinely nothing.
+   failed**, an empty/absent answer when there is genuinely nothing. A client that is told WHERE to look by ticket text
+   (Dynatrace) also needs an allowlist of hosts from config — see the Dynatrace gotcha below.
 4. **Contract** — the field in `src/types.ts` (`JenkinsBuild[]`, `VulnFixes`), optional so old dumps render,
    and in `prompts/intern-prompt.md` ("preserve unchanged").
 5. **One writer** — `daily_fetch.apply_<x>` on every fully built ticket, full AND fast path (outside systems
    never bump Jira's `updated`) and in `--key` refresh; only the ticket's own branches/PRs after
    `scope_to_subtask`; None → carry the prior value forward. Every other writer passes the field through
-   (the archive: `carry_vuln_fixes` + `COMPLETED_KEYS`, if Completed should keep it). Run note on failure.
+   (the archive: `carry_vuln_fixes` + `COMPLETED_KEYS`, if Completed should keep it). Never skip silently: report every ticket
+   to `_sources.py` (skipped / looked up / waiting), set `ticket.proofNotes.<source>` when a candidate has no fresh answer, and end
+   the run with `_sources.finish` in `daily_fetch.proof_sources_status` (→ the run note, `data.json → proofSources`, the key window's
+   "Last fetch" line via `PROOF_SOURCES` in `lib/proofStatus.ts`). A source with its own status words says so there —
+   `_sources.finish(statuses=("read", "empty", "unconfigured-tenant"), unit="link", flag="with failed requests or problems")` —
+   and `_sources.looked(…, flagged=…)` says which tickets deserve a second look.
 6. **UI** — a chip on the card (`common/Builds.tsx`, `common/VulnFixes.tsx`, rendered by `board/TicketCard.tsx`)
    and a group in the drawer's Proof section (`ticket/Proof.tsx`); format helpers in `src/lib/format.ts` with tests.
    Hidden when the field is absent; demo data in `jira-intern/demo/data.json` exercises it.
-7. **Report gate** — one gate function in `pr_report.py` (`jenkins_ci`, `vuln_gate`) used by the deterministic
+7. **Report gate / evidence** — one gate function in `pr_report.py` (`jenkins_ci`, `vuln_gate`) used by the deterministic
    base and the worker alike, plus evidence rows; include the field in the fingerprint only when present, so
-   adding it does not make every existing report stale.
+   adding it does not make every existing report stale. A source that is *context* rather than a pass/fail gate (Dynatrace)
+   adds a section to `evidence.py` instead — that is how it reaches the AI brief's Evidence section, the report's Issue
+   insight and the worker's Proof rows with no per-consumer code.
 8. **Tests + docs** — `tests/test_<x>.py` (URL building, failure → None, matching), the INTEGRATIONS.md
    section (endpoints, failure semantics), DATA-FLOW.md writer/reader lines, FEATURES/USAGE, and the help page
    `help/11-api-keys-and-integrations.html`.
@@ -193,13 +203,23 @@ deployed from** (see `docs/DEPLOYMENT.md` → "the data mount follows the deploy
 - PR review state lives in Bitbucket and does NOT bump Jira `updated` — the daily fast path
   re-checks PRs even for "unchanged" tickets (`refresh_prs_only`); sprints are re-applied on the
   fast path too (sprint objects mutate without touching the issue).
-- Jenkins and Checkmarx send credentials, so they never use `_jira`'s opener: `_safe_http.opener` follows a redirect only to
+- Jenkins, Checkmarx and Dynatrace send credentials, so they never use `_jira`'s opener: `_safe_http.opener` follows a redirect only to
   the same scheme + host + port, and `verified_context` ignores `JIRA_INSECURE_TLS` (Jenkins has its own
-  `JENKINS_INSECURE_TLS`, passed through wherever `JIRA_INSECURE_TLS` is — compose, `runner-env.sh`, the worker; a test
+  `JENKINS_INSECURE_TLS`, Dynatrace `DYNATRACE_INSECURE_TLS`, passed through wherever `JIRA_INSECURE_TLS` is — compose, `runner-env.sh`, the worker; a test
   checks). Jenkins job URLs must be https. A carried-forward build is `stale: true` and can never pass the CI gate.
 - Jenkins multibranch names a branch's job with `/` written as `%2F` (and `%` as `%25`), and that name is URL-encoded
   AGAIN in the path: `feature/ABC-1` → `<job>/job/feature%252FABC-1/`. One function does it (`jenkins.branch_segment`);
   never hand-build a branch job URL. A 404 there = "no build for this branch", not an error.
+- Jenkins discovery: the root (`JENKINS_ROOT_URL`, or `jenkins.root` in the personal config) is an internal host — it lives in
+  `setup/.env` and must never be committed, not in the tracked config, tests, docs or demo (use `jenkins.example.com` and
+  invented names). Names in Jenkins are free-form and **double-encoded in URLs** (a branch job `release%2Fx` is
+  `/job/release%252Fx/`; folder / pipeline names are quoted once from the NAMES the listing gives, never from the `url`
+  Jenkins returns). The walk's answer is cached in `jira-intern/.jenkins-discovery.json` (git- and docker-ignored; TTL
+  `jenkins.discovery.cacheMinutes`; keyed with a signature of the discovery config); a failed walk serves the stale entry
+  and, with none, the repo's builds are carried forward — "could not discover" is never "no pipelines". An explicit
+  `jenkins.jobs` entry overrides discovery for that repo + environment. A parameterised job's branch match strips
+  `origin/` / `refs/heads/`. One card chip per environment: a failed pipeline wins, then the deploy, then the newest
+  (`format.ts::cardBuilds`); the CI gate judges every pipeline. Tune labels with `python3 jira-intern/jenkins.py discover <repo>`.
 - `Ticket.builds` follows the PR rules: re-read on the daily fast path (a build never bumps `updated`), only for
   the ticket's OWN branches after `scope_to_subtask` (a sub-task never shows its parent's builds), and a failed
   Jenkins lookup CARRIES FORWARD the prior builds (`jenkins.builds_for` → None). Only `daily_fetch.apply_builds`
@@ -217,6 +237,54 @@ deployed from** (see `docs/DEPLOYMENT.md` → "the data mount follows the deploy
   queries/CWEs/result ids — the newest of the last 20 completed scans that ran it is used), a branch scan OLDER than the
   base scan, and a per-scan result `id` (only `similarityId` is stable across scans). The project must be named exactly
   `<slug>` or `…/<slug>` — the API's name search is a substring match, never take its only hit as a guess.
+  Reading a scan (`checkmarx.read_scan`): a short results page is NOT the last page — a server may cap the page size
+  below the `limit` asked, so paging advances by the rows served and ends only on an empty page, `totalCount` or the
+  page limit (then `truncated` → `unknown`); never `len(batch) < PAGE_SIZE` (on a server that caps the page size that stops after
+  page 1 and calls every target past it "not found"). No severity / state filter. A merged PR's baseline is the newest base scan from BEFORE the
+  merge (`scan_plan` → `mergedAt`); after it the base holds the fix. Every `not-found` says what was read
+  (`vulnFixes.read`, the detail) — an answer without that is not believable; `python3 jira-intern/checkmarx.py diagnose
+  <KEY>` prints it. A proof source never skips silently: `daily_fetch.apply_vuln_fixes` reports every ticket to
+  `_sources.py` (skipped / looked up / waiting) and a candidate with no fresh answer gets `ticket.proofNotes.<source>`;
+  the run ends in ONE state + line per source (`proofSources`, the run notes, the key window's "Last fetch"). Not
+  configured is a quiet grey state, never red or orange.
+- `Ticket.dynatrace` follows the same proof-source rules (only `daily_fetch.apply_dynatrace` writes it — full path, fast path,
+  `--key`; the archive and `raised[]` rows do not keep it; a failed lookup carries each link's prior answer forward with
+  `stale: true`; not configured keeps the prior value; a recent answer — 24 h, 1 h for an open problem, 6 h for an empty answer — is
+  not asked again). **Dynatrace is told where to look by ticket text, which is untrusted**, so: (1) only tenants LISTED in
+  `DYNATRACE_TENANTS` / `endpoints.dynatraceTenants` are ever contacted — a host found in a ticket only SELECTS which listed
+  tenant a link belongs to, and a link to any other host is stored `unconfigured-tenant` and never fetched; (2) never build a
+  request URL from ticket text or from anything a response contains: `dynatrace._base` builds it from the validated tenant id
+  and the poll URL is rebuilt from the `requestToken`; (3) an id goes into DQL only after its regex (`_safe`), times travel as
+  request fields never as DQL, and a link whose id fails validation is kind `other`; (4) every query is time-bounded with
+  `maxResultRecords` / `maxResultBytes` / `defaultScanLimitGbytes` (Grail bills by bytes scanned) — a trace or logs link
+  with no absolute window is not queried. The DQL **field names are assumptions** (`trace.id`, `request.is_failed`,
+  `dt.entity.service`, `loglevel` …): the span query retries once without its field list when a tenant answers 400, but when
+  a real tenant disagrees run `python3 jira-intern/dynatrace.py inspect <link | KEY>` (it prints the queries and what they
+  return) before changing a summary. A 400 is a finding about the query, not a service failure — it must not turn the health
+  dot orange.
+- Text that other people write — Jira comments, Dynatrace messages, console lines, the model's own HTML — is **attacker-controlled
+  input to every regex that reads it**: patterns are bounded (no nested lazy quantifiers; a tag is ≤ 1,000 characters between `<`
+  and `>`: `checkmarx._TAG_RE` / `_A_TAG_RE`, `brief._TAG`, `_scrub`'s `{0,n}` bounds) and each body is capped (`MAX_BODY`,
+  `_scrub.MAX_INPUT`, `dynatrace.URL_PARSE_MAX`). Each of these has a "hostile input is fast" test; add one when you add a pattern.
+  Never `html.unescape` text you are about to read URLs out of (`&gtf=` becomes `>f=`): `dynatrace._candidate_urls` undoes only `&amp;`.
+- **Evidence is built once, in `evidence.py`, and shared** by the AI brief, the PR report and the worker (`build(ticket)` →
+  headline / insight / sections; no network, no clock, same input → same output). Do not re-derive facts in a consumer. The AI
+  **may not add facts**: a reworded Issue insight is applied only if `evidence.grounded` (no number or identifier — anything with a
+  digit — beyond the evidence's; `worker.merge_enrichment`), and `brief.enforce_evidence` appends a missing Evidence section,
+  replaces one that adds a number / id, and removes one when there is no evidence (`brief._grounded` mirrors
+  `evidence.grounded` — change both). Evidence quotes other systems' text, so it goes in the **untrusted** block
+  (`worker.untrusted_packs`), never the trusted FACTS (`brief.split_evidence` leaves only `evidenceSources`). The brief's
+  regeneration key is a fingerprint over the FACTS (`evidence.fingerprint`: source, severity, summary, lines, excerpt — never
+  a read time, and built without the display time zone), stored as `aiSummaryEvidence`; `needs_brief` compares it both ways, so
+  no evidence + no stored fingerprint (`"" == ""`) invalidates nothing. The PR report fingerprint gets `dynatrace` / `consoleTail`
+  entries **only when present** (same reason as builds and vulnFixes). Anything stored from Dynatrace or a console passes
+  `_scrub` first.
+- `builds[].consoleTail` (Jenkins console excerpt): only on the LATEST failed (`FAILURE` / `UNSTABLE`), non-stale build of a ticket
+  that `jenkins.is_build_failure` says is ABOUT a failing build / pipeline (title, type, labels, description, acceptance criteria — not
+  comments); read from the CONFIGURED build URL (never one Jenkins returned) as a ranged request, else a bounded stream (never
+  the whole log; > 2 MiB = not read), scrubbed, ≤ 40 lines / 4 KB, 25 per run. `console_tail` returns a string (the excerpt),
+  `""` (nothing to excerpt and asking again will not change it — 404, empty, too long: stored so it is not re-read) or `None` (could
+  not be asked: tried again next run); a tail is kept while the build number is unchanged and dropped from every other build.
 - `resolutiondate` can be null for tickets transitioned straight to Done —
   `changelog_done_date()` is the fallback.
 - A sub-task of yours is stored TWICE (own card + nested under parent); `_merge_ticket` must
@@ -281,7 +349,7 @@ deployed from** (see `docs/DEPLOYMENT.md` → "the data mount follows the deploy
 | `docs/FEATURES.md` | Every user-facing feature, how it behaves, where its code lives. |
 | `docs/DATA-FLOW.md` | Every file on disk, every writer/reader, locks, lifecycles, flows per job. |
 | `docs/AI-PIPELINE.md` | Levels, backends, model catalog, briefs, PR-report enrichment, queues. |
-| `docs/INTEGRATIONS.md` | Jira/Bitbucket/Jenkins/Checkmarx/Confluence specifics, the full HTTP API, Docker topology, config/settings chain. |
+| `docs/INTEGRATIONS.md` | Jira/Bitbucket/Jenkins/Checkmarx/Dynatrace/Confluence specifics, the full HTTP API, Docker topology, config/settings chain. |
 | `docs/ARCHITECTURE.md` | The component-level overview (start here if new). |
 | `docs/DEPLOYMENT.md` | Run modes, Docker details, deploy pitfalls. |
 | `docs/USAGE.md` | The board as a user sees it. |

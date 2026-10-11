@@ -1,4 +1,4 @@
-import type { VulnFixes, VulnFixItem } from '../../types'
+import type { ProofNote, VulnFixes, VulnFixItem } from '../../types'
 import { hexToRgba, vulnKindLabel, vulnStatusMeta, vulnSummary, vulnTooltip } from '../../lib/format'
 import { ShieldIcon } from './Icons'
 import { Pill } from './ui'
@@ -49,6 +49,43 @@ export function VulnRow({ item }: { item: VulnFixItem }) {
       </div>
       {item.location && <div className="break-all rounded-md bg-[var(--surface-solid)] px-2 py-1 font-mono text-[10.5px] text-[var(--ink-soft)]">{item.location}</div>}
       {item.detail && <div className="text-[11px] text-[var(--muted)]">{item.detail}</div>}
+      {(item.foundOnBase || item.foundOnBranch) && (
+        <div className="font-mono text-[10.5px] text-[var(--muted)]" title="Versions of this package that carry a finding in each scan (a package with no finding does not appear in a scan's results)">
+          Versions with findings on base: {item.foundOnBase?.join(', ') || 'none'} · branch: {item.foundOnBranch?.join(', ') || 'none'}
+        </div>
+      )}
     </div>
   )
 }
+
+/** Not configured is a fact, not a fault (grey); an unreachable host or a spent budget needs a look (orange); a rejected key is red. */
+const NOTE_COLOR: Record<ProofNote['state'], string> = { 'not-configured': '#8b94a8', unreachable: '#ff8a1f', 'budget-exhausted': '#ff8a1f', 'auth-failed': '#e11d48' }
+
+/**
+ * Drawer line: why a ticket has no fresh answer from a proof source ("Checkmarx not configured — add the URL and key in
+ * API keys", "… could not be reached"). Source-neutral — it prints the note's own sentence; Checkmarx and Dynatrace both use it.
+ * With `carriedFrom`, the rows below are the last results (`carriedWhat` names them: "results" by default).
+ */
+export function ProofNoteLine({ note, carriedFrom, carriedWhat = 'results' }: { note: ProofNote; carriedFrom?: string | null; carriedWhat?: string }) {
+  const color = NOTE_COLOR[note.state]
+  return (
+    <div
+      role="status"
+      data-proof-note
+      data-state={note.state}
+      className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] font-semibold"
+      style={{ color: `color-mix(in srgb, ${color} 78%, var(--ink))`, borderColor: hexToRgba(color, 0.4), background: hexToRgba(color, 0.07) }}
+    >
+      <span aria-hidden className="shrink-0">
+        {note.state === 'not-configured' ? 'ⓘ' : '⚠'}
+      </span>
+      <span className="min-w-0 [text-wrap:pretty]">
+        {note.detail}
+        {carriedFrom ? ` — showing the last ${carriedWhat} from ${carriedFrom.slice(0, 10)}` : ''}
+      </span>
+    </div>
+  )
+}
+
+/** The Checkmarx name for the same line (kept so existing imports read as before). */
+export const VulnNote = ProofNoteLine

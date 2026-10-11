@@ -1,4 +1,20 @@
-import type { BuildResult, BuildTests, JenkinsBuild, PrState, PullRequest, UpdateLogEntry, VulnFixes, VulnFixItem, VulnFixKind, VulnFixStatus } from '../types'
+import type {
+  BuildResult,
+  BuildTests,
+  DynatraceEvidence,
+  DynatraceItem,
+  DynatraceKind,
+  DynatraceStatus,
+  JenkinsBuild,
+  PipelineKind,
+  PrState,
+  PullRequest,
+  UpdateLogEntry,
+  VulnFixes,
+  VulnFixItem,
+  VulnFixKind,
+  VulnFixStatus,
+} from '../types'
 import { APP_CONFIG } from './appConfig'
 import { mapStatusToColumn } from './columns'
 
@@ -240,24 +256,52 @@ export function buildsOf(t: { builds?: JenkinsBuild[] | null }): JenkinsBuild[] 
 }
 
 /**
- * One build per environment for the card, environments in dump order (= config order): the primary
- * branch's build when there is one, otherwise the newest build of that environment.
+ * One build per environment for the card, environments in dump order (= config order). An environment
+ * can hold several builds — other branches of the ticket, and (for discovered pipelines) a build
+ * pipeline next to a deploy pipeline. The primary branch's builds stand for it when there are any,
+ * otherwise the environment's builds of the newest branch; among those the chip shows:
+ *   1. a FAILURE, else an UNSTABLE one (a red or amber pipeline must never hide behind a green one),
+ *   2. else the deploy result (`deploy` / `both` pipelines) when there is one — "is it out there?",
+ *   3. else the newest build.
+ * Ties go to the newest. Builds with no `pipeline` (explicit jobs) all count as `both`.
  */
 export function cardBuilds(t: { builds?: JenkinsBuild[] | null; branch?: string | null }): JenkinsBuild[] {
   const primary = (t.branch ?? '').trim().toLowerCase()
-  const byEnv = new Map<string, JenkinsBuild>()
   const ts = (b: JenkinsBuild) => Date.parse(b.at ?? '') || 0
-  for (const b of buildsOf(t)) {
-    const cur = byEnv.get(b.env)
-    if (!cur) {
-      byEnv.set(b.env, b)
-      continue
+  const byEnv = new Map<string, JenkinsBuild[]>()
+  for (const b of buildsOf(t)) byEnv.set(b.env, [...(byEnv.get(b.env) ?? []), b])
+  const rank = (b: JenkinsBuild) => (b.result === 'FAILURE' ? 3 : b.result === 'UNSTABLE' ? 2 : b.kind === 'build' ? 0 : 1)
+  const out: JenkinsBuild[] = []
+  for (const group of byEnv.values()) {
+    const onPrimary = group.filter((b) => b.branch?.trim().toLowerCase() === primary)
+    let pool = onPrimary.length ? onPrimary : group
+    if (!onPrimary.length) {
+      // No build of the primary branch: the newest branch's builds (one run's pipelines share a branch).
+      const newest = pool.reduce((a, b) => (ts(b) > ts(a) ? b : a))
+      pool = pool.filter((b) => b.branch === newest.branch)
     }
-    const curPrimary = cur.branch?.trim().toLowerCase() === primary
-    const isPrimary = b.branch?.trim().toLowerCase() === primary
-    if ((isPrimary && !curPrimary) || (isPrimary === curPrimary && ts(b) > ts(cur))) byEnv.set(b.env, b)
+    out.push(pool.reduce((a, b) => (rank(b) > rank(a) || (rank(b) === rank(a) && ts(b) > ts(a)) ? b : a)))
   }
-  return [...byEnv.values()]
+  return out
+}
+
+/** "build" / "deploy" / "build + deploy" and a colour for the pipeline-kind pill; null for a build with no pipeline info. */
+export function pipelineKindMeta(kind?: PipelineKind | null): { label: string; color: string } | null {
+  switch (kind) {
+    case 'build':
+      return { label: 'Build', color: '#2f86ff' }
+    case 'deploy':
+      return { label: 'Deploy', color: '#9a63ff' }
+    case 'both':
+      return { label: 'Build + deploy', color: '#6aa9a1' }
+    default:
+      return null
+  }
+}
+
+/** How many of the ticket's builds sit behind the card chip of this environment (the chip's tooltip says so). */
+export function envBuildCount(t: { builds?: JenkinsBuild[] | null }, env: string): number {
+  return buildsOf(t).filter((b) => b.env === env).length
 }
 
 /** "38s", "4m 12s", "1h 3m"; '' for nothing (a build still running has no duration). */
@@ -288,7 +332,9 @@ export function buildTestsText(tests?: BuildTests | null): string {
 /** Multi-line hover text for a build chip. */
 export function buildTooltip(b: JenkinsBuild, now: number = Date.now()): string {
   const m = buildMeta(b.result)
+  const kind = pipelineKindMeta(b.kind)
   const lines = [`${envLabel(b.env)} #${b.number} · ${m.label}${b.stale ? ' · stale' : ''}`, `${b.repo} · ${b.branch}`]
+  if (b.pipeline) lines.push(`Pipeline: ${b.pipeline}${kind ? ` (${kind.label.toLowerCase()})` : ''}`)
   if (b.stale) lines.push('Stale — Jenkins could not be re-read; this is the last build seen')
   const when = [relTime(b.at, now), fmtDuration(b.durationMs)].filter(Boolean).join(' · took ')
   if (when) lines.push(when)
@@ -367,6 +413,120 @@ export function vulnTooltip(vf: VulnFixes): string {
     lines.push([`${m.glyph} ${i.target}`, m.label, i.severity].filter(Boolean).join(' · '))
   }
   return lines.join('\n')
+}
+
+// ── Jenkins: the console tail of a failed build ────────────────────────────
+/**
+ * `JenkinsBuild.consoleTail` as lines, for the drawer's "Console (last lines)" box. The fetch already scrubbed it of
+ * secrets; this only tidies the text — carriage returns and colour codes out, blank lines at both ends dropped, at most
+ * 200 lines (the fetch keeps ~40; a hand-edited dump must not fill the drawer). [] when there is none.
+ */
+export function consoleTailLines(raw?: string | null): string[] {
+  if (typeof raw !== 'string') return []
+  const lines = raw
+    .replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+  while (lines.length && !lines[lines.length - 1].trim()) lines.pop()
+  while (lines.length && !lines[0].trim()) lines.shift()
+  return lines.length > 200 ? lines.slice(-200) : lines
+}
+
+// ── Dynatrace: what the links in a QA / support ticket say ─────────────────────
+// Ticket.dynatrace (jira-intern/dynatrace.py): one item per Dynatrace link, read-only. Colours: read = a soft blue,
+// nothing found = quiet grey, unreachable = orange, a REJECTED TOKEN = red (the only red: the user has to act), a tenant
+// that is not listed = muted grey — a fact, not a fault.
+const DYNATRACE_STATUSES: DynatraceStatus[] = ['read', 'empty', 'unreachable', 'auth-failed', 'unconfigured-tenant']
+const DYNATRACE_KINDS: DynatraceKind[] = ['trace', 'problem', 'logs', 'service', 'other']
+
+/** The most links the drawer lists. The fetch stores at most this many; a longer list in a hand-edited dump is cut. */
+export const DYNATRACE_MAX_ITEMS = 5
+
+export function dynatraceStatusMeta(status?: DynatraceStatus | null): { label: string; color: string; glyph: string } {
+  switch (status) {
+    case 'read':
+      return { label: 'Read', color: '#4f8df5', glyph: '◉' }
+    case 'empty':
+      return { label: 'Nothing found', color: '#94a3b8', glyph: '○' }
+    case 'unreachable':
+      return { label: 'Unreachable', color: '#ff8a1f', glyph: '⚠' }
+    case 'auth-failed':
+      return { label: 'Token rejected', color: '#e11d48', glyph: '✗' }
+    case 'unconfigured-tenant':
+      return { label: 'Tenant not listed', color: '#8b94a8', glyph: 'ⓘ' }
+    default:
+      return { label: 'Unknown', color: '#94a3b8', glyph: '○' }
+  }
+}
+
+export function dynatraceKindLabel(kind?: DynatraceKind | null): string {
+  return { trace: 'Trace', problem: 'Problem', logs: 'Logs', service: 'Service', other: 'Link' }[kind ?? 'other'] ?? 'Link'
+}
+
+/**
+ * The ticket's Dynatrace evidence with only well-formed items (a link and a known status), at most
+ * DYNATRACE_MAX_ITEMS; an unknown kind reads as `other`, a missing findings list as none. null when there is nothing
+ * to show — an old dump without the field, or a field that is not what the contract says.
+ */
+export function dynatraceOf(t: { dynatrace?: DynatraceEvidence | null }): DynatraceEvidence | null {
+  const ev = t.dynatrace
+  if (!ev || typeof ev !== 'object' || !Array.isArray(ev.items)) return null
+  const items: DynatraceItem[] = []
+  for (const raw of ev.items as (DynatraceItem | null | undefined)[]) {
+    if (!raw || typeof raw !== 'object' || typeof raw.url !== 'string' || !raw.url.trim() || !DYNATRACE_STATUSES.includes(raw.status)) continue
+    items.push({
+      ...raw,
+      kind: DYNATRACE_KINDS.includes(raw.kind) ? raw.kind : 'other',
+      tenant: typeof raw.tenant === 'string' ? raw.tenant : '',
+      findings: Array.isArray(raw.findings) ? raw.findings.filter((f): f is string => typeof f === 'string' && !!f.trim()).slice(0, 8) : [],
+    })
+    if (items.length >= DYNATRACE_MAX_ITEMS) break
+  }
+  return items.length ? { ...ev, items } : null
+}
+
+/** "2026-02-26 13:45–14:00" — the window that was read, in the configured zone; across midnight both days are written. '' without a usable window. */
+export function dynatraceWindowLabel(w?: { from?: string | null; to?: string | null } | null, timeZone?: string | null): string {
+  const from = parseDate(w?.from)
+  const to = parseDate(w?.to)
+  if (!from || !to) return ''
+  const fmt = dtf('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }, timeZone)
+  const at = (d: Date) => {
+    const p = Object.fromEntries(fmt.formatToParts(d).map((x) => [x.type, x.value]))
+    return { day: `${p.year}-${p.month}-${p.day}`, time: `${p.hour}:${p.minute}` }
+  }
+  const a = at(from)
+  const b = at(to)
+  return a.day === b.day ? `${a.day} ${a.time}–${b.time}` : `${a.day} ${a.time} → ${b.day} ${b.time}`
+}
+
+/** Failed spans across the links that were read this run (a carried-forward answer is not counted). */
+export function dynatraceFailedSpans(ev: DynatraceEvidence): number {
+  return ev.items.reduce((n, i) => n + (i.status === 'read' && typeof i.summary?.failedSpans === 'number' ? i.summary.failedSpans : 0), 0)
+}
+
+/** "2 read · 1 nothing found · 1 tenant not listed · 4 failed spans" — the group's one-line note. */
+export function dynatraceSummary(ev: DynatraceEvidence): string {
+  const short: Record<DynatraceStatus, string> = {
+    read: 'read',
+    empty: 'nothing found',
+    unreachable: 'unreachable',
+    'auth-failed': 'token rejected',
+    'unconfigured-tenant': 'tenant not listed',
+  }
+  const parts = DYNATRACE_STATUSES.map((s) => [s, ev.items.filter((i) => i.status === s).length] as const)
+    .filter(([, n]) => n > 0)
+    .map(([s, n]) => `${n} ${short[s]}`)
+  const failed = dynatraceFailedSpans(ev)
+  if (failed > 0) parts.push(`${failed} failed ${failed === 1 ? 'span' : 'spans'}`)
+  return parts.join(' · ')
+}
+
+/** "Last read 3h ago; Dynatrace could not be re-read" for an item carried forward from an earlier run; '' for a fresh one. */
+export function dynatraceStaleLine(item: Pick<DynatraceItem, 'stale' | 'fetchedAt'>, now: number = Date.now()): string {
+  if (!item.stale) return ''
+  const when = relTime(item.fetchedAt, now)
+  return `${when ? `Last read ${when}` : 'Read earlier'}; Dynatrace could not be re-read`
 }
 
 // ── Dates / relative time ──────────────────────────────────────────────────

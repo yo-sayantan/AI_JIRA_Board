@@ -63,16 +63,20 @@ Env `JIRA_URL` / `CONFLUENCE_URL` / `BITBUCKET_URL` override them for one run or
 
 Optional evidence sources for PR-readiness proof (each disabled while empty). Checkmarx is read by the daily
 fetch (`jira-intern/checkmarx.py` → `Ticket.vulnFixes`, vulnerability-fix tickets only) and by the AI worker
-through the same module; Dynatrace only by the worker:
+through the same module; Dynatrace by the daily fetch (`jira-intern/dynatrace.py` → `Ticket.dynatrace`: the Dynatrace
+links in a ticket's text, only at the tenants listed here) and by the AI worker's older text-search probe:
 
 | key | meaning |
 |---|---|
 | `checkmarxBase` | Checkmarx One tenant base URL (https), e.g. `https://your-tenant.cxone.cloud`; leave empty to disable the Checkmarx lookup. Env `CHECKMARX_BASE_URL` (canonical; `CHECKMARX_URL` also accepted) overrides. |
 | `checkmarxAuthUrl` | Full Checkmarx One token endpoint; leave empty to derive from `checkmarxBase`. Only needed when the IAM host differs from the API host. Env `CHECKMARX_AUTH_URL` overrides. |
-| `dynatraceTenants` | Dynatrace tenant ids per environment, e.g. `{"prod": "abc12345", "uat": "", "dev": ""}`; leave empty to disable the Dynatrace proof lookup. Env `DYNATRACE_TENANTS` overrides — a JSON object or the shorthand `prod=abc12345,uat=def67890`. |
+| `dynatraceTenants` | Dynatrace tenant ids per environment, e.g. `{"prod": "abc12345", "uat": "", "dev": ""}`; leave empty (blank ids are ignored) to disable Dynatrace. **The allowlist:** only these tenants are ever contacted — a link in a ticket to any other host is listed, never fetched. An id is the first label of `<id>.apps.dynatrace.com` (letters, digits, `-`; anything else is dropped); a name is plain text. `DYNATRACE_TENANTS` — in `setup/.env` (the key dialog's *Tenants* field) or the environment — overrides it: the shorthand `prod=abc12345,uat=def67890` (a JSON object also works from the environment; the dialog cannot save one). Read by the fetch (`dynatrace.tenants()`), the worker and the dialog's Test. Real ids belong in `~/.ai/config.json` or `setup/.env`, never the tracked config. |
 
 Python reads these through `_config.proof_endpoints(intern_dir)` →
-`{"checkmarxBase", "checkmarxAuthUrl", "dynatraceTenants"}` (empty ids are dropped).
+`{"checkmarxBase", "checkmarxAuthUrl", "dynatraceTenants"}` (empty ids are dropped); `dynatrace.py` resolves its own
+tenants the same way but re-reads `setup/.env` on each call, so a value saved in the dialog applies without a restart.
+Dynatrace adds **no new config keys**: `endpoints.dynatraceTenants` already existed and is now read by the fetch too, not
+only the worker. Its token is `DYNATRACE_PAT` (below).
 
 ## `excludeProjects`
 Project keys to DROP from the board AND the completed archive entirely — even if a ticket was
@@ -94,7 +98,7 @@ requests for the ticket key — but only for projects you list here. Both maps a
 (up to repos × 3 listings per ticket). A project missing from either map is never scanned.
 Both default to `{}` — there is no built-in project or repository name anywhere in the code.
 
-## `jenkins` — multibranch build jobs (optional)
+## `jenkins` — build pipelines (optional)
 The board reads the **latest build of each of your tickets' branches** from Jenkins multibranch
 pipelines, one job per repository and environment (`jira-intern/jenkins.py`). Keyed by
 **repository slug** (as in the Bitbucket URL), then by environment name — any names you like,
@@ -117,7 +121,40 @@ sent with every call). TLS to Jenkins is always verified (`JIRA_INSECURE_TLS` do
 (deep-merged, so you only write the `jenkins` block). Credentials are `JENKINS_USER` +
 `JENKINS_API_TOKEN` (key button → Jenkins, saved to `setup/.env`). With no jobs or no credentials
 nothing is asked and builds already on the board are kept. Repos not listed here are never looked
-up. Hosts come only from these URLs — the API keys dialog has no Jenkins URL.
+up. Hosts come only from these URLs (or the root below).
+
+### `jenkins.root` and `jenkins.discovery` — find the pipelines instead of listing them
+`root` is the folder that holds your projects (`https://jenkins.example.com/job/portfolios/`). With a root,
+`jenkins.py` walks it to find each repository's application folder and its build / deploy pipelines per
+environment, and reads the latest build of the branch from each — you list nothing. The value is **internal**:
+set it in the key dialog (Jenkins → "Projects folder" = `JENKINS_ROOT_URL` in `setup/.env`, wins) or in your
+personal `~/.ai/config.json`; the tracked config keeps `""`. Explicit `jobs` entries still work and override
+discovery for that repo and environment. Algorithm: [INTEGRATIONS.md](INTEGRATIONS.md#jenkins-multibranch-pipelines-json-api).
+Everything below is optional; the tracked config ships none of it (the defaults live in `jira-intern/jenkins.py`):
+
+```json
+"jenkins": {
+  "root": "https://jenkins.example.com/job/portfolios/",
+  "discovery": {
+    "appFolderRegex": "^{slug}(-.*)?$",
+    "envPatterns": { "stage": ["stage", "staging", "uat", "qa-eu"], "sandbox": ["sbx"] },
+    "kindPatterns": { "deploy": ["deploy", "release", "ship"] },
+    "maxDepth": 4, "cacheMinutes": 60, "buildScan": 25, "maxCalls": 150
+  }
+}
+```
+| Key | Meaning |
+|---|---|
+| `appFolderRegex` | How a repo slug maps to an application folder (or pipeline) name; `{slug}` is the escaped slug, the regex is searched in the name, case-insensitively. Empty (default) = case and punctuation ignored, slug equals the name or a run of whole words of it. |
+| `envPatterns` | environment label → words (regex fragments, matched between non-alphanumerics, case-insensitive) looked for in the pipeline name, then its folders. A label you give REPLACES its default list; new labels are added after the defaults. Defaults: `dev` (dev, develop, development) · `qa` (qa, test, testing, tst) · `stage` (stage, staging, stg, uat, preprod, pre-prod) · `demo` · `prod` (prod, production, prd, live). Labels are tried, and chips ordered, in that order. No match → the pipeline's name is the label. |
+| `kindPatterns` | `build` / `deploy` → words in a pipeline name. Defaults: build (build, ci, compile) · deploy (deploy, deployment, release, promote, rollout). Both hit → `both`; none → deploy for a parameterised job, both for multibranch. |
+| `maxDepth` | Deepest folder level read (1–8, default 4). Root is 0, portfolio 1, application 2, env folder 3. |
+| `cacheMinutes` | TTL of `.jenkins-discovery.json` (0–10080, default 60; 0 = walk every run). Changing any discovery key invalidates the cache at once. |
+| `buildScan` | How many recent builds of a parameterised job are scanned for the branch (1–100, default 25). |
+| `maxCalls` | Folder reads one walk may spend (5–500, default 150); an exhausted walk is partial and not cached. |
+
+`python3 jira-intern/jenkins.py discover <repo-slug>` prints what a walk finds and why each environment was
+chosen — use it to tune `envPatterns` / `appFolderRegex`.
 
 ## `connector` — which agent CLI provides the MCP servers
 `active` selects the profile: `"cursor"` (default), `"codex"`, or `"claude"` — add your own
@@ -213,12 +250,14 @@ saved from the board's API keys dialog. Config keys they override are in bracket
 
 | variable | meaning |
 |---|---|
-| `JIRA_PERSONAL_TOKEN` | Jira PAT (required). `BITBUCKET_PAT` (or the Atlassian Cloud `ATLASSIAN_TOKEN`) for Bitbucket; `CHECKMARX_API_KEY` for Checkmarx One; `JENKINS_USER` + `JENKINS_API_TOKEN` (HTTP basic) for Jenkins builds [`jenkins.jobs`]. All are entered with the key button. |
+| `JIRA_PERSONAL_TOKEN` | Jira PAT (required). `BITBUCKET_PAT` (or the Atlassian Cloud `ATLASSIAN_TOKEN`) for Bitbucket; `CHECKMARX_API_KEY` for Checkmarx One; `JENKINS_USER` + `JENKINS_API_TOKEN` (HTTP basic) for Jenkins builds [`jenkins.jobs`]; `DYNATRACE_PAT` (a platform token with `storage:spans:read`, `storage:events:read`, `storage:logs:read`, `storage:buckets:read`) for the Dynatrace links in tickets [`endpoints.dynatraceTenants`]. All are entered with the key button. |
 | `JIRA_CA_BUNDLE` | Path to your corporate root-CA bundle (PEM). TLS verification is **on** by default; an on-prem Jira/Bitbucket behind a private CA fails with a certificate error until it is trusted. The bundle is **added** to the system roots (a public-CDN Jira keeps working). Unset, `~/.ai/ca-bundle.pem` is used when it exists — the easiest route, because both containers already mount `~/.ai` (see [SETUP.md](SETUP.md#step-6--trust-your-companys-certificate-authority-optional)). |
 | `JIRA_INSECURE_TLS` | `1` disables TLS verification for Jira and Bitbucket — **last resort only**: the bearer PAT then travels over an unverified channel. Every run announces it with `WARN: TLS verification disabled (JIRA_INSECURE_TLS=1)` on stderr. Prefer `JIRA_CA_BUNDLE`. |
+| `JENKINS_ROOT_URL` | The Jenkins folder holding your projects (https) — enables pipeline discovery; wins over `jenkins.root`. Kept in `setup/.env`, never the tracked config. |
 | `JENKINS_INSECURE_TLS` | `1` disables TLS verification for Jenkins only — Jenkins' own **last resort**, separate from `JIRA_INSECURE_TLS` (which never applies to it). Announced with a WARN on every run. Prefer the CA bundle (`JIRA_CA_BUNDLE` / `~/.ai/ca-bundle.pem`), which Jenkins honours too. Passed through by `docker-compose.yml` and `runner-env.sh` like `JIRA_INSECURE_TLS`. |
 | `JIRA_URL` / `CONFLUENCE_URL` / `BITBUCKET_URL` | Override `endpoints.*Base` for one run or container. |
-| `CHECKMARX_BASE_URL` (or `CHECKMARX_URL`), `CHECKMARX_AUTH_URL`, `DYNATRACE_TENANTS` | Override the optional proof endpoints — see `endpoints` above. |
+| `CHECKMARX_BASE_URL` (or `CHECKMARX_URL`), `CHECKMARX_AUTH_URL`, `DYNATRACE_TENANTS` | Override the optional proof endpoints — see `endpoints` above. `DYNATRACE_TENANTS` is the allowlist of Dynatrace tenants (`prod=abc12345,uat=def67890`). |
+| `DYNATRACE_INSECURE_TLS` | `1` disables TLS verification for Dynatrace only — Dynatrace's own **last resort**, separate from `JIRA_INSECURE_TLS` (which never applies to it). Announced with a WARN on every run. Prefer the CA bundle. Passed through by `docker-compose.yml` (JIRA-Board and AI-Intern) and `runner-env.sh`; the dialog's Dynatrace Test honours it too. |
 | `AI_CONFIG_FILE` | Path of the personal override instead of `~/.ai/config.json`. |
 | `JB_SECRETS_FILE` | Path of the secrets env file instead of `setup/.env` (tests, unusual layouts). The server, runners, entrypoint and worker all honour it. |
 | `REFRESH_WORKERS` | Parallel ticket builds in `daily_fetch.py` (1–16) [`refresh.workers`, Settings → Parallel refresh]. |

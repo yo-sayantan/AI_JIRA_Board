@@ -142,6 +142,13 @@
           "hint": "e.g. https://jenkins.example.com — lets Test check your user and token. Builds still come from the job links in jenkins.jobs."
         },
         {
+          "env": "JENKINS_ROOT_URL",
+          "label": "Projects folder",
+          "kind": "url",
+          "optional": true,
+          "hint": "The folder that holds your projects, e.g. https://jenkins.example.com/job/portfolios/ — the board finds each repository's pipelines (build and deploy, per environment) under it. Without it only the job links in jenkins.jobs are used."
+        },
+        {
           "env": "JENKINS_USER",
           "label": "User name",
           "kind": "text"
@@ -149,10 +156,10 @@
         {
           "env": "JENKINS_API_TOKEN",
           "label": "API token",
-          "hint": "Job links per repository and environment go in the config (jenkins.jobs)."
+          "hint": "Explicit job links per repository and environment (jenkins.jobs) are optional and override what discovery finds."
         }
       ],
-      "details": "Reads the latest build of a ticket's branch per environment: result, tests, deploy target, failed stage.",
+      "details": "Reads the latest build of a ticket's branch per environment and pipeline: result, tests, deploy target, failed stage. Pipelines are found under the projects folder; run python3 jira-intern/jenkins.py discover <repo> to see what it finds.",
       "group": "cicd"
     },
     {
@@ -188,6 +195,34 @@
       ],
       "details": "Confirms which vulnerabilities a fix ticket actually closed, for its PR readiness report.",
       "group": "cicd"
+    },
+    {
+      "id": "dynatrace",
+      "name": "Dynatrace",
+      "color": "#8f7ae5",
+      "required": false,
+      "why": "Evidence from linked traces and problems",
+      "usedBy": [
+        "Drawer: Proof · Linked traces & problems",
+        "AI brief: Evidence section",
+        "PR readiness: Issue insight"
+      ],
+      "getIt": "Dynatrace → Access tokens (Account Management → Identity & access → Platform tokens) with the read scopes storage:spans:read, storage:events:read, storage:logs:read, storage:buckets:read",
+      "keys": [
+        {
+          "env": "DYNATRACE_PAT",
+          "label": "Platform token"
+        },
+        {
+          "env": "DYNATRACE_TENANTS",
+          "label": "Tenants",
+          "kind": "text",
+          "optional": true,
+          "hint": "Environment name = tenant id, comma separated, e.g. prod=abc12345,uat=def67890 — the id is the first part of your Dynatrace address. Only links to these tenants are ever read. Also accepted: endpoints.dynatraceTenants in the config; this setting wins."
+        }
+      ],
+      "details": "Read-only. Reads the Dynatrace links on a ticket (a trace, a problem, a log search) and nothing else: for a trace id it asks for that trace's spans, for a problem the Davis problem, for a log link its error logs. Only tenants listed here are ever contacted, so a link to any other host is ignored. Test sends one small query per tenant.",
+      "group": "observability"
     },
     {
       "id": "claude",
@@ -303,6 +338,10 @@
     {
       "id": "cicd",
       "name": "CI/CD & security"
+    },
+    {
+      "id": "observability",
+      "name": "Observability"
     },
     {
       "id": "ai",

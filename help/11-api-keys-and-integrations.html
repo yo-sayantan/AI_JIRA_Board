@@ -30,7 +30,7 @@
     <header class="hero page">
       <div class="logo">🔑</div>
       <span class="step-of">Reference</span><h1>API keys and integrations</h1>
-      <p class="sub">The key button, what each key unlocks, and how to connect Jenkins and Checkmarx One.</p>
+      <p class="sub">The key button, what each key unlocks, and how to connect Jenkins, Checkmarx One and Dynatrace.</p>
     </header>
 
     <div class="layout">
@@ -40,6 +40,7 @@
         <a href="#what-each-key-unlocks">What each key unlocks</a>
         <a href="#jenkins">Connect Jenkins</a>
         <a href="#checkmarx">Connect Checkmarx One</a>
+        <a href="#dynatrace">Connect Dynatrace</a>
         <a href="#what-shows-where">What shows where</a>
         <a href="#keys-troubleshooting">Troubleshooting</a>
         <p class="toc-h">Guide pages</p>
@@ -62,7 +63,7 @@
       <h2 id="key-dialog">1 · The API keys dialog</h2>
       <p>Every token the board uses is added in the board itself — no file to edit. Click the <b>key button</b> in the
         header, beside Settings (it shows an amber dot while the Jira token is missing, and turns <b>orange</b> or <b>red</b> when a saved key's latest call failed; a new install shows
-        <b>Add API keys first</b> instead). The window works like Settings: a sidebar groups the services (Atlassian · Code hosting · CI/CD &amp; security · AI models, A–Z inside each); a service is lit in its colour once its keys are saved, and the selected one fills the panel beside it.</p>
+        <b>Add API keys first</b> instead). The window works like Settings: a sidebar groups the services (Atlassian · Code hosting · CI/CD &amp; security · Observability · AI models, A–Z inside each); a service is lit in its colour once its keys are saved, and the selected one fills the panel beside it.</p>
       <ul>
         <li>Pick a service to see <b>why</b> it is needed, what <b>uses</b> it, and <b>where to get</b> the key.</li>
         <li>Paste the value and <b>Save</b>. A secret comes back masked (first and last few characters only); URLs, e-mail
@@ -94,6 +95,7 @@
         <tr><td>Confluence</td><td><code class="inl">CONFLUENCE_PERSONAL_TOKEN</code>, optional URL</td><td>Linked pages for the agent fallback only.</td></tr>
         <tr><td>Jenkins</td><td><code class="inl">JENKINS_USER</code>, <code class="inl">JENKINS_API_TOKEN</code></td><td>Build chips, Proof → Builds, the report's CI gate.</td></tr>
         <tr><td>Checkmarx One</td><td><code class="inl">CHECKMARX_API_KEY</code>, <code class="inl">CHECKMARX_BASE_URL</code>, optional <code class="inl">CHECKMARX_AUTH_URL</code></td><td>Shield chip, Proof → Vulnerabilities, the report's security gate.</td></tr>
+        <tr><td>Dynatrace</td><td><code class="inl">DYNATRACE_PAT</code>, <code class="inl">DYNATRACE_TENANTS</code></td><td>What the Dynatrace links in a ticket say: Proof → Linked traces &amp; problems, the AI brief's Evidence section, the report's Issue insight.</td></tr>
         <tr><td>Claude · Cursor · Gemini</td><td><code class="inl">ANTHROPIC_API_KEY</code> · <code class="inl">CURSOR_API_KEY</code> · <code class="inl">GEMINI_API_KEY</code></td><td>Cloud AI briefs and report enrichment (<a href="07-ai-cloud-models-and-prices.html">page 07</a>).</td></tr>
         <tr><td>OpenAI</td><td><code class="inl">OPENAI_API_KEY</code></td><td>The agent fallback's codex connector only.</td></tr>
         <tr><td>GitHub</td><td><code class="inl">GITHUB_TOKEN</code> (not used yet)</td><td>Branches and PRs from GitHub, later.</td></tr>
@@ -106,8 +108,41 @@
           open <b>Jenkins</b> and save your user name and the token.</p>
       </div>
       <div class="step">
-        <div class="step-h"><span class="num">2</span><h3>List your multibranch jobs in your personal config</h3></div>
-        <p>Add a <code class="inl">jenkins</code> block to <code class="inl">~/.ai/config.json</code> — one job URL per
+        <div class="step-h"><span class="num">2</span><h3>Point the board at your projects folder</h3></div>
+        <p>In the same <b>Jenkins</b> row, fill <b>Projects folder</b> with the Jenkins folder that holds your projects
+          (a placeholder: <code class="inl">https://jenkins.example.com/job/portfolios/</code>) and press <b>Test</b> — it should say
+          <i>Root readable · N folders</i>. The board then finds, for each repository of your tickets, its application folder and its
+          build and deploy pipelines in every environment, and reads the latest build of the ticket's branch from each. A deploy job
+          that takes the branch as a build parameter is understood too. Nothing is listed by hand, and the folder stays in
+          <code class="inl">setup/.env</code> on your machine (it is never part of the repository).</p>
+      </div>
+      <div class="step">
+        <div class="step-h"><span class="num">3</span><h3>Check what it found</h3></div>
+        <p>In the repository folder run (the repository name as Bitbucket spells it):</p>
+        <pre><button class="copy">Copy</button>python3 jira-intern/jenkins.py discover payments-service</pre>
+        <p class="small">It reads Jenkins (read-only, nothing is changed and no token is printed) and shows the application folders,
+          every pipeline as <i>multibranch</i>, <i>parameterised [BRANCH]</i> or <i>ignored</i>, the environment it chose and which word
+          decided it, and its link. Exit code 2 means the folder, user or token is missing; 1 means Jenkins could not be read.</p>
+      </div>
+      <div class="step">
+        <div class="step-h"><span class="num">4</span><h3>Tune the environment names (only if needed)</h3></div>
+        <p>Environments are recognised from words in the folder and pipeline names — dev, qa, stage (also staging, uat), demo, prod —
+          and anything else is labelled with the pipeline's own name. If the printout shows a wrong or missing label, add the words in your
+          personal config (a label you write replaces its default words; you can also add new labels):</p>
+        <pre><button class="copy">Copy</button>"jenkins": {
+  "discovery": {
+    "envPatterns": { "stage": ["stage", "staging", "uat", "qa-eu"] },
+    "appFolderRegex": "^{slug}(-.*)?$"
+  }
+}</pre>
+        <p class="small">Found pipelines are remembered for an hour (<code class="inl">cacheMinutes</code>), and changing these settings
+          takes effect at once. With several pipelines in one environment the card shows one chip — the failed one if any failed,
+          otherwise the deploy; the ticket's Proof section lists them all.</p>
+      </div>
+      <div class="step">
+        <div class="step-h"><span class="num">5</span><h3>Or list your multibranch jobs by hand (optional)</h3></div>
+        <p>An explicit job always wins over discovery for that repository and environment. Add a <code class="inl">jenkins</code> block to
+          <code class="inl">~/.ai/config.json</code> — one job URL per
           repository and environment. Keys are the repository slugs; the URLs below are placeholders.</p>
         <pre><button class="copy">Copy</button>"jenkins": {
   "jobs": {
@@ -129,7 +164,7 @@
           <a href="developer-doc-viewer.html?f=INTEGRATIONS.md">INTEGRATIONS.md</a>.</p>
       </div>
       <div class="step">
-        <div class="step-h"><span class="num">3</span><h3>Refresh</h3></div>
+        <div class="step-h"><span class="num">6</span><h3>Refresh</h3></div>
         <p>Click <b>Refresh</b>. Builds are re-read on every refresh, even for tickets that did not change in Jira.</p>
       </div>
 
@@ -147,20 +182,109 @@
           acceptance criteria mention a CVE, Checkmarx, SAST / SCA, a CWE or a dependency upgrade. For each CVE, query,
           CWE, result link or package the ticket names, the board compares the latest scan of the PR's branch with the
           base branch's scan and says <b>Fixed</b>, <b>Open</b>, <b>Not found</b> (in neither scan — check the id) or
-          <b>Unknown</b> (no scan to compare yet).</p>
+          <b>Unknown</b> (no scan to compare yet). Every <b>Not found</b> says what was read, for example
+          “Read 412 results on the branch (SCA 380 · SAST 18); 398 on the base …”, so you can tell a wrong id from a
+          scan that returned nothing.</p>
+      </div>
+      <div class="step">
+        <div class="step-h"><span class="num">3</span><h3>See what each refresh did</h3></div>
+        <p>A refresh never skips Checkmarx silently. The run notice says what happened (“Checkmarx: 3
+          vulnerability-fix tickets looked up … — 2 with open findings”, “not configured — missing …”, “carried
+          forward — the API key was rejected”), the Checkmarx panel in the key dialog has a <b>Last fetch</b> line
+          (grey means not configured or nothing to look up — not a fault), and a vulnerability-fix ticket Checkmarx
+          could not look up shows the reason at the top of its <b>Vulnerabilities</b> group.</p>
+        <p>If the targets do not match what you expect, run this in a terminal (read-only; it prints no key or token):</p>
+        <pre><button class="copy">Copy</button>python3 jira-intern/checkmarx.py diagnose PROJ-123
+python3 jira-intern/checkmarx.py diagnose my-repo --branch bugfix/PROJ-123_fix --base release/2.1 --target CVE-2024-12345</pre>
+        <p>It lists the project and scans considered, how many results each scan returned (by SCA / SAST, severity and
+          status), the field names of the rows, a cross-check against Checkmarx's own scan summary, and for every target
+          what matched or why not.</p>
       </div>
 
-      <h2 id="what-shows-where">5 · What shows where</h2>
+      <h2 id="dynatrace">5 · Connect Dynatrace</h2>
+      <p>Optional. QA and support tickets are full of Dynatrace links — the trace of the failing request, the Davis problem,
+        the service, a log search. With Dynatrace connected, the refresh reads <b>those links and nothing else</b> (it never
+        searches your tenant on its own and never writes to it) and keeps a few short facts per link.</p>
+      <div class="step">
+        <div class="step-h"><span class="num">1</span><h3>Create a platform token</h3></div>
+        <p>In Dynatrace: <b>Account Management</b> → <b>Identity &amp; access</b> → <b>Platform tokens</b> → create a token with
+          exactly these read scopes — and nothing else:</p>
+        <ul>
+          <li><code class="inl">storage:spans:read</code> — the spans of a trace, and request counts of a service</li>
+          <li><code class="inl">storage:events:read</code> — Davis problems</li>
+          <li><code class="inl">storage:logs:read</code> — error logs</li>
+          <li><code class="inl">storage:buckets:read</code></li>
+        </ul>
+        <p>In the key dialog open <b>Observability → Dynatrace</b> and save it as the <b>Platform token</b>
+          (<code class="inl">DYNATRACE_PAT</code>).</p>
+      </div>
+      <div class="step">
+        <div class="step-h"><span class="num">2</span><h3>List the tenants the board may read</h3></div>
+        <p>In the same row fill <b>Tenants</b> with <code class="inl">name=tenant id</code> pairs, comma separated, <b>no spaces</b>
+          (placeholders): <code class="inl">prod=abc12345,uat=def67890</code>. The tenant id is the first part of your Dynatrace address —
+          <code class="inl">https://abc12345.live.dynatrace.com/…</code> or <code class="inl">https://abc12345.apps.dynatrace.com/…</code> →
+          <code class="inl">abc12345</code> — letters, digits and <code class="inl">-</code> only, no dots or slashes. <b>Only links to these tenants
+          are ever read.</b> A link to any other tenant is listed in the drawer as <i>Tenant not listed</i> and never fetched; a Dynatrace
+          Managed link (a host that is not <code class="inl">*.dynatrace.com</code>) is not recognised at all. (You can instead set <code class="inl">endpoints.dynatraceTenants</code> in your personal
+          config; the dialog's value wins. Real tenant ids never go in the repository.)</p>
+      </div>
+      <div class="step">
+        <div class="step-h"><span class="num">3</span><h3>Press Test</h3></div>
+        <p><b>Test</b> sends one tiny read-only question to every listed tenant and answers <b>✓ Connected · 2 tenants</b>, or says which
+          tenant failed: <i>token rejected</i>, <i>token accepted but lacks a scope (storage:events:read)</i>, or <i>not found — check the
+          tenant id</i>. The tenants may also come from the config, in which case the token alone is enough to test.</p>
+      </div>
+      <div class="step">
+        <div class="step-h"><span class="num">4</span><h3>What it reads</h3></div>
+        <p>For each Dynatrace link in a ticket's description, comments and links (at most five per ticket), within the link's own
+          time window (padded by five minutes, at most two hours) and with size limits on every query:</p>
+        <ul>
+          <li>a <b>trace</b> link — that trace's spans: how many, which services, where the failure originates, the error messages, the
+            slowest span, and the Davis problem that overlaps it;</li>
+          <li>a <b>problem</b> link — that Davis problem: status, category, duration, root cause;</li>
+          <li>a <b>service</b> link — problems that name the service and how many of its root requests failed;</li>
+          <li>a <b>logs</b> link — the most frequent ERROR lines of the trace or service in that window.</li>
+        </ul>
+        <p class="small">A trace or logs link that carries no absolute time window is not read (it would scan too much); the drawer says so.
+          Everything kept from Dynatrace is scrubbed of tokens, passwords, e-mail addresses and IP addresses first. Answers are reused for a
+          day (an hour while a problem is still active, or when nothing was found), so most refreshes do not ask again. At most 200 calls are
+          made per refresh.</p>
+      </div>
+      <div class="step">
+        <div class="step-h"><span class="num">5</span><h3>See exactly what the board makes of a link</h3></div>
+        <p>In the repository folder run (read-only; it prints no token; quote the link):</p>
+        <pre><button class="copy">Copy</button>python3 jira-intern/dynatrace.py inspect "https://abc12345.live.dynatrace.com/#trace;gtf=2026-02-26T13:45:00+05:30 to 2026-02-26T14:00:00+05:30;traceId=0123456789abcdef0123456789abcdef"
+python3 jira-intern/dynatrace.py inspect QA-7 --no-read</pre>
+        <p class="small">It prints the tenant the link maps to, the ids and time window it understood, the exact queries it would send and — unless
+          you add <code class="inl">--no-read</code> — what they return, as findings. A ticket key reads every link of that ticket as stored on
+          the board. Exit code 2 means Dynatrace is not configured, the link is not a Dynatrace link or the ticket is unknown; 1 means Dynatrace
+          could not be read. Behind a company certificate put it in <code class="inl">~/.ai/ca-bundle.pem</code>
+          (<a href="09-troubleshooting-and-faq.html">page 09</a>); <code class="inl">DYNATRACE_INSECURE_TLS=1</code> is the separate last resort
+          (<code class="inl">JIRA_INSECURE_TLS</code> does not apply to Dynatrace). Full reference:
+          <a href="developer-doc-viewer.html?f=INTEGRATIONS.md">INTEGRATIONS.md</a> and
+          <a href="developer-doc-viewer.html?f=SECURITY.md">SECURITY.md</a>.</p>
+      </div>
+      <div class="step">
+        <div class="step-h"><span class="num">6</span><h3>See what each refresh did</h3></div>
+        <p>Like Checkmarx, Dynatrace is never skipped silently: the run notice says what happened (“Dynatrace: 3 tickets with Dynatrace links
+          looked up (5 links: 4 read · 1 empty) — 2 with failed requests or problems”, “not configured — missing …”, “carried forward — the
+          token was rejected”), the Dynatrace panel has a <b>Last fetch</b> line (grey means not configured or nothing to look up), and a ticket
+          whose links could not be answered shows the reason at the top of its <b>Linked traces &amp; problems</b> group. A link that could not be
+          re-read keeps its earlier answer, marked <i>stale</i> with when it was last read.</p>
+      </div>
+
+      <h2 id="what-shows-where">6 · What shows where</h2>
       <table>
-        <tr><th>Place</th><th>Jenkins</th><th>Checkmarx One</th></tr>
-        <tr><td>Card</td><td>One chip per environment, coloured by result</td><td>A shield chip: how many named targets are fixed</td></tr>
-        <tr><td>Ticket drawer → Proof</td><td><b>Builds</b>: result, environment, build link, tests, failed stage</td><td><b>Vulnerabilities</b>: both scans, then each target with status, severity, location</td></tr>
-        <tr><td>PR readiness report</td><td>Gate "CI green"</td><td>Gate "Security scan (Checkmarx) clean" and evidence rows</td></tr>
+        <tr><th>Place</th><th>Jenkins</th><th>Checkmarx One</th><th>Dynatrace</th></tr>
+        <tr><td>Card</td><td>One chip per environment, coloured by result</td><td>A shield chip: how many named targets are fixed</td><td>—</td></tr>
+        <tr><td>Ticket drawer → Proof</td><td><b>Builds</b>: result, environment, pipeline (build / deploy), build link, tests, failed stage — and, for a failed build of a ticket about a failing build or pipeline, a collapsed <b>Console (last lines)</b> box with secrets scrubbed</td><td><b>Vulnerabilities</b>: both scans, then each target with status, severity, location</td><td><b>Linked traces &amp; problems</b>: one row per link — status (Read · Nothing found · Unreachable · Token rejected · Tenant not listed), kind, tenant, time window, findings, <i>Open in Dynatrace</i></td></tr>
+        <tr><td>AI brief (top of the drawer)</td><td colspan="3">A final <b>Evidence from linked systems</b> section — a bullet per source that has evidence (Dynatrace, Checkmarx, Jenkins) with its numbers and names, then <i>What this means</i>. Only what those systems said; the brief is rewritten when the evidence changes.</td></tr>
+        <tr><td>PR readiness report</td><td>Gate "CI green"; the deciding console lines in the evidence chain</td><td>Gate "Security scan (Checkmarx) clean" and evidence rows</td><td>An <b>Issue insight</b> callout after the decision (plain words on what the issue was, also with AI off), evidence rows and Sources links</td></tr>
       </table>
       <p class="small">Nothing appears for a ticket with no data — the board hides an empty group rather than showing a blank one.
         The report gates work at every AI level, None included.</p>
 
-      <h2 id="keys-troubleshooting">6 · Troubleshooting</h2>
+      <h2 id="keys-troubleshooting">7 · Troubleshooting</h2>
       <p>Start with the <b>Test</b> button in the service's row: it tells you straight away whether the saved key and URL work.</p>
       <table>
         <tr><th>Symptom</th><th>Fix</th></tr>
@@ -169,11 +293,17 @@
         <tr><td>Test says <b>Can't reach host</b></td><td>The board's server cannot reach that address: VPN off, a typo in the base URL, or (in Docker) no route from the container. Hover the result to see the host and the error.</td></tr>
         <tr><td>Test says <b>Certificate not trusted</b></td><td>The host uses a company certificate. Put the company root CA in <code class="inl">~/.ai/ca-bundle.pem</code> (or point <code class="inl">JIRA_CA_BUNDLE</code> at it) — see <a href="09-troubleshooting-and-faq.html">page 09</a>.</td></tr>
         <tr><td>Test says <b>Not found (404)</b> or <b>Redirected to …</b></td><td>The base URL points at the wrong place, or at a sign-in page. Use the API host itself (for Jira, the address you see before <code class="inl">/browse/</code>).</td></tr>
-        <tr><td>Test says <b>Not configured</b></td><td>It names what is missing — a key, the base URL (the dialog or <code class="inl">endpoints.*</code> in your config), or a Jenkins job URL in <code class="inl">jenkins.jobs</code>.</td></tr>
-        <tr><td>No build chips</td><td>Are both Jenkins keys saved and the repository listed in <code class="inl">jenkins.jobs</code> with an <b>https</b> job URL (http ones are skipped)? Is the branch name in the ticket's PR or branch list? A branch with no build simply shows nothing.</td></tr>
+        <tr><td>Test says <b>Not configured</b></td><td>It names what is missing — a key, the base URL (the dialog or <code class="inl">endpoints.*</code> in your config), a Jenkins projects folder, or a job URL in <code class="inl">jenkins.jobs</code>.</td></tr>
+        <tr><td>No build chips</td><td>Are both Jenkins keys saved and the Projects folder set (run <code class="inl">python3 jira-intern/jenkins.py discover &lt;repo&gt;</code> to see what is found) or the repository listed in <code class="inl">jenkins.jobs</code> with an <b>https</b> job URL (http ones are skipped)? Is the branch name in the ticket's PR or branch list? A branch with no build simply shows nothing.</td></tr>
         <tr><td>"Jenkins unreachable — builds carried forward"</td><td>The container can't reach Jenkins or the token was refused (401/403). Check VPN / DNS, the token, and a company certificate in <code class="inl">~/.ai/ca-bundle.pem</code> (<a href="09-troubleshooting-and-faq.html">page 09</a>). The last known builds stay on the cards, marked <b>stale</b> in their tooltip, and the report's CI gate says <b>Not verified</b> until Jenkins is read again.</td></tr>
-        <tr><td>"Checkmarx unreachable — vulnerability results carried forward"</td><td>Check the API key, that the base URL is https, and the token URL if your sign-in host is separate. Previous results stay.</td></tr>
+        <tr><td>"Checkmarx: … carried forward — …" (unreachable, key rejected or call budget used up)</td><td>Check the API key, that the base URL is https, and the token URL if your sign-in host is separate. Previous results stay, and each affected ticket says why at the top of its Vulnerabilities group.</td></tr>
+        <tr><td>"Checkmarx not configured — add the URL and key in API keys"</td><td>Save <code class="inl">CHECKMARX_BASE_URL</code> and <code class="inl">CHECKMARX_API_KEY</code> in the key dialog (the run notice names whichever is missing), then Refresh. It stays grey, not red, until you do.</td></tr>
+        <tr><td>Every target says Not found</td><td>Run <code class="inl">python3 jira-intern/checkmarx.py diagnose &lt;KEY&gt;</code>. The usual causes: the scans returned no results of that kind (the “Read N results” line says how many), the ticket names ids that are not in this repository, a package already at the target version in the base scan (the detail says “already at …”), or — for a merged pull request — the base scan was taken after the merge (the board then uses the last base scan from before it).</td></tr>
         <tr><td>Every target says Unknown</td><td>The PR's branch has no completed scan yet (or none that ran SCA for CVEs / packages, SAST for queries), the base branch has none, the branch was last scanned before the base (rescan it), the ticket names a per-scan result id instead of a similarity id, or no Checkmarx project is named exactly like the repository.</td></tr>
+        <tr><td>"Dynatrace: … carried forward — …" (unreachable, token rejected or call budget used up)</td><td>Check the platform token and that the container can reach <code class="inl">&lt;tenant id&gt;.apps.dynatrace.com</code> (VPN, DNS, a company certificate in <code class="inl">~/.ai/ca-bundle.pem</code>). Previous answers stay, marked <i>stale</i>, and each affected ticket says why at the top of its Linked traces &amp; problems group. A rejected token is the one red state: create a new platform token and Save it.</td></tr>
+        <tr><td>"Dynatrace not configured — add DYNATRACE_PAT and DYNATRACE_TENANTS in API keys"</td><td>Save the platform token and at least one tenant (the run notice names whichever is missing). It stays grey, not red, until you do.</td></tr>
+        <tr><td>A link says <b>Tenant not listed</b></td><td>The link's tenant id is not in <b>Tenants</b>, so it was never contacted. Add it (<code class="inl">name=tenant id</code>) if you want it read. (Dynatrace Managed links, <code class="inl">/e/…/</code>, are not supported.)</td></tr>
+        <tr><td>A link says <b>Nothing found</b>, or is not read</td><td>Run <code class="inl">python3 jira-intern/dynatrace.py inspect "&lt;link&gt;"</code>. Usual causes: the trace is older than the tenant keeps it or belongs to another tenant, the link has no absolute time window (a trace or logs link without one is not read), the tenant refused a query (a missing scope shows as <i>Access denied</i> in Test), or logs are not ingested.</td></tr>
         <tr><td>A key row stays grey after Save</td><td>A required key of that service is still empty, or saving failed — see "could not write setup/.env" on <a href="09-troubleshooting-and-faq.html">page 09</a>.</td></tr>
       </table>
 

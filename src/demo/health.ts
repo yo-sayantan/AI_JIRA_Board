@@ -24,6 +24,7 @@ export function demoKeyHealth(now: number = Date.now()): HealthMap {
     jira: ok('jira', 4),
     bitbucket: ok('bitbucket', 4),
     claude: { ...ok('claude', 35), source: 'worker' },
+    dynatrace: ok('dynatrace', 7),
     jenkins: {
       service: 'jenkins',
       state: 'attention',

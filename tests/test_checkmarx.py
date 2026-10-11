@@ -91,7 +91,11 @@ BRANCH_ROWS = [
 class FakeCx:
     """URL → JSON for checkmarx._http; records every call (url, headers, body)."""
 
-    def __init__(self, *, projects=None, scans=None, results=None, fail=None, main_branch="develop"):
+    def __init__(self, *, projects=None, scans=None, results=None, fail=None, main_branch="develop", page_cap=None, omit_total=False,
+                 summary=None):
+        self.page_cap = page_cap  # a server that serves fewer results per page than asked
+        self.omit_total = omit_total  # a server that does not say totalCount
+        self.summary = summary  # scan-id → /api/scan-summary answer
         self.projects = projects if projects is not None else [{"id": "p1", "name": "payments-service", "mainBranch": main_branch}]
         self.scans = scans if scans is not None else {
             BRANCH: [{"id": "s-branch", "branch": BRANCH, "status": "Completed", "createdAt": "2026-10-09T08:00:00.123Z"}],
@@ -124,7 +128,16 @@ class FakeCx:
         if u.path == "/api/results":
             rows = self.results.get(q["scan-id"], [])
             off, lim = int(q.get("offset") or 0), int(q.get("limit") or 100)
-            return {"results": copy.deepcopy(rows[off:off + lim]), "totalCount": len(rows)}
+            lim = min(lim, self.page_cap) if self.page_cap else lim
+            page = {"results": copy.deepcopy(rows[off:off + lim]), "totalCount": len(rows)}
+            if self.omit_total:
+                del page["totalCount"]
+            return page
+        if u.path == "/api/scan-summary":
+            sid = q.get("scan-ids")
+            if self.summary is None or sid not in self.summary:
+                raise http_error(url, 404)
+            return {"scansSummaries": [copy.deepcopy(self.summary[sid])]}
         raise http_error(url, 404)
 
     def paths(self):
@@ -253,7 +266,7 @@ class Plan(unittest.TestCase):
             {"state": "declined", "url": PR_URL.replace("/9", "/1"), "sourceBranch": "old", "destinationBranch": "develop"},
             {"state": "merged", "merged": True, "url": PR_URL, "sourceBranch": BRANCH, "destinationBranch": "main", "mergedAt": "2026-10-05T00:00:00Z"},
         ])
-        self.assertEqual(checkmarx.scan_plan(t), {"repo": "payments-service", "branch": BRANCH, "base": "main"})
+        self.assertEqual(checkmarx.scan_plan(t), {"repo": "payments-service", "branch": BRANCH, "base": "main", "mergedAt": "2026-10-05T00:00:00Z"})
 
     def test_branch_without_pr_needs_a_known_repo(self):
         t = vticket(prs=[])
@@ -960,3 +973,507 @@ class CommentTargets(unittest.TestCase):
         t = {"title": "Fix CVE-2021-1111", "description": "<p>This is not CVE-2020-0001; unrelated to CVE-2020-0002. CVE-2020-0003 is unrelated.</p>",
              "comments": [{"body": "<p>Not lodash@4.17.20.</p>"}]}
         self.assertEqual(targets_of(t), [("cve", "CVE-2021-1111")])
+
+
+# ── why "not found" must be believable ───────────────────────────────────────
+# A real run reported "in neither scan" for every target of a vulnerability-fix ticket. These pin the
+# behaviours that make that answer honest: paging that survives a server which caps the page size,
+# every severity matched, and a detail that says WHAT was read.
+
+LIB = "Maven-org.acme.web:acme-web-core-"
+
+
+def noise(n, severity="LOW"):
+    return [sca(f"CVE-2023-{1000 + i}", "Npm-lodash-4.17.20", severity) for i in range(n)]
+
+
+def only(title, **extra):
+    return vticket(title=title, description="", comments=[], **extra)
+
+
+class Paging(Base):
+    def test_a_server_that_caps_the_page_size_is_read_to_the_end(self):
+        rows = noise(50) + [sca("CVE-2024-5555", LIB + "1.2.3", "CRITICAL")] + noise(4)
+        f = self.fake(page_cap=20, results={"s-branch": [], "s-base": rows})
+        vf = checkmarx.vuln_fixes_for(only("Fix CVE-2024-5555"))
+        self.assertEqual(vf["items"][0]["status"], "fixed")
+        self.assertEqual(f.paths().count("/api/results"), 1 + 3)  # branch: one empty page; base: 20 + 20 + 15
+        self.assertEqual(vf["read"]["base"]["total"], 55)
+        self.assertFalse(vf["read"]["base"]["truncated"])
+
+    def test_a_server_that_omits_totalcount_is_read_until_an_empty_page(self):
+        rows = noise(50) + [sca("CVE-2024-5555", LIB + "1.2.3", "CRITICAL")] + noise(4)
+        f = self.fake(page_cap=20, omit_total=True, results={"s-branch": [], "s-base": rows})
+        vf = checkmarx.vuln_fixes_for(only("Fix CVE-2024-5555"))
+        self.assertEqual(vf["items"][0]["status"], "fixed")
+        self.assertEqual(f.paths().count("/api/results"), 1 + 4)  # …and the empty page that proves the end
+        self.assertFalse(vf["read"]["base"]["truncated"])
+
+    def test_a_capped_server_and_the_page_limit_is_truncated_not_not_found(self):
+        f = self.fake(page_cap=2, results={"s-branch": noise(11), "s-base": noise(11)})
+        with mock.patch.object(checkmarx, "PAGE_SIZE", 5), mock.patch.object(checkmarx, "MAX_PAGES", 2):
+            vf = checkmarx.vuln_fixes_for(only("Fix CVE-2024-5555"))
+        self.assertEqual(f.paths().count("/api/results"), 4)
+        self.assertEqual(vf["items"][0]["status"], "unknown")
+        self.assertIn("more results than the board reads", vf["items"][0]["detail"])
+        self.assertEqual(vf["read"]["branch"], {"total": 4, "sca": 4, "sast": 0, "other": 0, "truncated": True, "reported": 11})
+
+    def test_an_empty_page_before_the_reported_total_is_truncated_too(self):
+        class Lying(FakeCx):
+            def __call__(self, url, headers, data=None, timeout=None):
+                out = super().__call__(url, headers, data, timeout)
+                if urllib.parse.urlsplit(url).path == "/api/results":
+                    out["totalCount"] = 500  # says there is more, then serves nothing
+                return out
+
+        f = Lying(results={"s-branch": noise(3), "s-base": noise(3)})
+        p = mock.patch.object(checkmarx, "_http", f)
+        p.start()
+        self.addCleanup(p.stop)
+        vf = checkmarx.vuln_fixes_for(only("Fix CVE-2024-5555"))
+        self.assertEqual(vf["items"][0]["status"], "unknown")
+        self.assertTrue(vf["read"]["branch"]["truncated"])
+
+    def test_low_and_info_severity_results_are_read_and_matched(self):
+        rows = [sca("CVE-2024-1001", LIB + "1.2.3", "LOW"), sca("CVE-2024-1002", LIB + "1.2.3", "INFO")]
+        f = self.fake(results={"s-branch": [], "s-base": rows})
+        by = items_by_target(checkmarx.vuln_fixes_for(only("Fix CVE-2024-1001 and CVE-2024-1002")))
+        self.assertEqual({k: (v["status"], v["severity"]) for k, v in by.items()},
+                         {"CVE-2024-1001": ("fixed", "LOW"), "CVE-2024-1002": ("fixed", "INFO")})
+        results_urls = [u for u, _h, _d in f.calls if urllib.parse.urlsplit(u).path == "/api/results"]
+        self.assertTrue(results_urls)
+        self.assertTrue(all("severity" not in u and "state" not in u for u in results_urls), results_urls)
+
+    def test_a_cve_name_is_matched_whatever_its_case_spacing_or_place(self):
+        rows = [{**sca("x", LIB + "1.2.3"), "vulnerabilityDetails": {"cveName": " cve-2024-1001 "}},
+                {**sca("x", LIB + "1.2.3"), "vulnerabilityDetails": {"cveId": "CVE-2024-1002"}},
+                {"type": "sca", "id": "CVE-2024-1003", "similarityId": "s3", "severity": "LOW", "data": {"packageIdentifier": LIB + "1.2.3"}}]
+        self.fake(results={"s-branch": [], "s-base": rows})
+        by = items_by_target(checkmarx.vuln_fixes_for(only("Fix CVE-2024-1001, CVE-2024-1002 and CVE-2024-1003")))
+        self.assertEqual({k: v["status"] for k, v in by.items()}, {"CVE-2024-1001": "fixed", "CVE-2024-1002": "fixed", "CVE-2024-1003": "fixed"})
+
+    def test_scan_results_keeps_its_old_shape(self):
+        self.fake(results={"s-base": noise(3)})
+        rows, truncated = checkmarx.scan_results("s-base")
+        self.assertEqual((len(rows), truncated), (3, False))
+
+
+class SelfExplaining(Base):
+    def test_not_found_says_what_was_read(self):
+        self.fake()
+        vf = checkmarx.vuln_fixes_for(vticket())
+        d = items_by_target(vf)["CVE-2020-9999"]["detail"]
+        self.assertIn("in neither scan", d)
+        self.assertIn(f"Read 2 results on {BRANCH} (SCA 1 · SAST 1)", d)
+        self.assertIn("5 results on develop (SCA 2 · SAST 2 · other 1)", d)
+        self.assertEqual(vf["read"], {
+            "branch": {"total": 2, "sca": 1, "sast": 1, "other": 0, "truncated": False, "reported": 2},
+            "base": {"total": 5, "sca": 2, "sast": 2, "other": 1, "truncated": False, "reported": 5},
+        })
+
+    def test_zero_results_are_called_out(self):
+        self.fake(results={"s-branch": [], "s-base": []})
+        vf = checkmarx.vuln_fixes_for(only("Fix CVE-2024-5555"))
+        item = vf["items"][0]
+        self.assertEqual(item["status"], "not-found")
+        self.assertIn("0 results on", item["detail"])
+        self.assertIn("the results API returned nothing for this scan", item["detail"])
+        self.assertIn("returned 0 results", vf["note"])  # the gate shows the note
+
+    def test_one_side_empty_is_in_the_note(self):
+        self.fake(results={"s-branch": noise(3), "s-base": []})
+        vf = checkmarx.vuln_fixes_for(only("Fix CVE-2024-5555"))
+        self.assertIn("0 results for the base scan", vf["note"])
+
+    def test_a_package_item_lists_the_versions_seen_on_each_side(self):
+        base = [sca("CVE-2024-1001", LIB + "6.5.7")]
+        branch = [sca("CVE-2024-9001", LIB + "6.5.9")]  # another finding, on the new version
+        self.fake(results={"s-branch": branch, "s-base": base})
+        item = checkmarx.vuln_fixes_for(only("SCA: upgrade acme-web-core to 6.5.9"))["items"][0]
+        self.assertEqual(item["status"], "fixed")
+        self.assertEqual((item["foundOnBase"], item["foundOnBranch"]), (["6.5.7"], ["6.5.9"]))
+
+    def test_a_base_that_already_runs_the_target_version_predates_the_fix(self):
+        rows = [sca("CVE-2024-9001", LIB + "6.5.9")]
+        self.fake(results={"s-branch": copy.deepcopy(rows), "s-base": rows})
+        item = checkmarx.vuln_fixes_for(only("SCA: upgrade acme-web-core to 6.5.9"))["items"][0]
+        self.assertEqual(item["status"], "not-found")  # a finding on the new version is not what the ticket fixes
+        self.assertIn("already at 6.5.9 on develop", item["detail"])
+        self.assertIn("predates the base scan", item["detail"])
+        self.assertEqual((item["foundOnBase"], item["foundOnBranch"]), (["6.5.9"], ["6.5.9"]))
+
+    def test_a_cve_not_found_names_the_package_that_is_already_upgraded(self):
+        rows = [sca("CVE-2024-9001", LIB + "6.5.9")]
+        self.fake(results={"s-branch": copy.deepcopy(rows), "s-base": rows})
+        by = items_by_target(checkmarx.vuln_fixes_for(only("Fix CVE-2024-1001: upgrade acme-web-core to 6.5.9")))
+        self.assertEqual(by["CVE-2024-1001"]["status"], "not-found")
+        self.assertIn("acme-web-core is already at 6.5.9 on develop", by["CVE-2024-1001"]["detail"])
+        self.assertIn("may predate", by["CVE-2024-1001"]["detail"])
+
+    def test_a_package_with_no_findings_anywhere_says_so(self):
+        self.fake(results={"s-branch": noise(2), "s-base": noise(2)})
+        item = checkmarx.vuln_fixes_for(only("SCA: upgrade acme-web-core to 6.5.9"))["items"][0]
+        self.assertEqual(item["status"], "not-found")
+        self.assertIn("no finding against acme-web-core", item["detail"])
+        self.assertEqual((item["foundOnBase"], item["foundOnBranch"]), ([], []))
+
+    def test_the_gate_text_carries_the_note(self):
+        self.fake(results={"s-branch": [], "s-base": []})
+        t = only("Fix CVE-2024-5555")
+        t["vulnFixes"] = checkmarx.vuln_fixes_for(t)
+        state, evidence, _tone = pr_report.vuln_gate(t)
+        self.assertEqual(state, "Not verified")
+        self.assertIn("returned 0 results", evidence)
+
+
+def merged_ticket(merged_at="2026-10-05T00:00:00Z", **extra):
+    pr = {"state": "merged", "merged": True, "mergedAt": merged_at, "id": 9, "url": PR_URL, "repo": "payments-service",
+          "sourceBranch": BRANCH, "destinationBranch": "develop"}
+    return vticket(title="Fix CVE-2021-44228", description="", comments=[], prs=[pr], **extra)
+
+
+class MergedPullRequest(Base):
+    """After the merge the base branch already holds the fix: only a base scan from BEFORE it is a baseline."""
+
+    def test_the_last_base_scan_before_the_merge_is_the_baseline(self):
+        scans = {BRANCH: [scan("s-branch", BRANCH, "2026-10-04T08:00:00Z")],
+                 "develop": [scan("s-after", "develop", "2026-10-08T07:00:00Z"), scan("s-before", "develop", "2026-10-01T07:00:00Z")]}
+        f = self.fake(scans=scans, results={"s-branch": [], "s-before": BASE_ROWS, "s-after": []})
+        vf = checkmarx.vuln_fixes_for(merged_ticket())
+        item = vf["items"][0]
+        self.assertEqual(item["status"], "fixed")
+        self.assertEqual(vf["baseScanAt"], "2026-10-01T07:00:00Z")
+        self.assertIn("was CRITICAL on develop (scan 2026-10-01)", item["detail"])
+        asked = [dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(u).query)).get("scan-id") for u, _h, _d in f.calls if urllib.parse.urlsplit(u).path == "/api/results"]
+        self.assertNotIn("s-after", asked)
+
+    def test_a_base_scanned_only_after_the_merge_proves_nothing(self):
+        scans = {BRANCH: [scan("s-branch", BRANCH, "2026-10-04T08:00:00Z")], "develop": [scan("s-after", "develop", "2026-10-08T07:00:00Z")]}
+        self.fake(scans=scans, results={"s-branch": [], "s-after": []})
+        item = checkmarx.vuln_fixes_for(merged_ticket())["items"][0]
+        self.assertEqual(item["status"], "unknown")
+        self.assertIn("no develop scan from before the PR merged (2026-10-05)", item["detail"])
+        self.assertIn("already contains the fix", item["detail"])
+
+    def test_an_open_pr_still_uses_the_newest_base_scan(self):
+        scans = {BRANCH: [scan("s-branch", BRANCH, "2026-10-09T08:00:00Z")],
+                 "develop": [scan("s-new", "develop", "2026-10-08T07:00:00Z"), scan("s-old", "develop", "2026-10-01T07:00:00Z")]}
+        self.fake(scans=scans, results={"s-branch": [], "s-new": BASE_ROWS, "s-old": []})
+        vf = checkmarx.vuln_fixes_for(only("Fix CVE-2021-44228"))
+        self.assertEqual(vf["baseScanAt"], "2026-10-08T07:00:00Z")
+        self.assertEqual(vf["items"][0]["status"], "fixed")
+
+
+# ── diagnose ─────────────────────────────────────────────────────────────────
+
+
+class Diagnose(Base):
+    def run_cli(self, *argv, ticket=None):
+        out = io.StringIO()
+        with mock.patch.object(sys, "stdout", out), mock.patch.object(checkmarx, "_ticket_from_dump", lambda key: ticket):
+            code = checkmarx.main(["diagnose", *argv])
+        return code, out.getvalue()
+
+    def test_a_ticket_key_prints_the_project_scans_counts_and_every_target(self):
+        summary = {"s-branch": {"scaCounters": {"totalCounter": 1, "severityCounters": [{"severity": "HIGH", "counter": 1}]}},
+                   "s-base": {"scaCounters": {"totalCounter": 9, "severityCounters": [{"severity": "CRITICAL", "counter": 9}]}}}
+        self.fake(summary=summary)
+        code, text = self.run_cli("PAY-7", ticket=vticket())
+        self.assertEqual(code, 0)
+        for want in ("payments-service", BRANCH, "develop", "s-branch", "s-base", "2026-10-09", "SCA 1", "SAST 1", "SCA 2", "other 1",
+                     "CVE-2021-44228", "fixed", "CVE-2020-9999", "not-found"):
+            self.assertIn(want, text)
+        self.assertIn("scan-summary", text)
+        self.assertIn("9", text)
+        # base: the summary counts 9 SCA findings but the results API gave 2 — that mismatch is the finding
+        self.assertIn("incomplete", text.lower())
+
+    def test_it_says_which_scans_were_used_and_why_a_newer_base_scan_was_not(self):
+        scans = {BRANCH: [scan("s-branch", BRANCH, "2026-10-04T08:00:00Z")],
+                 "develop": [scan("s-after", "develop", "2026-10-08T07:00:00Z")]}
+        self.fake(scans=scans, results={"s-branch": [], "s-after": []})
+        _code, text = self.run_cli("PAY-7", ticket=merged_ticket())
+        self.assertIn("PR merged 2026-10-05", text)
+        self.assertIn("used for SCA: branch s-branch · base none", text)
+        self.assertIn("is after the PR merged (2026-10-05)", text)
+        self.fake()
+        checkmarx.reset_run()
+        _code, text = self.run_cli("PAY-7", ticket=vticket())
+        self.assertIn("used for SCA: branch s-branch · base s-base", text)
+
+    def test_nothing_secret_is_printed(self):
+        f = self.fake()
+        code, text = self.run_cli("PAY-7", ticket=vticket())
+        self.assertEqual(code, 0)
+        for secret in ("cx-key-123", "tok-abc", "refresh_token", "Bearer"):
+            self.assertNotIn(secret, text)
+        self.assertNotIn(AUTH, text)
+        self.assertTrue(f.calls)
+
+    def test_a_repo_slug_needs_a_branch_and_takes_targets(self):
+        self.fake()
+        code, text = self.run_cli("payments-service", "--branch", BRANCH, "--base", "develop", "--target", "CVE-2021-44228", "--target", "lodash@4.17.20")
+        self.assertEqual(code, 0)
+        self.assertIn("CVE-2021-44228", text)
+        self.assertIn("lodash", text)
+        code, text = self.run_cli("payments-service")
+        self.assertEqual(code, 2)
+        self.assertIn("--branch", text)
+
+    def test_the_response_shape_shows_field_names_not_values(self):
+        self.fake()
+        _code, text = self.run_cli("PAY-7", ticket=vticket())
+        self.assertIn("vulnerabilityDetails", text)
+        self.assertIn("packageIdentifier", text)
+        self.assertNotIn("Maven-org.apache.logging.log4j:log4j-core-2.14.1", text)  # a value: not printed in the shape lines
+
+    def test_a_package_target_lists_the_versions_seen(self):
+        self.fake(results={"s-branch": [sca("CVE-2024-9001", LIB + "6.5.9")], "s-base": [sca("CVE-2024-1001", LIB + "6.5.7")]})
+        _code, text = self.run_cli("PAY-7", ticket=only("SCA: upgrade acme-web-core to 6.5.9"))
+        self.assertIn("6.5.7", text)
+        self.assertIn("6.5.9", text)
+
+    def test_not_configured_exits_2_and_names_what_is_missing(self):
+        with mock.patch.dict(os.environ, {"CHECKMARX_API_KEY": ""}):
+            code, text = self.run_cli("PAY-7", ticket=vticket())
+        self.assertEqual(code, 2)
+        self.assertIn("CHECKMARX_API_KEY", text)
+
+    def test_an_unknown_ticket_exits_2(self):
+        self.fake()
+        code, text = self.run_cli("PAY-404", ticket=None)
+        self.assertEqual(code, 2)
+        self.assertIn("PAY-404", text)
+
+    def test_a_rejected_key_exits_1_without_a_traceback(self):
+        self.fake(fail={AUTH: 401})
+        code, text = self.run_cli("PAY-7", ticket=vticket())
+        self.assertEqual(code, 1)
+        self.assertNotIn("Traceback", text)
+        self.assertIn("key", text.lower())
+
+    def test_the_command_line_entry_point_exists(self):
+        out = subprocess.run([sys.executable, os.path.join(INTERN, "checkmarx.py"), "diagnose", "PAY-7"], capture_output=True, text=True,
+                             env={**{k: v for k, v in os.environ.items() if not k.startswith("CHECKMARX_")}, "JB_SECRETS_FILE": os.devnull}, cwd=ROOT)
+        self.assertEqual(out.returncode, 2, out.stdout + out.stderr)
+        self.assertIn("not configured", (out.stdout + out.stderr).lower())
+
+
+# ── visible status instead of silent skips ───────────────────────────────────
+
+NOT_CONFIGURED_TEXT = "Checkmarx not configured — add the URL and key in API keys"
+
+
+def apply_status(t=None, *, enabled=True, result=None, prior=None, failure=None, plan=True):
+    """daily_fetch.apply_vuln_fixes with Checkmarx mocked; returns the ticket. `failure` is checkmarx.failure()'s answer."""
+    import _sources
+    _sources.reset("checkmarx")
+    t = t if t is not None else vticket()
+
+    def fake_for(ticket, targets=None, repos=None):
+        return copy.deepcopy(result)
+
+    with mock.patch.object(daily_fetch.checkmarx, "enabled", lambda: enabled), \
+            mock.patch.object(daily_fetch.checkmarx, "vuln_fixes_for", fake_for), \
+            mock.patch.object(daily_fetch.checkmarx, "failure", lambda: failure), \
+            mock.patch.object(daily_fetch, "DEV", {"PAY-7": {"repos": {BRANCH: "payments-service"}}}):
+        return daily_fetch.apply_vuln_fixes(t, t["key"], prior)
+
+
+class ProofNotes(unittest.TestCase):
+    """`Ticket.proofNotes.checkmarx` says why a vulnerability-fix ticket has no (fresh) result."""
+
+    def test_not_configured_is_visible_on_the_ticket_and_keeps_the_prior_result(self):
+        out = apply_status(enabled=False, prior={"vulnFixes": PRIOR_VF})
+        note = out["proofNotes"]["checkmarx"]
+        self.assertEqual((note["state"], note["detail"]), ("not-configured", NOT_CONFIGURED_TEXT))
+        self.assertRegex(note["at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
+        self.assertEqual(out["vulnFixes"], PRIOR_VF)
+
+    def test_not_configured_with_nothing_before_still_says_so(self):
+        out = apply_status(enabled=False, prior={})
+        self.assertNotIn("vulnFixes", out)
+        self.assertEqual(out["proofNotes"]["checkmarx"]["state"], "not-configured")
+
+    def test_a_failed_lookup_says_why_and_keeps_the_prior_result(self):
+        out = apply_status(result=None, prior={"vulnFixes": PRIOR_VF}, failure=("auth-failed", "the API key was rejected (HTTP 401)"))
+        note = out["proofNotes"]["checkmarx"]
+        self.assertEqual(note["state"], "auth-failed")
+        self.assertIn("rejected", note["detail"])
+        self.assertEqual(out["vulnFixes"], PRIOR_VF)
+
+    def test_each_failure_state_has_its_own_wording(self):
+        for state, text, word in (("unreachable", "x could not be reached", "could not be reached"),
+                                  ("budget-exhausted", "the 300-call budget", "budget"),
+                                  ("auth-failed", "the API key was rejected (HTTP 403)", "rejected")):
+            with self.subTest(state=state):
+                note = apply_status(result=None, prior={}, failure=(state, text))["proofNotes"]["checkmarx"]
+                self.assertEqual(note["state"], state)
+                self.assertIn(word, note["detail"])
+
+    def test_a_lookup_that_failed_without_a_known_reason_is_unreachable(self):
+        self.assertEqual(apply_status(result=None, prior={}, failure=None)["proofNotes"]["checkmarx"]["state"], "unreachable")
+
+    def test_an_unchanged_state_keeps_its_since_stamp(self):
+        out = apply_status(enabled=False, prior={})
+        first = out["proofNotes"]["checkmarx"]["at"]
+        out["proofNotes"]["checkmarx"]["at"] = "2026-10-01T00:00:00Z"
+        again = apply_status(out, enabled=False, prior=None)
+        self.assertEqual(again["proofNotes"]["checkmarx"]["at"], "2026-10-01T00:00:00Z")
+        changed = apply_status(again, result=None, prior=None, failure=("unreachable", "x"))
+        self.assertEqual(changed["proofNotes"]["checkmarx"]["state"], "unreachable")
+        self.assertNotEqual(changed["proofNotes"]["checkmarx"]["at"], "2026-10-01T00:00:00Z")
+        self.assertRegex(first, r"^\d{4}-\d\d-\d\dT")
+
+    def test_a_fresh_result_clears_the_note_and_keeps_other_sources_notes(self):
+        stale = vticket(proofNotes={"checkmarx": {"state": "not-configured", "detail": NOT_CONFIGURED_TEXT, "at": "2026-10-01T00:00:00Z"},
+                                    "jenkins": {"state": "unreachable", "detail": "Jenkins x", "at": "2026-10-01T00:00:00Z"}})
+        out = apply_status(stale, result=FRESH_VF, prior={})
+        self.assertEqual(out["vulnFixes"], FRESH_VF)
+        self.assertEqual(list(out["proofNotes"]), ["jenkins"])
+
+    def test_the_last_note_removed_removes_the_field(self):
+        stale = vticket(proofNotes={"checkmarx": {"state": "not-configured", "detail": "x", "at": "2026-10-01T00:00:00Z"}})
+        self.assertNotIn("proofNotes", apply_status(stale, result=FRESH_VF, prior={}))
+
+    def test_a_ticket_that_is_no_longer_a_candidate_loses_its_note(self):
+        stale = vticket(title="Refactor", description="<p>x</p>", labels=[], comments=[],
+                        proofNotes={"checkmarx": {"state": "not-configured", "detail": "x", "at": "2026-10-01T00:00:00Z"}})
+        self.assertNotIn("proofNotes", apply_status(stale, result=FRESH_VF, prior={}))
+
+    def test_a_candidate_is_reported_to_the_run_account(self):
+        import _sources
+        apply_status(result=FRESH_VF, prior={})
+        st = _sources.finish("checkmarx", "Checkmarx", "vulnerability-fix ticket")
+        self.assertEqual((st["state"], st["looked"], st["counts"]["fixed"]), ("read", 1, 1))
+        apply_status(enabled=False, prior={})
+        st = _sources.finish("checkmarx", "Checkmarx", "vulnerability-fix ticket", gap="CHECKMARX_API_KEY")
+        self.assertEqual((st["state"], st["waiting"]), ("not-configured", ["PAY-7"]))
+        apply_status(result=None, prior={}, failure=("unreachable", "x"))
+        self.assertEqual(_sources.finish("checkmarx", "Checkmarx", "vulnerability-fix ticket")["state"], "unreachable")
+
+    def test_skips_are_reported_with_their_reason(self):
+        import _sources
+        apply_status(vticket(prs=[], branch=None, branches=[]), result=FRESH_VF, prior={})
+        st = _sources.finish("checkmarx", "Checkmarx", "vulnerability-fix ticket")
+        self.assertEqual(st["state"], "no-candidates")
+        self.assertIn("without a pull request or known branch", st["detail"])
+        apply_status(vticket(title="Checkmarx clean-up", description="<p>see dashboard</p>", comments=[]), result=FRESH_VF, prior={})
+        self.assertIn("naming no CVE", _sources.finish("checkmarx", "Checkmarx", "vulnerability-fix ticket")["detail"])
+
+    def test_the_gate_names_the_reason_when_there_is_no_result(self):
+        t = apply_status(enabled=False, prior={})
+        state, evidence, _tone = pr_report.vuln_gate(t)
+        self.assertEqual(state, "Not verified")
+        self.assertIn(NOT_CONFIGURED_TEXT, evidence)
+        t = apply_status(result=None, prior={}, failure=("unreachable", "x could not be reached"))
+        self.assertIn("could not be reached", pr_report.vuln_gate(t)[1])
+
+    def test_the_gate_with_a_stored_result_does_not_change_for_a_note(self):
+        t = vticket(vulnFixes=vf(FIXED_CVE), proofNotes={"checkmarx": {"state": "unreachable", "detail": "x could not be reached", "at": "2026-10-11T00:00:00Z"}})
+        self.assertEqual(pr_report.vuln_gate(t), pr_report.vuln_gate(vticket(vulnFixes=vf(FIXED_CVE))))
+
+    def test_the_fingerprint_ignores_the_note(self):
+        t = vticket()
+        noted = {**t, "proofNotes": {"checkmarx": {"state": "not-configured", "detail": "x", "at": "2026-10-11T00:00:00Z"}}}
+        self.assertEqual(pr_report.fingerprint(t), pr_report.fingerprint(noted))
+
+
+class RunStatusInTheDump(unittest.TestCase):
+    """_main writes proofSources.checkmarx and a run note — configured or not."""
+
+    def setUp(self):
+        import contextlib
+        import shutil
+        import _sources
+        _sources.reset()
+        checkmarx.reset_run()
+        self.tmp = tempfile.mkdtemp(prefix="cx-status-")
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.data_path = os.path.join(self.tmp, "data.json")
+        self.state_path = os.path.join(self.tmp, ".state.json")
+        self.prior_sources = {"jenkins": {"state": "read", "detail": "Jenkins: 1 ticket", "at": "2026-10-10T00:00:00Z"}}
+        with open(self.data_path, "w", encoding="utf-8") as f:
+            json.dump({"tickets": [], "completed": [], "proofSources": self.prior_sources}, f)
+        self.written = []
+        self.issues = []
+        info = {"prs": vticket()["prs"], "branches": [BRANCH], "pr": vticket()["prs"][0], "branch": BRANCH}
+        patches = [
+            mock.patch.object(daily_fetch, "search_jira", lambda jql, **k: [] if "parent in" in jql else list(self.issues)),
+            mock.patch.object(daily_fetch, "comments_for", lambda key, f: ([], 0, None)),
+            mock.patch.object(daily_fetch, "_bb_get", mock.Mock(side_effect=OSError("down"))),
+            mock.patch.object(daily_fetch, "code_for", lambda key, prior, parent=None: info),
+            mock.patch.object(daily_fetch.devinfo, "fetch_many", lambda *a, **k: {}),
+            mock.patch.object(daily_fetch, "apply_builds", lambda t, k, prior=None: t),
+            mock.patch.object(daily_fetch, "fetch_raised", lambda preserved: (preserved, True)),
+            mock.patch.object(daily_fetch, "write_outputs", lambda data, intern_dir=None: self.written.append(data)),
+            mock.patch.object(daily_fetch, "atomic_dump", lambda path, obj: None),
+            mock.patch.object(daily_fetch, "prepend_status", lambda *a, **k: None),
+            mock.patch.object(daily_fetch, "set_progress", lambda *a, **k: None),
+            mock.patch.object(daily_fetch, "data_lock", lambda *a, **k: contextlib.nullcontext()),
+            mock.patch.object(daily_fetch.jenkins, "reset_run", lambda: None),
+            mock.patch.dict(os.environ, {"JIRA_PERSONAL_TOKEN": "x", "CHECKMARX_BASE_URL": "", "CHECKMARX_API_KEY": "",
+                                         "JB_SECRETS_FILE": os.path.join(self.tmp, "none.env")}),
+            mock.patch.object(checkmarx, "_config_endpoints", lambda: {}),
+            mock.patch.object(sys, "stderr", io.StringIO()),
+        ]
+        for p in patches:
+            p.start()
+            self.addCleanup(p.stop)
+
+    def issue(self, title):
+        return {"key": "PAY-7", "id": "7", "fields": {"summary": title, "status": {"name": "In Review"}, "issuetype": {"name": "Bug"},
+                                                      "created": "2026-03-01T10:00:00.000+0000", "updated": "2026-03-01T10:00:00.000+0000", "assignee": None},
+                "changelog": {"histories": []}}
+
+    def run_main(self):
+        out, _changes, notes = daily_fetch._main(self.data_path, self.state_path)
+        return out, notes
+
+    def test_not_configured_with_a_ticket_waiting_is_in_the_dump_and_the_notes(self):
+        self.issues = [self.issue("Fix CVE-2021-44228 in payments")]
+        out, notes = self.run_main()
+        st = out["proofSources"]["checkmarx"]
+        self.assertEqual(st["state"], "not-configured")
+        self.assertIn("CHECKMARX_BASE_URL", st["detail"])
+        self.assertIn("CHECKMARX_API_KEY", st["detail"])
+        self.assertEqual(st["waiting"], ["PAY-7"])
+        self.assertTrue(any(n.startswith("Checkmarx not configured") for n in notes), notes)
+        self.assertEqual(out["tickets"][0]["proofNotes"]["checkmarx"]["detail"], NOT_CONFIGURED_TEXT)
+        self.assertEqual(out["proofSources"]["jenkins"], self.prior_sources["jenkins"])  # another source's record is kept
+
+    def test_not_configured_and_nobody_waiting_is_stored_but_silent(self):
+        self.issues = [self.issue("Refactor the export page")]
+        out, notes = self.run_main()
+        self.assertEqual(out["proofSources"]["checkmarx"]["state"], "not-configured")
+        self.assertFalse(any("Checkmarx" in n for n in notes), notes)
+
+    def test_a_read_says_how_many_tickets_and_targets(self):
+        self.issues = [self.issue("Fix CVE-2021-44228 in payments")]
+        env = {"CHECKMARX_BASE_URL": BASE, "CHECKMARX_API_KEY": "cx-key-123"}
+        with mock.patch.dict(os.environ, env), mock.patch.object(checkmarx, "_http", FakeCx()):
+            out, notes = self.run_main()
+        st = out["proofSources"]["checkmarx"]
+        self.assertEqual((st["state"], st["looked"]), ("read", 1))
+        self.assertIn("Checkmarx: 1 vulnerability-fix ticket looked up", st["detail"])
+        self.assertIn(st["detail"], notes)
+        self.assertNotIn("proofNotes", out["tickets"][0])
+
+    def test_configured_with_nothing_to_look_up_says_so(self):
+        self.issues = [self.issue("Refactor the export page")]
+        env = {"CHECKMARX_BASE_URL": BASE, "CHECKMARX_API_KEY": "cx-key-123"}
+        with mock.patch.dict(os.environ, env):
+            out, notes = self.run_main()
+        self.assertEqual(out["proofSources"]["checkmarx"]["state"], "no-candidates")
+        self.assertIn("Checkmarx: no vulnerability-fix ticket to look up", " ".join(notes))
+
+    def test_a_rejected_key_is_carried_forward_and_named(self):
+        self.issues = [self.issue("Fix CVE-2021-44228 in payments")]
+        env = {"CHECKMARX_BASE_URL": BASE, "CHECKMARX_API_KEY": "cx-key-123"}
+        with mock.patch.dict(os.environ, env), mock.patch.object(checkmarx, "_http", FakeCx(fail={AUTH: 401})):
+            out, notes = self.run_main()
+        st = out["proofSources"]["checkmarx"]
+        self.assertEqual(st["state"], "auth-failed")
+        self.assertIn("carried forward", st["detail"])
+        self.assertTrue(any("rejected" in n for n in notes), notes)
+        self.assertEqual(out["tickets"][0]["proofNotes"]["checkmarx"]["state"], "auth-failed")

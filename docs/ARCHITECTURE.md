@@ -21,7 +21,8 @@ double-click, and refreshing the data **never rebuilds the app**.
   │ Bitbucket         │ ─────────────────────▶ │  + data.js twin         │         │  index.html   │
   ├──────────────────┤                        │  tickets[].builds       │         │  (React app)  │
   │ Jenkins (builds)  │ ── proof sources ────▶ │  tickets[].vulnFixes    │         │  cards·drawer │
-  │ Checkmarx One     │                        └───────────┬────────────┘         └──────┬───────┘
+  │ Checkmarx One     │                        │  tickets[].dynatrace    │         │               │
+  │ Dynatrace (links) │                        └───────────┬────────────┘         └──────┬───────┘
   └────────▲─────────┘                                    │ reports/<KEY>.json          │ key button
            │ tokens                                        ▼ (CI + security gates)       ▼
   ┌────────┴─────────────────────────────────────────────────────────────────────────────────────┐
@@ -50,7 +51,8 @@ Key scripts:
 | `completed_archive.py` | Build the full historical "Completed" archive (also re-fetches `raised[]`). |
 | `raised.py` | Raised-by-me fetch (every non-sub-task ticket you REPORTED): one parallel-paged JQL, assignee hand-off log from the changelog, issue links. Shared by the daily fetch, the archive and the view's own refresh. |
 | `_jira.py` · `devinfo.py` | Shared Jira/Bitbucket HTTP, field formatting, and branch/PR dev-info used by both fetches. |
-| `jenkins.py` · `checkmarx.py` | The proof sources (below): latest Jenkins build per branch and environment → `Ticket.builds`; Checkmarx One branch-vs-base scan comparison for vulnerability-fix tickets → `Ticket.vulnFixes`. |
+| `jenkins.py` · `jenkins_discovery.py` · `checkmarx.py` · `dynatrace.py` | The proof sources (below): latest Jenkins build per branch, environment and pipeline (pipelines found by walking the Jenkins root, cached; the console tail of a failed build of a failing-build ticket) → `Ticket.builds`; Checkmarx One branch-vs-base scan comparison for vulnerability-fix tickets → `Ticket.vulnFixes`; what the Dynatrace links in a ticket's text say → `Ticket.dynatrace`. |
+| `evidence.py` · `_scrub.py` | One deterministic "what do the linked systems say" builder over the stored proof (headline, insight, sections) shared by the AI brief, the PR report and the worker; and the scrubber every outside text passes before it is kept. |
 | `local-runner/*.sh` | Thin wrappers: daily, weekly, per-ticket refresh, PR reports. All source `runner-env.sh` for locks, timeouts and agent lookup. |
 | `local-runner/config.mjs` | Deep-merges the project config + personal override into shell vars, rendered prompts, MCP policy, and UI defaults. |
 | `prompts/intern-prompt.md` | The schema the fetch must produce, in prose — mirrors `src/types.ts`. |
@@ -121,21 +123,24 @@ Variables already in the environment win. Saving a key changes only that key. De
 
 ## External proof sources
 
-Jira says what a ticket *claims*; the proof layer checks it against the systems that know. Two sources,
-same shape, both optional and both read by the fetch (never by the browser):
+Jira says what a ticket *claims*; the proof layer checks it against the systems that know. Three sources,
+same shape, all optional and all read by the fetch (never by the browser):
 
 | Source | Module → field | Asked for | Shows on |
 |---|---|---|---|
 | Jenkins (multibranch jobs in `jenkins.jobs`) | `jenkins.py` → `Ticket.builds` | the ticket's own branches, per environment | build chips on the card · drawer **Proof → Builds** · report gate "CI green" |
 | Checkmarx One (`endpoints.checkmarxBase`) | `checkmarx.py` → `Ticket.vulnFixes` | vulnerability-fix tickets with a PR: each CVE / query / CWE / package they name, branch scan vs base scan | shield chip · drawer **Proof → Vulnerabilities** · report gate "Security scan clean" |
+| Dynatrace (`DYNATRACE_PAT` + the listed `DYNATRACE_TENANTS`) | `dynatrace.py` → `Ticket.dynatrace` | the Dynatrace links in a ticket's text (trace · Davis problem · service · logs), read-only, only at listed tenants | drawer **Proof → Linked traces & problems** · the AI brief's Evidence section · the report's Issue insight and evidence rows |
 
 Shared rules: re-read on the daily fast path (a build or scan never bumps Jira's `updated`); only the
 ticket's own branches / PRs after `scope_to_subtask`; a failed lookup returns None and the prior value is
 **carried forward**; one writer (`daily_fetch.apply_builds` / `apply_vuln_fixes`) — the archive keeps `vulnFixes`
 (`carry_vuln_fixes`) and does not store builds;
 the report fingerprint includes the field only when present. The PR report's gates
-(`pr_report.jenkins_ci`, `pr_report.vuln_gate`) run in the deterministic base, so they work at AI level
-None. Endpoints and failure semantics: [`INTEGRATIONS.md`](INTEGRATIONS.md); adding a third source:
+(`pr_report.jenkins_ci`, `pr_report.vuln_gate`) and its Issue insight run in the deterministic base, so they work at AI level
+None; `evidence.py` (shared by brief, report and worker) is the one place that turns the stored proof into sentences.
+Dynatrace has its own status vocabulary (`read` / `empty` / `unconfigured-tenant`, via `_sources.finish(statuses=…)`) and
+a tenant allowlist. Endpoints and failure semantics: [`INTEGRATIONS.md`](INTEGRATIONS.md); adding another source:
 [`AGENTS.md`](AGENTS.md#how-to-add-a-proof-source-worked-example-jenkins-and-checkmarx).
 
 ## How data reaches the screen
@@ -193,4 +198,4 @@ See [`DEPLOYMENT.md`](DEPLOYMENT.md) for step-by-step instructions.
 seconds, then enqueues `{type: enrich-report}` unless the level is None. Local inference is Ollama
 (CPU in Docker, or host Metal via `host.docker.internal`). Cloud uses the HTTP API and keys in
 `setup/.env` (added with the key button in the board header). Local enrichment (Gemma / GPT-OSS / mini / nano included) reads the intern
-volume plus live Jira/Bitbucket REST with those same tokens. CI and Checkmarx gates come from the proof sources above (Not verified when a ticket has no data); Dynatrace stays **Not verified**.
+volume plus live Jira/Bitbucket REST with those same tokens. CI and Checkmarx gates come from the proof sources above (Not verified when a ticket has no data); the Dynatrace links in a ticket are read by the fetch too and feed the Issue insight and evidence rows (a ticket with none stays **Not verified** for Dynatrace).

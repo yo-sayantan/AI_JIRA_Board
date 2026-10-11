@@ -265,6 +265,11 @@ class Routing(Base):
         self.assertIsNone(_health.service_for_url("http://ollama:11434/api/tags"))
         self.assertIsNone(_health.service_for_url(""))
 
+    def test_a_dynatrace_tenant_query_host(self):
+        self.assertEqual(_health.service_for_url("https://abc12345.apps.dynatrace.com/platform/storage/query/v1/query:execute"), "dynatrace")
+        self.assertIsNone(_health.service_for_url("https://apps.dynatrace.com/x"))
+        self.assertIsNone(_health.service_for_url("https://abc12345.apps.dynatrace.com.evil.example/x"))
+
 
 class _Resp:
     def __init__(self, payload):

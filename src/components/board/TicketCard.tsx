@@ -3,7 +3,7 @@ import { motion } from 'motion/react'
 import type { Ticket } from '../../types'
 import { COLUMN_META } from '../../lib/columns'
 import { DONE_BOARD_DAYS } from '../../lib/appConfig'
-import { priorityMeta, typeMeta, effectiveType, isClosedPr, prListOf, primaryPrOf, branchesOf, cardBranches, cardBuilds, vulnFixesOf, relTime, hexToRgba } from '../../lib/format'
+import { priorityMeta, typeMeta, effectiveType, isClosedPr, prListOf, primaryPrOf, branchesOf, cardBranches, cardBuilds, envBuildCount, vulnFixesOf, relTime, hexToRgba } from '../../lib/format'
 import { Pill, PriorityGlyph, PrBadge, Approvals, PointsTag } from '../common/ui'
 import { TypeIcon, RefreshIcon, TrophyIcon } from '../common/Icons'
 import { BuildChip } from '../common/Builds'
@@ -357,7 +357,7 @@ export const TicketCard = memo(function TicketCard({
           {builds.length > 0 && (
             <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden" aria-label="Latest builds">
               {builds.map((b) => (
-                <BuildChip key={b.env} build={b} now={now} />
+                <BuildChip key={b.env} build={b} now={now} total={envBuildCount(ticket, b.env)} />
               ))}
             </div>
           )}

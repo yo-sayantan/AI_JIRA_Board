@@ -47,9 +47,10 @@ header (it carries an amber dot while the Jira token is missing). Expand **Jira*
 Tokens** → **Create token**. Copy it immediately (you can't see it again). Read scope is enough.
 
 Optional, for richer cards: Bitbucket (`BITBUCKET_PAT`, or an Atlassian Cloud `ATLASSIAN_TOKEN`) for
-real branches and PR state; Jenkins (`JENKINS_USER` + `JENKINS_API_TOKEN`, plus `jenkins.jobs` in your
+real branches and PR state; Jenkins (`JENKINS_USER` + `JENKINS_API_TOKEN`, plus the projects folder `JENKINS_ROOT_URL` — the board finds the pipelines — or `jenkins.jobs` in your
 personal config — [`CONFIG.md`](CONFIG.md)) for build chips; Checkmarx One (`CHECKMARX_API_KEY` +
-`CHECKMARX_BASE_URL`) for vulnerability-fix proof; Claude / Cursor / Gemini keys for Cloud AI. Keys marked
+`CHECKMARX_BASE_URL`) for vulnerability-fix proof; Dynatrace (`DYNATRACE_PAT` + `DYNATRACE_TENANTS`, below) for what the Dynatrace
+links in a ticket say; Claude / Cursor / Gemini keys for Cloud AI. Keys marked
 **Not used yet** (GitHub, the Atlassian Cloud email and site) can be saved ahead of their integration. Each row in the dialog says why it's needed and where to get
 it. A key works from the next fetch or AI call — no restart. The optional base-URL fields override
 `endpoints.*` from the config.
@@ -57,6 +58,32 @@ it. A key works from the next fetch or AI call — no restart. The optional base
 Without the board (a host-only run, no server)? Create `setup/.env` yourself with `KEY=value`
 lines (`chmod 600`); the names are the `env` fields in `setup/api-keys.json`. Variables already set
 in the environment win over the file.
+
+### Dynatrace
+
+Optional. QA and support tickets are full of Dynatrace links (a trace, a Davis problem, a service, a log search); with this
+set up the fetch reads **those links and nothing else**, read-only, and the board shows what they say (drawer → Proof → Linked
+traces & problems, the AI brief's Evidence section, the PR report's Issue insight). Two settings, both in the key dialog
+(key button → **Observability → Dynatrace**):
+
+1. **Platform token** (`DYNATRACE_PAT`) — in Dynatrace: Account Management → Identity & access → **Platform tokens** →
+   create a token with exactly the read scopes **`storage:spans:read`**, **`storage:events:read`**, **`storage:logs:read`** and
+   **`storage:buckets:read`**, and nothing else (the board never writes to Dynatrace). Copy it when it is shown.
+2. **Tenants** (`DYNATRACE_TENANTS`) — the environments the board may read, as `name=tenant id` pairs, comma separated and
+   **without spaces**: `prod=abc12345,uat=def67890`. The tenant id is the first part of your Dynatrace address
+   (`https://abc12345.live.dynatrace.com/…` or `https://abc12345.apps.dynatrace.com/…` → `abc12345`): letters, digits and `-`
+   only, no dots or slashes. Only links to these tenants are ever read — a link to any other tenant is listed in the drawer as
+   *Tenant not listed* and never fetched. (The dialog saves the shorthand; a JSON object also works when set in the environment.
+   Instead of the dialog you may set `endpoints.dynatraceTenants` — `{"prod": "abc12345"}` — in `~/.ai/config.json`; the setting wins
+   when both exist. Real tenant ids never go in the tracked config.)
+
+Press **Test**: it sends one tiny read-only query to every listed tenant and answers **✓ Connected · 2 tenants**, or says which
+tenant failed — *token rejected* (wrong token), *lacks a scope (storage:events:read)*, or *not found — check the tenant id*. A
+host-only run needs `DYNATRACE_PAT=…` and `DYNATRACE_TENANTS=prod=abc12345` lines in `setup/.env`. Behind a company CA add it to
+`~/.ai/ca-bundle.pem` ([Step 6](#step-6--trust-your-companys-certificate-authority-optional)); `DYNATRACE_INSECURE_TLS=1` is the
+separate last resort. To see what the board makes of a link before trusting it:
+`python3 jira-intern/dynatrace.py inspect "<link>"` (or a ticket key; add `--no-read` to print the queries only) —
+[`INTEGRATIONS.md`](INTEGRATIONS.md#dynatrace-links-in-a-ticket-read-only-dql).
 
 ## Step 2 — Create a personal override (required for real identity/URLs)
 

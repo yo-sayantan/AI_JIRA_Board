@@ -12,7 +12,9 @@ first of main / master / develop that has a scan). Per target (`_decide`):
              status FIXED, or triaged NOT_EXPLOITABLE (the detail says which — a triage is not a
              code change, but Checkmarx no longer counts it)
   open       still detected (and not triaged away) on the branch
-  not-found  in neither scan — the ticket may name the wrong id, or the finding was never there
+  not-found  in neither scan — the ticket may name the wrong id, the finding was never there, or the fix is
+             already in the base scan (the detail says what was read, and for a package upgrade the versions
+             seen: "already at 6.5.9 on develop — the upgrade predates the base scan")
   unknown    no answer can be proved: the branch has no completed scan that ran the target's engine
              (SCA for CVEs / packages, SAST for queries / CWEs / result ids — "branch scan did not run
              SCA"), the base has none to compare with ("base scan did not run SAST"), the branch scan is
@@ -21,7 +23,12 @@ first of main / master / develop that has a scan). Per target (`_decide`):
              ".../<slug>", never a substring guess), or a scan has more results than the board reads
              (MAX_PAGES)
 
-Only the newest 20 completed scans of a branch are listed; the newest one that ran the engine wins.
+Only the newest 20 completed scans of a branch are listed; the newest one that ran the engine wins. A merged
+PR is judged against the newest base scan from BEFORE it merged — after the merge the base holds the fix, and
+comparing with that scan would make every target "not found". Results are paged by what the server actually
+serves (a server may cap the page size; only an empty page or totalCount ends the read) with no severity or state
+filter, and every item says what was read (`vulnFixes.read`, the detail). `diagnose` (bottom of this file) prints
+all of it from the terminal.
 A package target with only a from-version stays open on the branch while ANY version of it still
 carries an open finding (no to-version to compare with).
 
@@ -48,9 +55,11 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import _health
 import _safe_http
+import _sources
 from _config import load_config, load_secrets
 
 INTERN = os.path.dirname(os.path.abspath(__file__))
@@ -74,14 +83,26 @@ SECURITY_RE = re.compile(
     re.I,
 )
 
-_TAG_RE = re.compile(r"<[^>]+>")
-_HREF_TAG_RE = re.compile(r"""<a\b[^>]*?\bhref\s*=\s*["']([^"']*)["'][^>]*>""", re.I)
+# Text from Jira is typed by anyone who can comment: every pattern is BOUNDED (a tag is at most 1,000 characters between its
+# `<` and `>`, no nested lazy quantifiers) and each body is cut to MAX_BODY, so a comment of 32,000 unterminated `<a href='`
+# cannot make a fetch spend minutes in the regex engine (the old patterns were cubic on exactly that).
+_TAG_RE = re.compile(r"<[^<>]{1,1000}>")
+_A_TAG_RE = re.compile(r"<a\b([^<>]{0,1000})>", re.I)
+_HREF_ATTR_RE = re.compile(r"""\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))""", re.I)
 URL_RE = re.compile(r"https?://[^\s<>\"']+", re.I)
+MAX_BODY = 40_000
+MAX_TICKET_TEXT = 200_000
 
 
 def _plain(html_text):
     """Light HTML → text; a link's href stays in place so result URLs are seen."""
-    s = _HREF_TAG_RE.sub(lambda m: f" {m.group(1)} ", str(html_text or ""))
+
+    def anchor(m):
+        h = _HREF_ATTR_RE.search(m.group(1))
+        url = (h.group(1) or h.group(2) or h.group(3) or "") if h else ""
+        return f" {url} " if url else " "
+
+    s = _A_TAG_RE.sub(anchor, str(html_text or "")[:MAX_BODY])
     return _html.unescape(_TAG_RE.sub(" ", s))
 
 
@@ -107,8 +128,8 @@ def ticket_text(ticket):
     for group in ("externalLinks", "sources"):
         for link in t.get(group) or []:
             if isinstance(link, dict):
-                parts += [str(link.get("url") or ""), str(link.get("title") or "")]
-    return "\n".join(p for p in parts if p)
+                parts += [str(link.get("url") or "")[:MAX_BODY], str(link.get("title") or "")[:MAX_BODY]]
+    return "\n".join(p for p in parts if p)[:MAX_TICKET_TEXT]
 
 
 # ── targets ──────────────────────────────────────────────────────────────────
@@ -324,9 +345,10 @@ def _is_merged(p):
 
 
 def scan_plan(ticket, repos=None):
-    """{repo, branch, base} to compare, or None: the open PR (else the newest merged one) gives the
-    repo slug, the source branch and the base (its destination); without a PR, the ticket's branch
-    when its repo is known (`repos`: branch → slug, from Jira's dev-status). Declined PRs never count."""
+    """{repo, branch, base[, mergedAt]} to compare, or None: the open PR (else the newest merged one)
+    gives the repo slug, the source branch and the base (its destination) — and, for a merged PR, when it
+    merged; without a PR, the ticket's branch when its repo is known (`repos`: branch → slug, from Jira's
+    dev-status). Declined PRs never count."""
     t = ticket or {}
     listed = t.get("prs") if isinstance(t.get("prs"), list) and t.get("prs") else [t.get("pr")]  # old dumps: `pr` only
     prs = [p for p in listed if isinstance(p, dict) and p.get("sourceBranch")]
@@ -335,7 +357,10 @@ def scan_plan(ticket, repos=None):
     for p in open_prs + merged:
         repo = _pr_repo(p)
         if repo:
-            return {"repo": repo, "branch": p["sourceBranch"], "base": p.get("destinationBranch") or None}
+            plan = {"repo": repo, "branch": p["sourceBranch"], "base": p.get("destinationBranch") or None}
+            if _is_merged(p) and p.get("mergedAt"):
+                plan["mergedAt"] = p["mergedAt"]  # the base scan must predate it (see vuln_fixes_for)
+            return plan
     branch = t.get("branch")
     repo = (repos or {}).get(branch) if branch else None
     if branch and repo:
@@ -401,10 +426,25 @@ def enabled():
     return bool(base and auth and _setting("CHECKMARX_API_KEY"))
 
 
+def missing_settings():
+    """The NAMES of the settings that keep Checkmarx from being configured (never a value):
+    CHECKMARX_BASE_URL, CHECKMARX_AUTH_URL (only when the base host gives no tenant to derive it from),
+    CHECKMARX_API_KEY. Empty when `enabled()`."""
+    base, auth = urls()
+    gaps = []
+    if not base:
+        gaps.append("CHECKMARX_BASE_URL")
+    elif not auth:
+        gaps.append("CHECKMARX_AUTH_URL")
+    if not _setting("CHECKMARX_API_KEY"):
+        gaps.append("CHECKMARX_API_KEY")
+    return gaps
+
+
 # ── HTTP ─────────────────────────────────────────────────────────────────────
 
 _LOCK = threading.Lock()
-_STATE = {"calls": 0, "down": False, "token": None, "token_until": 0.0, "cache": {}}
+_STATE = {"calls": 0, "down": False, "token": None, "token_until": 0.0, "cache": {}, "failure": None}
 _KEY_LOCKS = {}
 _SSL = None
 _OPENER = None
@@ -420,8 +460,9 @@ class LookupFailed(Exception):
 def reset_run():
     """Forget the call budget, the token, the "down" flag and the per-run caches — once per run."""
     with _LOCK:
-        _STATE.update(calls=0, down=False, token=None, token_until=0.0, cache={})
+        _STATE.update(calls=0, down=False, token=None, token_until=0.0, cache={}, failure=None)
         _KEY_LOCKS.clear()
+    _sources.reset("checkmarx")  # the run's per-ticket account (_sources.py) starts over with the budget
 
 
 def isolated_lookup(ticket, targets=None, repos=None):
@@ -436,6 +477,20 @@ def unreachable():
     """True when Checkmarx failed (network, auth) this run — for the run notes."""
     with _LOCK:
         return bool(_STATE["down"])
+
+
+def failure():
+    """Why lookups failed this run, as (state, text) — the first failure wins — or None. `state` is
+    'unreachable' | 'auth-failed' | 'budget-exhausted' (the vocabulary of `_sources`); `text` is a fixed,
+    secret-free phrase, safe to store and show."""
+    with _LOCK:
+        return _STATE["failure"]
+
+
+def _fail(state, text):
+    with _LOCK:
+        if _STATE["failure"] is None:
+            _STATE["failure"] = (state, text)
 
 
 def _ssl_context():
@@ -471,6 +526,8 @@ def _call(url, headers, data=None, what=""):
         if _STATE["down"]:
             raise LookupFailed("checkmarx unreachable earlier in this run")
         if _STATE["calls"] >= MAX_CALLS_PER_RUN:
+            if _STATE["failure"] is None:
+                _STATE["failure"] = ("budget-exhausted", f"the {MAX_CALLS_PER_RUN}-call budget for one fetch was used up")
             raise LookupFailed("checkmarx call budget for this run used up")
         _STATE["calls"] += 1
     host = _health.host_of(url)
@@ -482,6 +539,7 @@ def _call(url, headers, data=None, what=""):
         if what == "token" and e.code == 400:
             # Keycloak answers a revoked / invalid refresh token (the API key) with 400 invalid_grant.
             _health.record("checkmarx", False, status="auth-failed", http=400, detail="Key rejected (HTTP 400)")
+            _fail("auth-failed", "the API key was rejected (HTTP 400)")
         else:
             # A 404 (no such project / scan) is a lookup answer, not a service failure — skipped.
             _health.record_exception("checkmarx", e, host=host)
@@ -490,17 +548,21 @@ def _call(url, headers, data=None, what=""):
         if e.code in (401, 403):
             with _LOCK:
                 _STATE["down"] = True
+            _fail("auth-failed", f"the API key was rejected (HTTP {e.code})")
             sys.stderr.write(f"WARN checkmarx {what}: HTTP {e.code} — check CHECKMARX_API_KEY; vulnerability results carried forward\n")
         else:
+            _fail("unreachable", f"Checkmarx answered with an error (HTTP {e.code})")
             sys.stderr.write(f"WARN checkmarx {what}: HTTP {e.code}\n")
         raise LookupFailed(f"HTTP {e.code}") from e
     except (urllib.error.URLError, OSError) as e:
         _health.record_exception("checkmarx", e, host=host)
         with _LOCK:
             _STATE["down"] = True
+        _fail("unreachable", f"{host} could not be reached" if host else "the host could not be reached")
         sys.stderr.write(f"WARN checkmarx unreachable ({what}): {getattr(e, 'reason', e)} — vulnerability results carried forward\n")
         raise LookupFailed(str(e)) from e
     except Exception as e:  # unreadable JSON and the like
+        _fail("unreachable", "Checkmarx sent an answer the board could not read")
         sys.stderr.write(f"WARN checkmarx {what}: {e}\n")
         raise LookupFailed(str(e)) from e
 
@@ -524,6 +586,7 @@ def _token():
     if not access:
         with _LOCK:
             _STATE["down"] = True
+        _fail("unreachable", "the token endpoint gave no access token — check the Checkmarx base / auth URL")
         raise LookupFailed("no access token")
     life = tok.get("expires_in") if isinstance(tok.get("expires_in"), (int, float)) else 300
     with _LOCK:
@@ -560,20 +623,25 @@ def _q(s):
 # ── Checkmarx One reads ──────────────────────────────────────────────────────
 
 
+def project_rows(slug):
+    """Every project whose name contains `slug` (the API's name search is a substring match), at most 20."""
+    def fetch():
+        data = _api(f"/api/projects?limit=20&name={_q(slug)}", f"project {slug}") or {}
+        return [p for p in data.get("projects") or [] if isinstance(p, dict) and p.get("id")]
+
+    return _cached(("projects", slug.lower()), fetch)
+
+
+def is_project_match(project, slug):
+    """Named exactly `slug` (case-insensitive) or ending in "/<slug>" — never a substring guess."""
+    name, low = str(project.get("name") or "").lower(), slug.lower()
+    return name == low or name.endswith("/" + low)
+
+
 def find_project(slug):
     """The project named exactly `slug` (case-insensitive) or ending in "/<slug>"; else None. Never a
     best guess — the search is a substring match, so its only hit may be another repository."""
-    def fetch():
-        data = _api(f"/api/projects?limit=20&name={_q(slug)}", f"project {slug}") or {}
-        rows = [p for p in data.get("projects") or [] if isinstance(p, dict) and p.get("id")]
-        low = slug.lower()
-        for p in rows:
-            name = str(p.get("name") or "").lower()
-            if name == low or name.endswith("/" + low):
-                return p
-        return None
-
-    return _cached(("project", slug.lower()), fetch)
+    return next((p for p in project_rows(slug) if is_project_match(p, slug)), None)
 
 
 # Which scan engine can see a target: SCA for CVEs and packages, SAST for queries / CWEs / result ids.
@@ -604,22 +672,56 @@ def latest_scan(project_id, branch, engine=None):
     return next((s for s in latest_scans(project_id, branch) if engine is None or _ran(s, engine)), None)
 
 
-def scan_results(scan_id):
-    """(rows, truncated): the scan's results, PAGE_SIZE at a time, at most MAX_PAGES pages."""
+def _kind_of(row):
+    """Which engine a result row came from: 'sca' (type sca…), 'sast', else 'other' (kics, containers, …)."""
+    rtype = str(row.get("type") or "").lower()
+    if rtype.startswith("sca"):
+        return "sca"
+    return "sast" if rtype == "sast" else "other"
+
+
+def tally(rows):
+    """{total, sca, sast, other} of result rows."""
+    out = {"total": len(rows), "sca": 0, "sast": 0, "other": 0}
+    for r in rows:
+        out[_kind_of(r)] += 1
+    return out
+
+
+def read_scan(scan_id):
+    """One scan's results, as {rows, truncated, reported, pages, counts}.
+
+    Paged with offset += rows actually served: a server may cap the page size below PAGE_SIZE (a short
+    page is NOT the last page), so reading stops only on an EMPTY page or once `totalCount` is reached,
+    or after MAX_PAGES pages. `truncated` is True unless the end was proved — the page limit hit with
+    rows still coming, or an empty page while totalCount promised more. `reported` is the server's
+    totalCount (None when it gave none). No severity / state filter: every result is read."""
     def fetch():
-        rows, offset = [], 0
+        rows, offset, total, pages = [], 0, None, 0
+        truncated = True
         for _page in range(MAX_PAGES):
             data = _api(f"/api/results?scan-id={_q(scan_id)}&limit={PAGE_SIZE}&offset={offset}", f"results {scan_id}") or {}
+            pages += 1
             batch = [r for r in data.get("results") or [] if isinstance(r, dict)]
+            if isinstance(data.get("totalCount"), int):
+                total = data["totalCount"]
+            if not batch:
+                truncated = isinstance(total, int) and offset < total
+                break
             rows += batch
             offset += len(batch)
-            total = data.get("totalCount")
-            if not batch or len(batch) < PAGE_SIZE or (isinstance(total, int) and offset >= total):
-                return rows, False
-        total = data.get("totalCount")
-        return rows, not (isinstance(total, int) and offset >= total)
+            if isinstance(total, int) and offset >= total:
+                truncated = False
+                break
+        return {"rows": rows, "truncated": truncated, "reported": total, "pages": pages, "counts": tally(rows)}
 
     return _cached(("results", scan_id), fetch)
+
+
+def scan_results(scan_id):
+    """(rows, truncated) — `read_scan` without the bookkeeping."""
+    r = read_scan(scan_id)
+    return r["rows"], r["truncated"]
 
 
 # ── matching ─────────────────────────────────────────────────────────────────
@@ -634,6 +736,14 @@ def _vdetail(row):
 
 def _data(row):
     return row.get("data") if isinstance(row.get("data"), dict) else {}
+
+
+def cve_ids(row):
+    """The CVE ids an SCA row carries — vulnerabilityDetails.cveName (the usual place), a few alternative spellings
+    and the row's own id — trimmed and upper-cased, so " cve-2024-5555 " still matches CVE-2024-5555."""
+    vals = [_vdetail(row).get(k) for k in ("cveName", "cveId", "cve")] + [_data(row).get(k) for k in ("cveName", "cveId", "cve")]
+    vals += [row.get("cveName"), row.get("id")]
+    return {str(v).strip().upper() for v in vals if v}
 
 
 def package_of(row):
@@ -665,6 +775,19 @@ def _pkg_matches(name, target):
     return n == want or n.endswith(":" + want) or n.endswith("/" + want)
 
 
+def package_versions(rows, target):
+    """The distinct versions of the target's package that carry ANY finding in these rows, oldest first.
+    (A package with no finding does not appear in a scan's results at all.)"""
+    seen = set()
+    for r in rows:
+        if _kind_of(r) != "sca":
+            continue
+        name, version = package_of(r)
+        if name and version and _pkg_matches(name, target):
+            seen.add(version)
+    return sorted(seen, key=lambda v: (_vkey(v), v))
+
+
 def matches(target, row, side):
     """Does this result row stand for the target? `side` is "base" or "branch" — for a package the
     vulnerable version differs: the base may have any version ("upgrade X to 2.15"); on the branch
@@ -672,7 +795,7 @@ def matches(target, row, side):
     kind = target["kind"]
     rtype = str(row.get("type") or "").lower()
     if kind == "cve":
-        return rtype.startswith("sca") and target["cve"] in (str(_vdetail(row).get("cveName") or "").upper(), str(row.get("id") or "").upper())
+        return rtype.startswith("sca") and target["cve"] in cve_ids(row)
     if kind == "sast":
         if rtype != "sast":
             return False
@@ -696,7 +819,11 @@ def matches(target, row, side):
             return True
         frm, to = target.get("from"), target.get("to")
         if side == "base":
-            return not frm or version == frm
+            if frm:
+                return version == frm
+            # Upgrade "X to 6.5.9": a base finding on 6.5.9 or later is not what the ticket fixes — the
+            # upgrade is already in the base (package_versions / _decide say so).
+            return _vkey(version) < _vkey(to) if to else True
         if frm and version == frm:
             return True
         if to:
@@ -754,9 +881,40 @@ def _stamp(value):
     return d.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _decide(target, branch, base, b_scan, base_scan, b_rows, b_trunc, base_rows, base_trunc, b_any=False, base_any=False):
-    """One stored item: {target, kind, status, severity?, location?, detail}. b_scan / base_scan are the
-    newest completed scans that ran the target's engine; b_any / base_any say a scan of another engine exists."""
+def _mix(counts):
+    """"SCA 380 · SAST 18 · other 14" — the non-zero parts of a tally."""
+    return " · ".join(f"{label} {counts[k]}" for k, label in (("sca", "SCA"), ("sast", "SAST"), ("other", "other")) if counts.get(k))
+
+
+def _read_clause(sides):
+    """What was read, for the detail: "412 results on feature/x (SCA 380 · SAST 18); 0 results on develop — the
+    results API returned nothing for this scan". `sides` is [(branch name, read-or-None)]."""
+    out = []
+    for name, r in sides:
+        if r is None:
+            continue
+        n = r["counts"]["total"]
+        out.append(f"{n} results on {name} ({_mix(r['counts'])})" if n else f"0 results on {name} — the results API returned nothing for this scan")
+    return "; ".join(out)
+
+
+def _unread(r):
+    """"read 400 of 1200" — what a truncated scan gave versus what it holds."""
+    n = r["counts"]["total"]
+    return f"read {n}" + (f" of {r['reported']}" if isinstance(r.get("reported"), int) else "")
+
+
+def _decide(target, c):
+    """One stored item: {target, kind, status, severity?, location?, detail[, foundOnBase, foundOnBranch]}.
+    `c` (a SimpleNamespace) carries: branch, base, b_scan / base_scan (the newest completed scans that ran the
+    target's engine; base_scan is the newest one BEFORE the merge when the PR merged), b_read / base_read
+    (read_scan results or None), b_any / base_any (a scan of another engine exists), merged_at, base_late
+    (a scan that ran the engine but only after the merge) and hints (packages the ticket upgrades)."""
+    branch, base, b_scan, base_scan = c.branch, c.base, c.b_scan, c.base_scan
+    b_rows = c.b_read["rows"] if c.b_read else []
+    base_rows = c.base_read["rows"] if c.base_read else []
+    b_trunc = bool(c.b_read and c.b_read["truncated"])
+    base_trunc = bool(c.base_read and c.base_read["truncated"])
     on_branch = [r for r in b_rows if matches(target, r, "branch")]
     in_base = [r for r in base_rows if matches(target, r, "base")]
     still = [r for r in on_branch if not _closed(r)]
@@ -767,11 +925,15 @@ def _decide(target, branch, base, b_scan, base_scan, b_rows, b_trunc, base_rows,
     sev = str(((in_base or on_branch or [{}])[0]).get("severity") or "").upper() or None
     what = _what(target, lead)
     what = f"{what} " if what else ""
+    versions = None  # a package target: the versions of it that carry a finding on each side
 
     eng = ENGINE.get(target["kind"], "sast").upper()
     per_scan = target["kind"] == "result" and any(str(r.get("id") or "") == target["id"] for r in base_rows + b_rows)
+    if target["kind"] == "package":
+        versions = {"foundOnBase": package_versions(base_rows, target) if c.base_read else None,
+                    "foundOnBranch": package_versions(b_rows, target) if c.b_read else None}
     if not b_scan:
-        if b_any:
+        if c.b_any:
             status, detail = "unknown", f"Unknown — branch scan did not run {eng}: {branch} has no completed {eng} scan."
         else:
             status, detail = "unknown", f"Unknown — {branch} has no completed Checkmarx scan yet."
@@ -789,7 +951,7 @@ def _decide(target, branch, base, b_scan, base_scan, b_rows, b_trunc, base_rows,
                   f"so {b_at} cannot be compared. Name the similarityId on the ticket.")
     elif b_trunc:
         status = "unknown"
-        detail = f"Unknown — {b_at} has more results than the board reads ({MAX_PAGES * PAGE_SIZE}); this one may be among the unread."
+        detail = f"Unknown — {b_at} has more results than the board reads ({_unread(c.b_read)}); this one may be among the unread."
     elif in_base and base_scan and str(_stamp(b_scan.get("createdAt")) or "") < str(_stamp(base_scan.get("createdAt")) or ""):
         status = "unknown"
         detail = f"Unknown — branch scan older than base: {b_at} predates {base_at}, so its absence proves nothing. Rescan the branch."
@@ -798,14 +960,35 @@ def _decide(target, branch, base, b_scan, base_scan, b_rows, b_trunc, base_rows,
         detail = f"Fixed — {what}gone on {b_at}" + (f" · was {sev} on {base_at}" if sev else f" · was on {base_at}") + "."
     elif not base_scan:
         status = "unknown"
-        why = f"base scan did not run {eng} on {base_name}" if base_any else f"{base_name} has no completed scan"
-        detail = f"Unknown — not on {b_at}, but {why}, so there is nothing to compare."
+        if c.base_late:
+            detail = (f"Unknown — not on {b_at}, but there is no {base_name} scan from before the PR merged ({_day(c.merged_at)}): the newest "
+                      f"({_day(c.base_late.get('createdAt'))}) already contains the fix, so it cannot show the before.")
+        else:
+            why = f"base scan did not run {eng} on {base_name}" if c.base_any else f"{base_name} has no completed scan"
+            detail = f"Unknown — not on {b_at}, but {why}, so there is nothing to compare."
     elif base_trunc:
         status = "unknown"
-        detail = f"Unknown — not on {b_at}; {base_at} has more results than the board reads, so it may have been there."
+        detail = f"Unknown — not on {b_at}; {base_at} has more results than the board reads ({_unread(c.base_read)}), so it may have been there."
     else:
         status = "not-found"
-        detail = f"Not found — in neither scan: not on {b_at} nor on {base_at}. Check the id on the ticket."
+        read = _read_clause([(branch, c.b_read), (base_name, c.base_read)])
+        tail = " Check the id on the ticket."
+        if target["kind"] == "package":
+            to = target.get("to")
+            late = [v for v in (versions["foundOnBase"] or []) if to and _vkey(v) >= _vkey(to)]
+            if late:
+                head = (f"Not found — {target['package']} is already at {late[-1]} on {base_at}: the upgrade predates the base scan, "
+                        f"so no scan shows the before.")
+                tail = ""
+            else:
+                head = f"Not found — in neither scan: no finding against {target['package']} on {b_at} nor on {base_at}."
+        else:
+            head = f"Not found — in neither scan: not on {b_at} nor on {base_at}."
+            hint = _upgrade_hint(target, c)
+            if hint:
+                head += f" {hint}"
+                tail = ""
+        detail = f"{head} Read {read}.{tail}" if read else f"{head}{tail}"
     item = {"target": target["target"], "kind": target["kind"], "status": status}
     if sev and status != "not-found":
         item["severity"] = sev
@@ -813,11 +996,120 @@ def _decide(target, branch, base, b_scan, base_scan, b_rows, b_trunc, base_rows,
     if loc:
         item["location"] = loc
     item["detail"] = detail
+    for key, vs in (versions or {}).items():
+        if vs is not None:
+            item[key] = vs
     return item
+
+
+def _upgrade_hint(target, c):
+    """For a CVE not found in either scan: the ticket's own package upgrade, when a scan already shows the package at
+    or above the target version — the finding was probably fixed before that scan ("acme-core is already at 6.5.9
+    on develop — the fix may predate that scan.")."""
+    if target["kind"] != "cve":
+        return ""
+    for h in c.hints:
+        for side, name in (("base", c.base or "the base branch"), ("branch", c.branch)):
+            late = [v for v in h[side] if _vkey(v) >= _vkey(h["to"])]
+            if late:
+                return f"{h['package']} is already at {late[-1]} on {name} — the fix may predate that scan."
+    return ""
 
 
 def _now_iso():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _newest(scans):
+    return max((_stamp(s.get("createdAt")) or "" for s in scans), default="") or None
+
+
+def _gather(plan, targets, read_base_anyway=False, engines=None):
+    """Everything Checkmarx says for one comparison — the project, the scans of both branches, and per engine the
+    scans chosen and read. Raises LookupFailed. `project` is None when none matches the repository. A merged PR's
+    baseline is the newest base scan from BEFORE it merged (after the merge the base holds the fix). The base scan
+    is only read when the branch has one, unless `read_base_anyway`; `engines` overrides the engines the targets
+    need (diagnose reads both)."""
+    branch = plan["branch"]
+    ctx = SimpleNamespace(project=None, branch=branch, base=plan["base"], b_all=[], base_all=[], per_engine={},
+                          merged_at=_stamp(plan.get("mergedAt")))
+    project = ctx.project = find_project(plan["repo"])
+    if not project:
+        return ctx
+    pid = project["id"]
+    b_all = ctx.b_all = latest_scans(pid, branch)
+    base, base_all = plan["base"], []
+    if base:
+        base_all = latest_scans(pid, base) if base != branch else []
+    else:
+        for cand in dict.fromkeys([project.get("mainBranch"), *BASE_FALLBACKS]):
+            if cand and cand != branch:
+                base_all = latest_scans(pid, cand)
+                if base_all:
+                    base = cand
+                    break
+        base = base or project.get("mainBranch") or None
+    ctx.base, ctx.base_all = base, base_all
+    for eng in (engines or dict.fromkeys(ENGINE[t["kind"]] for t in targets)):
+        ran = [s for s in base_all if _ran(s, eng)]
+        before = [s for s in ran if not ctx.merged_at or (_stamp(s.get("createdAt")) or "") < ctx.merged_at]
+        base_scan = before[0] if before else None
+        b_scan = next((s for s in b_all if _ran(s, eng)), None)
+        ctx.per_engine[eng] = SimpleNamespace(
+            b_scan=b_scan, base_scan=base_scan,
+            base_late=(ran[0] if ran and not before else None),
+            b_read=read_scan(b_scan["id"]) if b_scan else None,
+            base_read=read_scan(base_scan["id"]) if (base_scan and (b_scan or read_base_anyway)) else None)
+    return ctx
+
+
+def _read_summary(pairs):
+    """vulnFixes.read — per side, what was read from the scan(s) the comparison used (summed when the SCA and SAST
+    targets came from two different scans): {total, sca, sast, other, truncated[, reported]}."""
+    sides = {"branch": {}, "base": {}}
+    for p in pairs:
+        if p.b_scan and p.b_read:
+            sides["branch"][p.b_scan["id"]] = p.b_read
+        if p.base_scan and p.base_read:
+            sides["base"][p.base_scan["id"]] = p.base_read
+    out = {}
+    for side, reads in sides.items():
+        if not reads:
+            continue
+        row = {k: sum(r["counts"][k] for r in reads.values()) for k in ("total", "sca", "sast", "other")}
+        row["truncated"] = any(r["truncated"] for r in reads.values())
+        reported = [r["reported"] for r in reads.values()]
+        if all(isinstance(x, int) for x in reported):
+            row["reported"] = sum(reported)
+        out[side] = row
+    return out
+
+
+def _empty_note(read):
+    """A scan that gave ZERO results is worth saying out loud — it is either a clean scan or an API that returned nothing."""
+    empty = [side for side in ("branch", "base") if side in read and read[side]["total"] == 0]
+    if not empty:
+        return None
+    if len(empty) == 2:
+        return "The results API returned 0 results for both scans"
+    return f"The results API returned 0 results for the {empty[0]} scan"
+
+
+def _hints(targets, pair):
+    """The ticket's package upgrades (with a target version) and the versions of each seen in the SCA scans."""
+    if not pair:
+        return []
+    return [{"package": t["package"], "to": t["to"],
+             "base": package_versions(pair.base_read["rows"], t) if pair.base_read else [],
+             "branch": package_versions(pair.b_read["rows"], t) if pair.b_read else []}
+            for t in targets if t["kind"] == "package" and t.get("to")]
+
+
+def _context_for(target, ctx, hints):
+    pair = ctx.per_engine[ENGINE[target["kind"]]]
+    return SimpleNamespace(branch=ctx.branch, base=ctx.base, b_scan=pair.b_scan, base_scan=pair.base_scan, b_read=pair.b_read,
+                           base_read=pair.base_read, b_any=bool(ctx.b_all), base_any=bool(ctx.base_all), merged_at=ctx.merged_at,
+                           base_late=pair.base_late, hints=hints)
 
 
 def vuln_fixes_for(ticket, targets=None, repos=None):
@@ -831,47 +1123,254 @@ def vuln_fixes_for(ticket, targets=None, repos=None):
     out = {"scannedAt": _now_iso(), "project": plan["repo"], "branch": branch, "baseBranch": plan["base"],
            "branchScanAt": None, "baseScanAt": None}
     try:
-        project = find_project(plan["repo"])
-        if not project:
-            out["note"] = f"No Checkmarx project named {plan['repo']}"
-            out["items"] = [{"target": t["target"], "kind": t["kind"], "status": "unknown",
-                             "detail": f"Unknown — no Checkmarx project matches the repository {plan['repo']}."} for t in targets]
-            return out
-        pid = project["id"]
-        out["project"] = str(project.get("name") or plan["repo"])
-        b_all = latest_scans(pid, branch)
-        base, base_all = plan["base"], []
-        if base:
-            base_all = latest_scans(pid, base) if base != branch else []
-        else:
-            for cand in dict.fromkeys([project.get("mainBranch"), *BASE_FALLBACKS]):
-                if cand and cand != branch:
-                    base_all = latest_scans(pid, cand)
-                    if base_all:
-                        base = cand
-                        break
-            base = base or project.get("mainBranch") or None
-        out["baseBranch"] = base
-        per_engine = {}  # engine → (b_scan, base_scan, b_rows, b_trunc, base_rows, base_trunc)
-        for eng in dict.fromkeys(ENGINE[t["kind"]] for t in targets):
-            b_scan = next((s for s in b_all if _ran(s, eng)), None)
-            base_scan = next((s for s in base_all if _ran(s, eng)), None)
-            b_rows, b_trunc = scan_results(b_scan["id"]) if b_scan else ([], False)
-            base_rows, base_trunc = scan_results(base_scan["id"]) if (base_scan and b_scan) else ([], False)
-            per_engine[eng] = (b_scan, base_scan, b_rows, b_trunc, base_rows, base_trunc)
+        ctx = _gather(plan, targets)
     except LookupFailed:
         return None
-    used_b = [v[0] for v in per_engine.values() if v[0]]
-    used_base = [v[1] for v in per_engine.values() if v[1]]
-    newest = lambda scans: max((_stamp(s.get("createdAt")) or "" for s in scans), default="") or None  # noqa: E731
-    out["branchScanAt"] = newest(used_b)
-    out["baseScanAt"] = newest(used_base)
-    if not b_all:
-        out["note"] = f"{branch} has no completed Checkmarx scan yet"
-    items = []
-    for t in targets:
-        b_scan, base_scan, b_rows, b_trunc, base_rows, base_trunc = per_engine[ENGINE[t["kind"]]]
-        items.append(_decide(t, branch, base, b_scan, base_scan, b_rows, b_trunc, base_rows, base_trunc,
-                             b_any=bool(b_all), base_any=bool(base_all)))
-    out["items"] = items
+    if not ctx.project:
+        out["note"] = f"No Checkmarx project named {plan['repo']}"
+        out["items"] = [{"target": t["target"], "kind": t["kind"], "status": "unknown",
+                         "detail": f"Unknown — no Checkmarx project matches the repository {plan['repo']}."} for t in targets]
+        return out
+    out["project"] = str(ctx.project.get("name") or plan["repo"])
+    out["baseBranch"] = ctx.base
+    pairs = list(ctx.per_engine.values())
+    out["branchScanAt"] = _newest([p.b_scan for p in pairs if p.b_scan])
+    out["baseScanAt"] = _newest([p.base_scan for p in pairs if p.base_scan])
+    read = _read_summary(pairs)
+    if read:
+        out["read"] = read
+    notes = []
+    if not ctx.b_all:
+        notes.append(f"{branch} has no completed Checkmarx scan yet")
+    empty = _empty_note(read)
+    if empty:
+        notes.append(empty)
+    if notes:
+        out["note"] = " · ".join(notes)
+    hints = _hints(targets, ctx.per_engine.get("sca"))
+    out["items"] = [_decide(t, _context_for(t, ctx, hints)) for t in targets]
     return out
+
+
+# ── diagnose: read-only, for the terminal ────────────────────────────────────
+#
+#   python3 jira-intern/checkmarx.py diagnose <TICKET-KEY | repo-slug> [--branch B] [--base B] [--target T …]
+#
+# Says what the board would see — the project matched, the scans considered, how many results were read from each
+# (by engine, severity and status), the FIELD NAMES of the rows (never their values), and for every target what
+# matched or why not. Uses setup/.env + the config like the fetch does. Prints no token, key or auth URL.
+# Exit: 0 read · 1 Checkmarx could not be read (key rejected, host unreachable) · 2 not configured / bad arguments.
+
+TICKET_KEY_RE = re.compile(r"^[A-Z][A-Z0-9]+-\d+$")
+
+
+def _ticket_from_dump(key):
+    """The ticket's card in jira-intern/data.json (board, completed, raised, then nested sub-tasks), or None."""
+    try:
+        with open(os.path.join(INTERN, "data.json"), encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return None
+    for section in ("tickets", "completed", "raised"):
+        for t in data.get(section) or []:
+            if isinstance(t, dict) and t.get("key") == key:
+                return t
+    for section in ("tickets", "completed"):
+        for t in data.get(section) or []:
+            for sub in (t.get("subtasks") or []) if isinstance(t, dict) else []:
+                if isinstance(sub, dict) and sub.get("key") == key:
+                    return sub
+    return None
+
+
+def _scan_summary(scan_id):
+    """{engine: (total, {severity: n})} from /api/scan-summary, or None — best effort, an extra opinion on the count."""
+    try:
+        data = _api(f"/api/scan-summary?scan-ids={_q(scan_id)}", f"summary {scan_id}") or {}
+    except LookupFailed:
+        return None
+    rows = data.get("scansSummaries")
+    row = rows[0] if isinstance(rows, list) and rows and isinstance(rows[0], dict) else None
+    if not row:
+        return None
+    out = {}
+    for engine, key in (("sca", "scaCounters"), ("sast", "sastCounters")):
+        counters = row.get(key)
+        if not isinstance(counters, dict):
+            continue
+        sev = {str(c.get("severity") or "?").upper(): int(c.get("counter") or 0) for c in counters.get("severityCounters") or [] if isinstance(c, dict)}
+        total = counters.get("totalCounter")
+        out[engine] = (int(total) if isinstance(total, (int, float)) else sum(sev.values()), sev)
+    return out
+
+
+def _count_by(rows, field):
+    out = {}
+    for r in rows:
+        v = str(r.get(field) or "?").upper()
+        out[v] = out.get(v, 0) + 1
+    return out
+
+
+def _counts_line(d):
+    return " · ".join(f"{k} {n}" for k, n in sorted(d.items(), key=lambda kv: -kv[1]))
+
+
+def _fields(row):
+    """The field names of a result row — top level, data, vulnerabilityDetails — and no values."""
+    parts = [f"fields: {', '.join(sorted(row))}"]
+    for sub in ("data", "vulnerabilityDetails"):
+        if isinstance(row.get(sub), dict):
+            parts.append(f"{sub}: {', '.join(sorted(row[sub]))}")
+    return "; ".join(parts)
+
+
+def _when(stamp):
+    return (_stamp(stamp) or "?").replace("T", " ").rstrip("Z")[:16]
+
+
+def _similar_packages(rows, target):
+    """Package names in these rows that share the target's longest word — for a package the scanner names differently."""
+    words = sorted(re.split(r"[-_.:/@\s]+", target["package"].lower()), key=len, reverse=True)
+    word = words[0] if words and len(words[0]) >= 4 else ""
+    names = {package_of(r)[0] for r in rows if _kind_of(r) == "sca"}
+    return sorted(n for n in names if word and word in n.lower() and not _pkg_matches(n, target))[:5]
+
+
+def diagnose(plan, targets, label):
+    """(exit code, text) for one comparison — see the section header."""
+    out = []
+    say = out.append
+    base_url, _auth = urls()
+    say(f"Checkmarx diagnose — {label}")
+    say(f"  host: {urllib.parse.urlsplit(base_url).hostname}   API key: set   token endpoint: "
+        f"{'explicit' if (_setting('CHECKMARX_AUTH_URL') or _config_endpoints().get('checkmarxAuthUrl')) else 'derived from the host'}")
+    merged = f"   (PR merged {_day(plan.get('mergedAt'))})" if plan.get("mergedAt") else ""
+    say(f"  repository: {plan['repo']}   branch: {plan['branch']}   base: {plan.get('base') or 'not named — the project main branch is used'}{merged}")
+    reset_run()
+    try:
+        rows = project_rows(plan["repo"])
+        say("")
+        say("Project")
+        if not rows:
+            say(f"  no project's name contains '{plan['repo']}' — nothing to read")
+        for p in rows:
+            tag = "MATCH " if is_project_match(p, plan["repo"]) else "(substring only — not used)"
+            say(f"  {tag} {p.get('name')}   id {str(p.get('id'))[:8]}   main branch: {p.get('mainBranch') or '—'}")
+        ctx = _gather(plan, targets, read_base_anyway=True, engines=("sca", "sast"))
+        if not ctx.project:
+            say("  → the board would say: no Checkmarx project matches this repository (every target unknown)")
+            return 0, "\n".join(out)
+        say("")
+        say("Scans considered (completed only, newest first)")
+        for name, scans in ((f"branch {plan['branch']}", ctx.b_all), (f"base {ctx.base or '?'}", ctx.base_all)):
+            say(f"  {name}: {len(scans)} scan(s)" + ("" if scans else " — the board would say there is no scan"))
+            for sc in scans[:5]:
+                say(f"    {str(sc.get('id'))[:8]}  {_when(sc.get('createdAt'))}  engines: {', '.join(str(e) for e in sc.get('engines') or []) or '—'}")
+        for eng, pair in ctx.per_engine.items():
+            used = f"  used for {eng.upper()}: branch {str(pair.b_scan['id'])[:8] if pair.b_scan else 'none'} · base {str(pair.base_scan['id'])[:8] if pair.base_scan else 'none'}"
+            if pair.base_late:
+                used += (f" — the newest base scan ({str(pair.base_late['id'])[:8]}, {_when(pair.base_late.get('createdAt'))}) is after the PR "
+                         f"merged ({_day(ctx.merged_at)}), so it already holds the fix and is not the baseline")
+            say(used)
+        say("")
+        say("Results read (what the results API returned; no severity or state filter is sent)")
+        shown = set()
+        for eng, pair in ctx.per_engine.items():
+            for side, scan, rd in (("branch", pair.b_scan, pair.b_read), ("base", pair.base_scan, pair.base_read)):
+                if not scan or scan["id"] in shown:
+                    continue
+                shown.add(scan["id"])
+                if rd is None:
+                    say(f"  {side} scan {str(scan['id'])[:8]}: not read — the branch has no scan to compare it with")
+                    continue
+                c = rd["counts"]
+                say(f"  {side} scan {str(scan['id'])[:8]} ({_when(scan.get('createdAt'))}): {c['total']} results — "
+                    f"SCA {c['sca']} · SAST {c['sast']} · other {c['other']}"
+                    + (f"   server reports {rd['reported']}" if rd.get("reported") is not None else "   server reported no totalCount")
+                    + f"   pages {rd['pages']}" + ("   TRUNCATED (page limit)" if rd["truncated"] else ""))
+                rws = rd["rows"]
+                if rws:
+                    say(f"    types: {_counts_line(_count_by(rws, 'type'))}   severity: {_counts_line(_count_by(rws, 'severity'))}   "
+                        f"status: {_counts_line(_count_by(rws, 'status'))}")
+                    for kind in ("sca", "sast"):
+                        sample = next((r for r in rws if _kind_of(r) == kind), None)
+                        if sample:
+                            say(f"    {kind.upper()} row — {_fields(sample)}")
+                    sca_rows = [r for r in rws if _kind_of(r) == "sca"]
+                    if sca_rows:
+                        named = sum(1 for r in sca_rows if str(_vdetail(r).get("cveName") or "").strip())
+                        say(f"    SCA rows carrying vulnerabilityDetails.cveName: {named} of {len(sca_rows)}")
+                summary = _scan_summary(scan["id"])
+                for engine, (total, sev) in (summary or {}).items():
+                    have = c[engine]
+                    verdict = ("agrees with the rows read" if total == have else
+                               f"but only {have} {engine.upper()} rows were read — the results are incomplete, or the summary counts something else")
+                    say(f"    scan-summary counts {total} {engine.upper()} findings ({_counts_line(sev) or 'no breakdown'}) — {verdict}")
+        say("")
+        say("Targets" if targets else "Targets: the ticket names none the board can look up")
+        hints = _hints(targets, ctx.per_engine.get("sca"))
+        for t in targets:
+            it = _decide(t, _context_for(t, ctx, hints))
+            say(f"  {t['target']}  [{t['kind']}]  → {it['status']}")
+            say(f"    {it['detail']}")
+            if t["kind"] == "package":
+                say(f"    versions with a finding — base: {', '.join(it.get('foundOnBase') or []) or 'none'}; branch: {', '.join(it.get('foundOnBranch') or []) or 'none'}")
+                pair = ctx.per_engine["sca"]
+                near = sorted(set(_similar_packages(pair.base_read["rows"] if pair.base_read else [], t)
+                                  + _similar_packages(pair.b_read["rows"] if pair.b_read else [], t)))
+                if near:
+                    say(f"    similar package names in the scans: {', '.join(near)}")
+    except LookupFailed:
+        why = failure()
+        out.append("")
+        out.append(f"Checkmarx could not be read: {why[1] if why else 'the request failed'}.")
+        return 1, "\n".join(out)
+    return 0, "\n".join(out)
+
+
+def main(argv=None):
+    import argparse
+
+    ap = argparse.ArgumentParser(prog="checkmarx.py", description="Checkmarx One helpers for the board (read-only).")
+    sub = ap.add_subparsers(dest="cmd")
+    d = sub.add_parser("diagnose", help="what Checkmarx returns for a ticket (or repository) and why each target matched or not")
+    d.add_argument("what", help="a ticket key on the board (PAY-7) or a repository slug")
+    d.add_argument("--branch", help="the PR source branch (needed for a repository slug)")
+    d.add_argument("--base", help="the base branch to compare with (default: the PR destination, else the project's main branch)")
+    d.add_argument("--target", action="append", default=[], help="a CVE / package / query to look up (repeatable; for a repository slug)")
+    args = ap.parse_args(argv)
+    if args.cmd != "diagnose":
+        ap.print_usage()
+        return 2
+    gaps = missing_settings()
+    if gaps:
+        print(f"Checkmarx is not configured — missing {', '.join(gaps)}. Add it in the board's API keys dialog (setup/.env) "
+              f"or endpoints.checkmarxBase in ~/.ai/config.json.")
+        return 2
+    if TICKET_KEY_RE.match(args.what):
+        ticket = _ticket_from_dump(args.what)
+        if ticket is None:
+            print(f"{args.what} is not in jira-intern/data.json — refresh the board first, or pass the repository slug with --branch.")
+            return 2
+        plan = scan_plan(ticket)
+        if plan is None:
+            print(f"{args.what} has no pull request (or known branch) to compare — pass the repository slug with --branch instead.")
+            return 2
+        targets = extract_targets(ticket)
+        label = f"{args.what} — {str(ticket.get('title') or '')[:70]}"
+    else:
+        if not args.branch:
+            print("A repository slug needs --branch (the PR source branch), e.g.  diagnose my-repo --branch bugfix/x --base release/y")
+            return 2
+        plan = {"repo": args.what, "branch": args.branch, "base": None}
+        targets = extract_targets({"title": " ".join(args.target)}) if args.target else []
+        label = f"repository {args.what}"
+    plan = {**plan, **({"branch": args.branch} if args.branch else {}), **({"base": args.base} if args.base else {})}
+    code, text = diagnose(plan, targets, label)
+    print(text)
+    return code
+
+
+if __name__ == "__main__":
+    sys.exit(main())
