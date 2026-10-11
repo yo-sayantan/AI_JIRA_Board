@@ -103,7 +103,7 @@ export function useReports({
       if (demo) {
         const r = demoReports().reports[key]
         if (r) setOpenReport(r)
-        else toast(`No sample report for ${key} — try DEMO-220 or DEMO-210.`, 'info')
+        else toast(`No sample report for ${key} — try DEMO-230 or DEMO-210.`, 'info')
         return
       }
       setLoadingKey(key)
