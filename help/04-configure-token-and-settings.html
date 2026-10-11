@@ -29,13 +29,13 @@
     <header class="hero page">
       <div class="logo">🔑</div>
       <span class="step-of">Step 4 of 9</span><h1>Configure your token and settings</h1>
-      <p class="sub">Your Jira token (secrets file) and your personal config — two files, once.</p>
+      <p class="sub">Your Jira token (added in the board) and your personal config — once.</p>
     </header>
 
     <div class="layout">
       <aside class="toc" aria-label="On this page">
         <p class="toc-h">On this page</p>
-        <a href="#secrets">1 · Your Jira token — the secrets file</a>
+        <a href="#secrets">1 · Your Jira token — the key button</a>
         <a href="#personal-config">2 · Your personal config</a>
         <a href="#ai-catalogs">3 · The AI model lists (optional)</a>
         <p class="toc-h">Guide pages</p>
@@ -54,19 +54,19 @@
       </aside>
 
       <main class="content">
-      <h2 id="secrets">1 · Your Jira token — the secrets file</h2>
+      <h2 id="secrets">1 · Your Jira token — the key button</h2>
       <div class="step">
-        <div class="step-h"><span class="num">1</span><h3>Create your secrets file</h3></div>
-        <p class="small">macOS / Linux:</p>
-        <pre><button class="copy">Copy</button>mkdir -p ~/.cursor
-cp setup/mcp-secrets.env.template ~/.cursor/mcp-secrets.env
-chmod 600 ~/.cursor/mcp-secrets.env</pre>
-        <p class="small">Windows (PowerShell):</p>
-        <pre><button class="copy">Copy</button>New-Item -ItemType Directory -Force "$HOME\.cursor" | Out-Null
-Copy-Item "setup\mcp-secrets.env.template" "$HOME\.cursor\mcp-secrets.env"</pre>
-        <p class="small">Now open that file and set at least these two lines:</p>
-        <pre><button class="copy">Copy</button>JIRA_URL=https://jira.your-company.example
-JIRA_PERSONAL_TOKEN=your-token-here</pre>
+        <div class="step-h"><span class="num">1</span><h3>Create the token now, paste it in the board</h3></div>
+        <p class="small">In Jira: your avatar → <b>Profile</b> → <b>Personal Access Tokens</b> → <b>Create token</b>.
+          Copy it straight away (Jira shows it once). Read scope is enough.</p>
+        <p class="small">There is no file to edit. Once the board is running (<a href="05-deploy-with-docker.html">page 05</a>),
+          a new install shows <b>Add API keys first</b>; otherwise click the <b>key button</b> beside Settings in the
+          header (it has an amber dot while the Jira token is missing). Expand <b>Jira</b>, paste the token,
+          <b>Save</b>, then <b>Refresh</b>. Bitbucket, Confluence and the Cloud AI keys (Claude, Cursor, Gemini) go in
+          the same list — each row says why it's needed and where to get it.</p>
+        <div class="note"><b>Where it is stored:</b> <code class="inl">setup/.env</code> in your copy of the repo —
+          git-ignored, kept out of the Docker image, never served by the board. A saved key is only ever shown
+          masked (first and last few characters).</div>
       </div>
 
       <h2 id="personal-config">2 · Your personal config</h2>
@@ -105,9 +105,10 @@ Copy-Item "setup\config.example.json" "$HOME\.ai\config.json"</pre>
       </div>
 
       
-      <div class="note warn"><b>Never commit these two files.</b> They live outside the repository on purpose. If you
-        ever see <code class="inl">mcp-secrets.env</code> or a <code class="inl">config.json</code> with your name in
-        <code class="inl">git status</code>, stop and move it back to your home folder.</div>
+      <div class="note warn"><b>Never commit your keys or your config.</b> <code class="inl">setup/.env</code> is
+        git-ignored and <code class="inl">~/.ai/config.json</code> lives outside the repository on purpose. If you
+        ever see an <code class="inl">.env</code> file or a <code class="inl">config.json</code> with your name in
+        <code class="inl">git status</code>, stop and remove it from the commit.</div>
       <nav class="pager" aria-label="Previous and next page">
         <a class="prev" href="03-get-the-code-with-git.html"><small>← Previous · 03</small><b>Get the code with Git</b></a>
         <a class="next" href="05-deploy-with-docker.html"><small>Next · 05 →</small><b>Deploy with Docker</b></a>

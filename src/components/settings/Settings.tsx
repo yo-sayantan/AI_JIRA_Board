@@ -826,7 +826,7 @@ function AiInternControls({
           label="AI backend"
           options={[
             { key: 'local', label: 'Local AI', hint: 'Ollama in Docker (CPU) or on this Mac (Metal). Slow, no tokens. Needs the AI-Ollama container (toggle below) or Host Ollama.' },
-            { key: 'cloud', label: 'Cloud AI', hint: 'Claude, Cursor, or Gemini. Keys stay in ~/.cursor/mcp-secrets.env.' },
+            { key: 'cloud', label: 'Cloud AI', hint: 'Claude, Cursor, or Gemini. Add the key with the key button in the header.' },
           ]}
           value={settings.aiBackend}
           onChange={(v) => set('aiBackend', v)}
@@ -918,20 +918,20 @@ const CLOUD_PROVIDER_INFO: Record<
 > = {
   cursor: {
     label: 'Cursor',
-    missingKey: 'CURSOR_API_KEY is read from ~/.cursor/mcp-secrets.env (Cursor Dashboard → API Keys).',
+    missingKey: 'Add CURSOR_API_KEY with the key button in the header (Cursor Dashboard → API Keys).',
     about: 'The Cursor models listed in cloud-models.json. ⚠ marks the costly ones.',
     // GPT-5.6 Luna: cheapest of the capable models, and what most installs already use.
     prefer: (models) => models.find((m) => /luna/i.test(m.id)) || models[0],
   },
   claude: {
     label: 'Claude',
-    missingKey: 'Add ANTHROPIC_API_KEY to ~/.cursor/mcp-secrets.env (console.anthropic.com → API keys).',
+    missingKey: 'Add ANTHROPIC_API_KEY with the key button in the header (console.anthropic.com → API keys).',
     about: 'The Claude models listed in cloud-models.json. ⚠ marks the costly ones.',
     prefer: (models) => models.find((m) => /haiku/i.test(m.id)) || models[0],
   },
   gemini: {
     label: 'Gemini',
-    missingKey: 'Add GEMINI_API_KEY to ~/.cursor/mcp-secrets.env (aistudio.google.com → API keys).',
+    missingKey: 'Add GEMINI_API_KEY with the key button in the header (aistudio.google.com → API keys).',
     about: 'The Gemini models listed in cloud-models.json. ⚠ marks the costly ones.',
     prefer: (models) => models[0],
   },
@@ -982,7 +982,7 @@ function CloudKeyRow({ provider, cloud }: { provider: AiCloudProvider; cloud: Cl
   const state = !cloud
     ? { text: `Checking ${k.env}…`, color: '#94a3b8' }
     : !cloud.hasKey
-      ? { text: `${k.env} missing — add it to ~/.cursor/mcp-secrets.env`, color: '#f59e0b' }
+      ? { text: `${k.env} missing — add it with the key button in the header`, color: '#f59e0b' }
       : cloud.error
         ? { text: cloud.error, color: '#f59e0b' }
         : { text: `${k.env} found · ${detail}`, color: '#22c55e' }
@@ -990,7 +990,7 @@ function CloudKeyRow({ provider, cloud }: { provider: AiCloudProvider; cloud: Cl
   return (
     <div
       className={STRIP}
-      title={`${state.text}.\nThe list — which models, their efforts, what counts as costly — is ai-intern/cloud-models.json: add or delete a model there and it appears here within a minute.${problems}\nThe key is read from ~/.cursor/mcp-secrets.env (mounted read-only into AI-Intern); usage is billed by ${k.biller} to that key's account.`}
+      title={`${state.text}.\nThe list — which models, their efforts, what counts as costly — is ai-intern/cloud-models.json: add or delete a model there and it appears here within a minute.${problems}\nThe key is read from setup/.env (saved with the key button in the header); usage is billed by ${k.biller} to that key's account.`}
     >
       <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: state.color }} />
       <span className="min-w-0 truncate font-medium">{state.text}</span>

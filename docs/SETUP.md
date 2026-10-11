@@ -1,16 +1,19 @@
 # Setup — secrets, config & MCP
 
 Everything user-, company- and token-specific lives **outside** the app bundle. The repo's
-`setup/` folder holds a safe **template** for each of those files. Nothing here contains a real token — you
-copy a template, fill it in on your machine, and keep your filled-in copies out of git.
+`setup/` folder holds the list of API keys the board knows (`api-keys.json`), the git-ignored file
+your keys are saved in (`.env`), and a safe **template** for each file that lives elsewhere. Nothing
+tracked contains a real token.
 
-> **The golden rule:** the only file that ever holds a real token is your
-> `mcp-secrets.env`, and it lives **outside this repo** (default `~/.cursor/mcp-secrets.env`).
-> Everything else points at it by path.
+> **The golden rule:** the only file the board reads tokens from is **`setup/.env`**. You don't
+> edit it by hand — the **key button in the board header** writes it. It is git-ignored,
+> docker-ignored and never served over HTTP. (`JB_SECRETS_FILE` moves it, for tests or unusual layouts.)
 
-| Template in `setup/` | Copy it to | What it is |
+| File in `setup/` | Where it goes | What it is |
 |---|---|---|
-| [`mcp-secrets.env.template`](../setup/mcp-secrets.env.template) | `~/.cursor/mcp-secrets.env` | Your API tokens (Jira required; Confluence/Bitbucket optional). |
+| `.env` (created by the board) | stays in `setup/` — never committed | Your API tokens (Jira required; Bitbucket, Confluence, Cloud AI optional), saved from the API keys dialog. |
+| [`api-keys.json`](../setup/api-keys.json) | tracked | THE list of keys: per service the env names, why it's needed, what uses it, where to get it. |
+| [`mcp-secrets.env.template`](../setup/mcp-secrets.env.template) | `~/.cursor/mcp-secrets.env` | Tokens for your **IDE's** MCP servers / the wrapper below (optional — the board does not read it). |
 | [`config.example.json`](../setup/config.example.json) | `~/.ai/config.json` | Who you are + your company URLs + preferences. **No tokens.** Lives outside the repo. |
 | [`mcp.cursor.json.template`](../setup/mcp.cursor.json.template) | `~/.cursor/mcp.json` | MCP servers for Cursor (optional — richer AI briefs). |
 | [`mcp.claude.json.template`](../setup/mcp.claude.json.template) | `~/.claude/.claude.json` | MCP servers for Claude Code (optional). |
@@ -33,24 +36,24 @@ MCP servers are **optional**. Ticket briefs and report enrichment run in **JIRA-
 
 ---
 
-## Step 1 — Create your secrets file (required)
+## Step 1 — Add your API keys (required: the Jira token)
 
-```bash
-cp setup/mcp-secrets.env.template ~/.cursor/mcp-secrets.env
-chmod 600 ~/.cursor/mcp-secrets.env      # readable only by you
-```
-
-Open `~/.cursor/mcp-secrets.env` and set at least:
-
-```
-JIRA_URL=https://jira.your-company.example
-JIRA_PERSONAL_TOKEN=<paste your Jira Personal Access Token>
-```
+Start the board (Docker — [`DEPLOYMENT.md`](DEPLOYMENT.md) — or `npm run serve`) and open it. A new
+install has no data yet, so it shows **Add API keys first**; otherwise use the **key button** in the
+header (it carries an amber dot while the Jira token is missing). Expand **Jira**, paste the token,
+**Save**. Then **Refresh**.
 
 **Where the Jira token comes from:** Jira → your avatar → **Profile** → **Personal Access
 Tokens** → **Create token**. Copy it immediately (you can't see it again). Read scope is enough.
 
-Optional, for richer cards: `CONFLUENCE_PERSONAL_TOKEN`, `BITBUCKET_PAT` (see the template).
+Optional, for richer cards: Bitbucket (`BITBUCKET_PAT`) for real branches and PR state; Claude /
+Cursor / Gemini keys for Cloud AI. Each row in the dialog says why it's needed and where to get
+it. A key works from the next fetch or AI call — no restart. The optional base-URL fields override
+`endpoints.*` from the config.
+
+Without the board (a host-only run, no server)? Create `setup/.env` yourself with `KEY=value`
+lines (`chmod 600`); the names are the `env` fields in `setup/api-keys.json`. Variables already set
+in the environment win over the file.
 
 ## Step 2 — Create a personal override (required for real identity/URLs)
 
@@ -82,8 +85,10 @@ node jira-intern/local-runner/config.mjs path
 
 ## Step 3 — Configure MCP servers (optional)
 
-Only if you want the **local AI-summary pass** to enrich tickets from Confluence/Bitbucket.
-Pick the client you use:
+Only if you want the **agent fallback** (or your IDE) to read Jira/Confluence/Bitbucket through MCP.
+These servers belong to your IDE / agent CLI and keep their tokens in their own env file
+(`~/.cursor/mcp-secrets.env`, from [`mcp-secrets.env.template`](../setup/mcp-secrets.env.template)) —
+separate from the board's `setup/.env`. Pick the client you use:
 
 - **Cursor:** merge [`mcp.cursor.json.template`](../setup/mcp.cursor.json.template) into `~/.cursor/mcp.json`.
 - **Claude Code / Desktop:** merge [`mcp.claude.json.template`](../setup/mcp.claude.json.template) into
@@ -99,9 +104,9 @@ lines unless your company uses a private/internal certificate authority.
 
 ## Step 4 — Set the connector API key (optional)
 
-The AI-summary pass runs through an agent CLI (`config.json → connector.active`, default
-`cursor`). Add its key to your secrets file — e.g. `CURSOR_API_KEY=…` (or `ANTHROPIC_API_KEY`
-for `claude`, `OPENAI_API_KEY` for `codex`). Not needed for Docker deployment.
+The agent fallback runs through an agent CLI (`config.json → connector.active`, default
+`cursor`). Add its key in the API keys dialog — Cursor (`CURSOR_API_KEY`), Claude
+(`ANTHROPIC_API_KEY`) for `claude`, or OpenAI (`OPENAI_API_KEY`) for `codex`. Not needed for Docker deployment.
 
 ## Step 5 — The Desktop launcher (optional, macOS)
 
@@ -139,11 +144,12 @@ a network problem, not a certificate one — reconnect the VPN, or uncomment the
 ## Before you make the repo public
 
 This repo is safe to push **as long as your real secrets never enter it** — they don't, by
-design (tokens live only in `~/.cursor/mcp-secrets.env`, which is git-ignored). Two things to
+design (tokens live only in `setup/.env`, which is git-ignored and docker-ignored). Two things to
 double-check first:
 
-1. **No secrets file staged.** `git status` should never show `mcp-secrets.env` or any `*.env`
-   with real values. The root `.gitignore` already blocks these.
+1. **No secrets file staged.** `git status` should never show `setup/.env` or any `*.env`
+   with real values. The root `.gitignore` already blocks these; `.dockerignore` keeps them out of
+   the image (`**/.env` rules — a bare `.env` there matches only the root).
 2. **Keep `config/jira-board.config.json` generic.** It is intentionally tracked and must
    contain placeholders/defaults only. Real identity and internal URLs belong in the
    untracked `~/.ai/config.json` override.

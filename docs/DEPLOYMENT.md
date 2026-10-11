@@ -1,9 +1,9 @@
 # Deployment & running
 
 Three ways to run the board, easiest first. All of them assume you've done the one-time
-[setup](SETUP.md) (a Jira token in `~/.cursor/mcp-secrets.env` and a filled-in
-optional personal override at `~/.ai/config.json`; project defaults are in
-`config/jira-board.config.json`).
+[setup](SETUP.md) (a filled-in optional personal override at `~/.ai/config.json`; project
+defaults are in `config/jira-board.config.json`). The Jira token is added in the board itself,
+with the key button in the header — it is stored in `setup/.env`.
 
 ---
 
@@ -18,14 +18,20 @@ serves the board. Nothing to install but Docker.
 docker compose up -d --build
 ```
 
-Then open **http://localhost:4321/dist/index.html**.
+Then open **http://localhost:4321/dist/index.html**. First run: the empty board shows **Add API
+keys first** — paste your Jira token there (or use the key button in the header), then **Refresh**.
 
 ### What that does
 
 `docker-compose.yml` builds the board image and starts **JIRA-Board**, **JIRA-AI-Ollama**, and
 **JIRA-AI-Intern**:
 
-- Mounts `~/.cursor` read-only (so `mcp-secrets.env` stays readable after the file is replaced).
+- Mounts `./setup` (the API keys, `setup/.env`) — read-write into JIRA-Board, because the API keys
+  dialog writes it, and read-only into AI-Intern, which re-reads it on every cloud call. It is a
+  **directory** mount: a save replaces the file (temp + rename) and a single-file bind would stay on
+  the old inode. On a Linux host `./setup`, like `./jira-intern`, must be writable by uid 1000.
+  Prefer environment variables? `env_file: setup/.env` or `-e JIRA_PERSONAL_TOKEN=…` still work and win
+  over the file.
 - Reads refresh startup/interval policy from `config/jira-board.config.json → refresh`
   (`REFRESH_ON_START` / `REFRESH_INTERVAL` can still override it).
 - Persists data on the host via the `./jira-intern` volume; models on `jira-ai-models`.
@@ -140,7 +146,8 @@ Settings, or `docker exec JIRA-AI-Ollama ollama pull qwen2.5-coder:7b`.
 | Symptom | Fix |
 |---|---|
 | Board loads but is empty | No dump yet. Run a fetch (Option A refetches on boot; or run `run-intern.sh`). |
-| "no JIRA_PERSONAL_TOKEN found — skipping fetch" | Your secrets file isn't mounted/readable. Check `~/.cursor/mcp-secrets.env` exists and has `JIRA_PERSONAL_TOKEN`. |
+| "no JIRA_PERSONAL_TOKEN found — skipping fetch" / "no API keys yet" | No Jira token saved yet. Add it with the key button in the board header (stored in `setup/.env`), then Refresh. Check `./setup` is mounted (`docker inspect JIRA-Board`). |
+| Saving a key fails ("could not write setup/.env") | `./setup` is not writable by the container's uid 1000 (Linux hosts): `sudo chown -R 1000 setup`. |
 | Port 4321 in use | `scripts/start-jira-board.sh` frees it automatically; otherwise `docker compose down` or stop the process on that port. |
 | `Name or service not known` for your Jira host | Docker DNS (common on VPN). Uncomment the `dns:` block in `docker-compose.yml` and recreate. |
 | Container exits immediately | `docker logs JIRA-Board` — usually a bad token or unreachable host. |

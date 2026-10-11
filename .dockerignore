@@ -10,10 +10,15 @@ node_modules
 tests
 
 # Secrets must never enter the build context (the templates in setup/ end in
-# .template and are kept — the server serves /setup and /docs).
+# .template and are kept — the server serves /setup and /docs). Unlike .gitignore, a
+# pattern here only matches at the root unless it starts with **/ — and the board's
+# own keys live in setup/.env, so every rule is anchored both ways.
 .env
 .env.*
 *.env
+**/.env
+**/.env.*
+**/*.env
 
 # Editor / OS noise
 .DS_Store

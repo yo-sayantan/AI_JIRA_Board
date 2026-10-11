@@ -4,7 +4,7 @@
 //   node config.mjs get <dot.path>       → print a value ("user.accountId" → ABC1234)
 //   node config.mjs shellenv             → eval-able lines for the bash runners
 //                                          (AGENT_BIN, AGENT_PROMPT_FLAG, AGENT_EXTRA_ARGS,
-//                                           AGENT_MODEL_FLAG, AGENT_SECRETS, AGENT_API_KEY_ENV,
+//                                           AGENT_MODEL_FLAG, AGENT_API_KEY_ENV,
 //                                           AGENT_INSTALL_HINT, AGENT_CONNECTOR, MODEL_MAIN,
 //                                           MODEL_SUMMARY, TIMEOUT_* …)
 //   node config.mjs policy               → the generated MCP POLICY block (allow + read/write)
@@ -212,7 +212,6 @@ function shellenv() {
   // NOTE: args are space-joined — individual args must not contain spaces (documented in docs/CONFIG.md).
   out.push(`AGENT_EXTRA_ARGS=${shq((conn.extraArgs || []).join(' '))}`)
   out.push(`AGENT_MODEL_FLAG=${shq(conn.modelFlag ?? '--model')}`)
-  out.push(`AGENT_SECRETS=${shq(untilde(conn.secretsFile ?? ''))}`)
   out.push(`AGENT_API_KEY_ENV=${shq(conn.apiKeyEnv ?? '')}`)
   out.push(`AGENT_INSTALL_HINT=${shq(conn.install ?? '')}`)
   out.push(`REQUIRED_APPROVALS=${shq(cfg.app?.requiredApprovals ?? 2)}`)

@@ -18,7 +18,7 @@ document is the complete inventory: who writes what, when, and the invariants th
 | `jira-intern/.ai-queue/` + `.ai-status.json` | server/scripts enqueue; worker consumes | worker, `/api/ai-status` | File-based job queue to the AI intern. |
 | `jira-intern/logs/`, `_STATUS.md` | every runner | humans | Newest-first audit log (`prepend_status`). |
 | Locks: `.intern.lock` `.completed.lock` `.refresh.lock` `.raised.lock` | each runner (`<pid> <iso>`) | `refuse_if_locked`, `server/locks.mjs` | Dead-PID/stale locks are auto-cleared. |
-| `~/.cursor/mcp-secrets.env` | **you** (outside repo) | runners (`load_agent_secrets`), worker | Tokens only. Mounted read-only into containers. |
+| `setup/.env` | the board's API keys dialog → `server/secrets.mjs` (one write queue, temp + rename, mode 0600; keeps comments and unknown lines) | `_config.py::secrets_path`/`load_secrets`, runners (`runner-env.sh` `APP_SECRETS` → `load_agent_secrets`), `docker-entrypoint.sh` (Jira-token check), worker (re-read per cloud call), server (`GET /api/keys`, masked) | Tokens only — the ONLY secrets file. Git-ignored, docker-ignored, never served. Key names: `setup/api-keys.json`. `JB_SECRETS_FILE` moves it. Mounted read-write into JIRA-Board, read-only into AI-Intern. |
 | `~/.ai/config.json` | **you** (outside repo) | `config.mjs` merge | Identity + company URLs. |
 | localStorage (`jb-settings`, `jb-archived`, `jb-completed-show-context`, `jb-guide-os`) | the app | the app | Preferences only; no cookies exist. |
 

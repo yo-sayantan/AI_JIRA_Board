@@ -10,14 +10,15 @@
 # or:
 #   docker build -f docker/Dockerfile -t jira-board .
 #   docker run -d --name JIRA-Board -p 127.0.0.1:4321:4321 \
-#     -v "$HOME/.cursor:/home/node/.cursor:ro" \
+#     -v "$PWD/setup:/app/setup" \
 #     jira-board
-#   (mount the DIRECTORY holding mcp-secrets.env, not the file: a single-file bind keeps
-#    pointing at the old inode after an editor rewrites it — see docker-compose.yml.)
+#   (setup/ holds the API keys, setup/.env, which the board's key dialog writes. Mount the
+#    DIRECTORY, not the file: a save replaces the file and a single-file bind would keep
+#    pointing at the old inode — see docker-compose.yml.)
 # Then open http://localhost:4321
 #
 # The runtime stage runs as the image's built-in unprivileged `node` user (uid 1000,
-# HOME=/home/node). Anything bind-mounted read-write (./jira-intern) must be writable by
+# HOME=/home/node). Anything bind-mounted read-write (./jira-intern, ./setup) must be writable by
 # uid 1000 — transparent on Docker Desktop; on a Linux host chown it once.
 
 # Where dist/index.html comes from:

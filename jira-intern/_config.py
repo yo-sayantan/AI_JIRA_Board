@@ -162,15 +162,14 @@ def _load_config(intern_dir):
 
 
 def secrets_path(intern_dir):
-    """Secrets path from the active connector; AGENT_SECRETS remains an explicit override."""
-    explicit = os.environ.get("AGENT_SECRETS")
+    """The board's own secrets file: setup/.env at the repo root, beside setup/api-keys.json.
+
+    It is the ONLY secrets file — written by the board's API keys dialog (server/secrets.mjs),
+    git- and docker-ignored. JB_SECRETS_FILE moves it (tests, unusual layouts)."""
+    explicit = os.environ.get("JB_SECRETS_FILE")
     if explicit:
         return os.path.expanduser(explicit)
-    cfg = load_config(intern_dir)
-    connector = cfg.get("connector") or {}
-    active = connector.get("active") or "cursor"
-    path = ((connector.get(active) or {}).get("secretsFile")) or "~/.cursor/mcp-secrets.env"
-    return os.path.expanduser(path)
+    return os.path.join(os.path.dirname(os.path.abspath(intern_dir)), "setup", ".env")
 
 
 def load_secrets(intern_dir):

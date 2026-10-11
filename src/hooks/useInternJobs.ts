@@ -33,7 +33,7 @@ function progressOf(s: InternStatus, prev: RunProgress | null): RunProgress | nu
 }
 
 function exitMessage(code: number): string {
-  if (code === 2) return 'Intern could not run — no Jira token configured. See setup/ (mcp-secrets.env).'
+  if (code === 2) return 'Intern could not run — no Jira token yet. Add it with the key button in the header.'
   if (code === 3) return 'Skipped — another refresh/archive was already running. Try again in a moment.'
   if (code === 127) return 'Intern finished with errors (tooling missing) — check logs/.'
   return 'Intern finished with errors — check logs/.'

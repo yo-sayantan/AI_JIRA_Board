@@ -5,6 +5,14 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **API keys are added in the board, and live in `setup/.env`.** A key button in the header (amber dot while the
+  Jira token is missing; also **Add API keys first** on a new install's empty screen) opens one list with a row
+  per service from `setup/api-keys.json` — why it's needed, what uses it, where to get it, one field per key.
+  Saved keys come back masked only (`GET`/`POST /api/keys`, `server/secrets.mjs`: temp file + rename, mode 0600).
+  The board no longer reads `~/.cursor/mcp-secrets.env`: `setup/.env` (git-ignored, docker-ignored via `**/` rules,
+  never served) is the only secrets file; `JB_SECRETS_FILE` moves it. `AGENT_SECRETS` and
+  `connector.<name>.secretsFile` are gone. Compose drops the `~/.cursor` mounts and mounts `./setup` instead
+  (read-write for JIRA-Board, read-only for AI-Intern). The `setup/mcp*` templates stay for your IDE's MCP servers.
 - **Move rules, enforced everywhere.** One rule set (`src/lib/moveRules.ts`, mirrored by
   `jira-intern/transition.py` on live Jira): only QA tickets (type QA/Test, a `QA` label, a "QA:" title)
   enter QA / QA In Progress, and a QA ticket moves only to QA · QA In Progress · Blocked · On Hold ·

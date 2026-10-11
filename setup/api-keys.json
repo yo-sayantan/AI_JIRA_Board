@@ -1,0 +1,85 @@
+{
+  "$comment": "THE list of API keys the board knows about — read by the server (server/secrets.mjs: only these names can be saved), the board's API keys dialog (src/lib/apiKeys.ts) and tests/test_api_keys.py (every key must be read by something). Values are stored beside it in setup/.env (git-ignored, docker-ignored, never served). 'secret: false' values (URLs) are shown in full; secrets are masked.",
+  "services": [
+    {
+      "id": "jira",
+      "name": "Jira",
+      "color": "#2f86ff",
+      "required": true,
+      "why": "Pulls every ticket on the board. Without it nothing can be fetched.",
+      "usedBy": ["Daily fetch", "Completed archive", "Raised by me", "Ticket refresh", "Drag to move in Jira", "PR readiness reports"],
+      "getIt": "Jira → Profile → Personal Access Tokens → Create token",
+      "keys": [
+        { "env": "JIRA_PERSONAL_TOKEN", "label": "Personal access token", "secret": true },
+        { "env": "JIRA_URL", "label": "Base URL", "secret": false, "optional": true, "hint": "Leave empty to use endpoints.jiraBase from the config." }
+      ]
+    },
+    {
+      "id": "bitbucket",
+      "name": "Bitbucket",
+      "color": "#6366f1",
+      "required": false,
+      "why": "Adds real branches, pull requests and review state to the cards.",
+      "usedBy": ["PR chips on cards", "PR readiness reports", "Move gates (open PR checks)"],
+      "getIt": "Bitbucket → Personal settings → HTTP access tokens (read scope is enough)",
+      "keys": [
+        { "env": "BITBUCKET_PAT", "label": "HTTP access token", "secret": true },
+        { "env": "ATLASSIAN_TOKEN", "label": "Atlassian token (alternative)", "secret": true, "optional": true, "hint": "Used only when no HTTP access token is set." },
+        { "env": "BITBUCKET_URL", "label": "Base URL", "secret": false, "optional": true, "hint": "Leave empty to use endpoints.bitbucketBase from the config." }
+      ]
+    },
+    {
+      "id": "confluence",
+      "name": "Confluence",
+      "color": "#14b8a6",
+      "required": false,
+      "why": "Lets the agent fallback read linked Confluence pages. The normal fetch does not need it.",
+      "usedBy": ["Agent fallback (MCP servers)"],
+      "getIt": "Confluence → Profile → Personal Access Tokens → Create token",
+      "keys": [
+        { "env": "CONFLUENCE_PERSONAL_TOKEN", "label": "Personal access token", "secret": true },
+        { "env": "CONFLUENCE_URL", "label": "Base URL", "secret": false, "optional": true, "hint": "Leave empty to use endpoints.confluenceBase from the config." }
+      ]
+    },
+    {
+      "id": "claude",
+      "name": "Claude",
+      "color": "#d97757",
+      "required": false,
+      "why": "Runs Cloud AI with Claude models, billed to this key's Anthropic account.",
+      "usedBy": ["Cloud AI briefs (Claude)", "PR report enrichment (Claude)", "Agent fallback (claude connector)"],
+      "getIt": "console.anthropic.com → API keys",
+      "keys": [{ "env": "ANTHROPIC_API_KEY", "label": "API key", "secret": true }]
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "color": "#a855f7",
+      "required": false,
+      "why": "Runs Cloud AI with Cursor models, and the default agent fallback when the fast fetch fails.",
+      "usedBy": ["Cloud AI briefs (Cursor)", "PR report enrichment (Cursor)", "Agent fallback (cursor connector)"],
+      "getIt": "Cursor Dashboard → API Keys",
+      "keys": [{ "env": "CURSOR_API_KEY", "label": "API key", "secret": true }]
+    },
+    {
+      "id": "gemini",
+      "name": "Gemini",
+      "color": "#f59e0b",
+      "required": false,
+      "why": "Runs Cloud AI with Gemini models, billed to this key's Google account.",
+      "usedBy": ["Cloud AI briefs (Gemini)", "PR report enrichment (Gemini)"],
+      "getIt": "aistudio.google.com → API keys",
+      "keys": [{ "env": "GEMINI_API_KEY", "label": "API key", "secret": true }]
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "color": "#10b981",
+      "required": false,
+      "why": "Only for the agent fallback when the codex connector is the active one.",
+      "usedBy": ["Agent fallback (codex connector)"],
+      "getIt": "platform.openai.com → API keys",
+      "keys": [{ "env": "OPENAI_API_KEY", "label": "API key", "secret": true }]
+    }
+  ]
+}

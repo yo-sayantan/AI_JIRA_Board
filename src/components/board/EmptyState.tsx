@@ -1,17 +1,24 @@
 import { motion } from 'motion/react'
 import { CopyButton } from '../common/ui'
-import { RefreshIcon } from '../common/Icons'
+import { KeyIcon, RefreshIcon } from '../common/Icons'
+import { hexToRgba } from '../../lib/format'
 
 export function EmptyState({
   served,
   refreshing,
   onRefresh,
   runCommand,
+  onOpenKeys,
+  keysMissing = false,
 }: {
   served: boolean
   refreshing: boolean
   onRefresh: () => void
   runCommand: string
+  /** Served only: a new install has no board yet, so the API keys entry has to live here too. */
+  onOpenKeys?: () => void
+  /** A required key (the Jira token) is missing — the intern cannot fetch until it is added. */
+  keysMissing?: boolean
 }) {
   return (
     <div className="grid min-h-[80vh] place-items-center">
@@ -48,6 +55,17 @@ export function EmptyState({
             </span>
             {refreshing ? 'Working…' : served ? 'Run the intern' : 'Reload'}
           </motion.button>
+          {onOpenKeys && (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={onOpenKeys}
+              className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-[13px] font-semibold"
+              style={{ color: '#f59e0b', borderColor: hexToRgba('#f59e0b', 0.45), background: hexToRgba('#f59e0b', 0.07) }}
+            >
+              <KeyIcon size={14} color="#f59e0b" />
+              {keysMissing ? 'Add API keys first' : 'API keys'}
+            </motion.button>
+          )}
           {!served && <CopyButton text={runCommand} label="Copy command" />}
         </div>
         {!served && (
