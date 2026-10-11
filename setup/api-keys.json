@@ -1,5 +1,5 @@
 {
-  "$comment": "THE list of API keys the board knows about — read by the server (server/secrets.mjs: only these names can be saved), the board's API keys dialog (src/lib/apiKeys.ts) and tests/test_api_keys.py (every key must be read by something). Values are stored beside it in setup/.env (git-ignored, docker-ignored, never served). 'secret: false' values (URLs) are shown in full; secrets are masked.",
+  "$comment": "THE list of API keys the board knows about — read by the server (server/secrets.mjs: only these names can be saved), the board's API keys dialog (src/lib/apiKeys.ts) and tests/test_api_keys.py (every key must be read by something). Values are stored beside it in setup/.env (git-ignored, docker-ignored, never served). Each key has a kind: secret (masked; the default), url (shown in full; a new URL clears its service's secrets), email or text (shown in full). 'planned: true' marks a key the user can add now that nothing reads yet; tests/test_api_keys.py exempts only those.",
   "services": [
     {
       "id": "jira",
@@ -7,11 +7,60 @@
       "color": "#2f86ff",
       "required": true,
       "why": "Pulls every ticket on the board. Without it nothing can be fetched.",
-      "usedBy": ["Daily fetch", "Completed archive", "Raised by me", "Ticket refresh", "Drag to move in Jira", "PR readiness reports"],
+      "usedBy": [
+        "Daily fetch",
+        "Completed archive",
+        "Raised by me",
+        "Ticket refresh",
+        "Drag to move in Jira",
+        "PR readiness reports"
+      ],
       "getIt": "Jira → Profile → Personal Access Tokens → Create token",
       "keys": [
-        { "env": "JIRA_PERSONAL_TOKEN", "label": "Personal access token", "secret": true },
-        { "env": "JIRA_URL", "label": "Base URL", "secret": false, "optional": true, "hint": "Leave empty to use endpoints.jiraBase from the config." }
+        {
+          "env": "JIRA_PERSONAL_TOKEN",
+          "label": "Personal access token"
+        },
+        {
+          "env": "JIRA_URL",
+          "label": "Base URL",
+          "optional": true,
+          "hint": "Leave empty to use endpoints.jiraBase from the config.",
+          "kind": "url"
+        }
+      ]
+    },
+    {
+      "id": "atlassian",
+      "name": "Atlassian Cloud",
+      "color": "#0052cc",
+      "required": false,
+      "why": "One API token for Jira, Confluence and Bitbucket on Atlassian Cloud, as they move off on-prem.",
+      "usedBy": [
+        "Bitbucket (when no HTTP access token is set)",
+        "Jira · Confluence · Bitbucket Cloud (coming)"
+      ],
+      "getIt": "id.atlassian.com → Security → API tokens → Create API token",
+      "keys": [
+        {
+          "env": "ATLASSIAN_TOKEN",
+          "label": "API token"
+        },
+        {
+          "env": "ATLASSIAN_EMAIL",
+          "label": "Account email",
+          "kind": "email",
+          "planned": true,
+          "hint": "Cloud API calls sign in with this email plus the token."
+        },
+        {
+          "env": "ATLASSIAN_SITE_URL",
+          "label": "Site URL",
+          "kind": "url",
+          "planned": true,
+          "optional": true,
+          "hint": "Your Cloud site, e.g. https://your-org.atlassian.net."
+        }
       ]
     },
     {
@@ -20,12 +69,24 @@
       "color": "#6366f1",
       "required": false,
       "why": "Adds real branches, pull requests and review state to the cards.",
-      "usedBy": ["PR chips on cards", "PR readiness reports", "Move gates (open PR checks)"],
+      "usedBy": [
+        "PR chips on cards",
+        "PR readiness reports",
+        "Move gates (open PR checks)"
+      ],
       "getIt": "Bitbucket → Personal settings → HTTP access tokens (read scope is enough)",
       "keys": [
-        { "env": "BITBUCKET_PAT", "label": "HTTP access token", "secret": true },
-        { "env": "ATLASSIAN_TOKEN", "label": "Atlassian token (alternative)", "secret": true, "optional": true, "hint": "Used only when no HTTP access token is set." },
-        { "env": "BITBUCKET_URL", "label": "Base URL", "secret": false, "optional": true, "hint": "Leave empty to use endpoints.bitbucketBase from the config." }
+        {
+          "env": "BITBUCKET_PAT",
+          "label": "HTTP access token"
+        },
+        {
+          "env": "BITBUCKET_URL",
+          "label": "Base URL",
+          "optional": true,
+          "hint": "Leave empty to use endpoints.bitbucketBase from the config.",
+          "kind": "url"
+        }
       ]
     },
     {
@@ -34,11 +95,79 @@
       "color": "#14b8a6",
       "required": false,
       "why": "Lets the agent fallback read linked Confluence pages. The normal fetch does not need it.",
-      "usedBy": ["Agent fallback (MCP servers)"],
+      "usedBy": [
+        "Agent fallback (MCP servers)"
+      ],
       "getIt": "Confluence → Profile → Personal Access Tokens → Create token",
       "keys": [
-        { "env": "CONFLUENCE_PERSONAL_TOKEN", "label": "Personal access token", "secret": true },
-        { "env": "CONFLUENCE_URL", "label": "Base URL", "secret": false, "optional": true, "hint": "Leave empty to use endpoints.confluenceBase from the config." }
+        {
+          "env": "CONFLUENCE_PERSONAL_TOKEN",
+          "label": "Personal access token"
+        },
+        {
+          "env": "CONFLUENCE_URL",
+          "label": "Base URL",
+          "optional": true,
+          "hint": "Leave empty to use endpoints.confluenceBase from the config.",
+          "kind": "url"
+        }
+      ]
+    },
+    {
+      "id": "jenkins",
+      "name": "Jenkins",
+      "color": "#dc2626",
+      "required": false,
+      "why": "Reads the latest build of a ticket's branch per environment: result, tests, deploy target, failed stage.",
+      "usedBy": [
+        "Build chips on cards",
+        "Drawer: Proof · Builds",
+        "PR readiness: CI gate"
+      ],
+      "getIt": "Jenkins → your name → Configure → API Token → Add new token",
+      "keys": [
+        {
+          "env": "JENKINS_USER",
+          "label": "User name",
+          "kind": "text"
+        },
+        {
+          "env": "JENKINS_API_TOKEN",
+          "label": "API token",
+          "hint": "Job links per repository and environment go in the config (jenkins.jobs)."
+        }
+      ]
+    },
+    {
+      "id": "checkmarx",
+      "name": "Checkmarx One",
+      "color": "#65a30d",
+      "required": false,
+      "why": "Confirms which vulnerabilities a fix ticket actually closed, for its PR readiness report.",
+      "usedBy": [
+        "Vulnerability chip on cards",
+        "Drawer: Proof · Vulnerabilities",
+        "PR readiness: security gate"
+      ],
+      "getIt": "Checkmarx One → Identity and Access Management → API Keys (the Checkmarx MCP server uses the same key)",
+      "keys": [
+        {
+          "env": "CHECKMARX_API_KEY",
+          "label": "API key"
+        },
+        {
+          "env": "CHECKMARX_BASE_URL",
+          "label": "Tenant API URL",
+          "kind": "url",
+          "hint": "e.g. https://your-tenant.cxone.cloud — or endpoints.checkmarxBase in the config."
+        },
+        {
+          "env": "CHECKMARX_AUTH_URL",
+          "label": "Token URL",
+          "kind": "url",
+          "optional": true,
+          "hint": "Only when the IAM host differs from the API host."
+        }
       ]
     },
     {
@@ -47,9 +176,18 @@
       "color": "#d97757",
       "required": false,
       "why": "Runs Cloud AI with Claude models, billed to this key's Anthropic account.",
-      "usedBy": ["Cloud AI briefs (Claude)", "PR report enrichment (Claude)", "Agent fallback (claude connector)"],
+      "usedBy": [
+        "Cloud AI briefs (Claude)",
+        "PR report enrichment (Claude)",
+        "Agent fallback (claude connector)"
+      ],
       "getIt": "console.anthropic.com → API keys",
-      "keys": [{ "env": "ANTHROPIC_API_KEY", "label": "API key", "secret": true }]
+      "keys": [
+        {
+          "env": "ANTHROPIC_API_KEY",
+          "label": "API key"
+        }
+      ]
     },
     {
       "id": "cursor",
@@ -57,9 +195,18 @@
       "color": "#a855f7",
       "required": false,
       "why": "Runs Cloud AI with Cursor models, and the default agent fallback when the fast fetch fails.",
-      "usedBy": ["Cloud AI briefs (Cursor)", "PR report enrichment (Cursor)", "Agent fallback (cursor connector)"],
+      "usedBy": [
+        "Cloud AI briefs (Cursor)",
+        "PR report enrichment (Cursor)",
+        "Agent fallback (cursor connector)"
+      ],
       "getIt": "Cursor Dashboard → API Keys",
-      "keys": [{ "env": "CURSOR_API_KEY", "label": "API key", "secret": true }]
+      "keys": [
+        {
+          "env": "CURSOR_API_KEY",
+          "label": "API key"
+        }
+      ]
     },
     {
       "id": "gemini",
@@ -67,9 +214,17 @@
       "color": "#f59e0b",
       "required": false,
       "why": "Runs Cloud AI with Gemini models, billed to this key's Google account.",
-      "usedBy": ["Cloud AI briefs (Gemini)", "PR report enrichment (Gemini)"],
+      "usedBy": [
+        "Cloud AI briefs (Gemini)",
+        "PR report enrichment (Gemini)"
+      ],
       "getIt": "aistudio.google.com → API keys",
-      "keys": [{ "env": "GEMINI_API_KEY", "label": "API key", "secret": true }]
+      "keys": [
+        {
+          "env": "GEMINI_API_KEY",
+          "label": "API key"
+        }
+      ]
     },
     {
       "id": "openai",
@@ -77,9 +232,34 @@
       "color": "#10b981",
       "required": false,
       "why": "Only for the agent fallback when the codex connector is the active one.",
-      "usedBy": ["Agent fallback (codex connector)"],
+      "usedBy": [
+        "Agent fallback (codex connector)"
+      ],
       "getIt": "platform.openai.com → API keys",
-      "keys": [{ "env": "OPENAI_API_KEY", "label": "API key", "secret": true }]
+      "keys": [
+        {
+          "env": "OPENAI_API_KEY",
+          "label": "API key"
+        }
+      ]
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "color": "#0ea5e9",
+      "required": false,
+      "why": "Not used yet — for repositories hosted on GitHub.",
+      "usedBy": [
+        "Branches and PRs from GitHub (later)"
+      ],
+      "getIt": "GitHub → Settings → Developer settings → Personal access tokens (fine-grained, read-only)",
+      "keys": [
+        {
+          "env": "GITHUB_TOKEN",
+          "label": "Personal access token",
+          "planned": true
+        }
+      ]
     }
   ]
 }

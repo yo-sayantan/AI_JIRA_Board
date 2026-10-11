@@ -63,12 +63,13 @@ mirrors `sync-datajs.mjs` byte for byte (`tests/test_datafile.py NodeParity`). T
 `lock-util.sh` and `server/locks.mjs` must stay identical too. The `setup/.env` parser exists three
 times — `_config.py load_secrets`, `runner-env.sh export_secrets_from_file`, `server/secrets.mjs
 parseEnv` — and must agree (`tests/test_api_keys.py`, `server/secrets.test.mjs`); every key in
-`setup/api-keys.json` must be read by something (`tests/test_api_keys.py`).
+`setup/api-keys.json` must be read by something unless it is marked `planned` (`tests/test_api_keys.py`).
 
 **Add an API key.** One row in `setup/api-keys.json` (service colour, why, usedBy, getIt, the `env`
-name) — the dialog and `POST /api/keys` follow. Then read it: add the name to
+name and its `kind`: `secret` — the default, masked — `url`, `email` or `text`) — the dialog and `POST /api/keys` follow. Then read it: add the name to
 `runner-env.sh load_agent_secrets` (fetch / agent CLI), to `ai-intern/worker.py` (cloud call), or set it as a
-connector's `apiKeyEnv`. `tests/test_api_keys.py` fails until one of those reads it.
+connector's `apiKeyEnv`. `tests/test_api_keys.py` fails until one of those reads it — or mark the key `"planned": true` to offer it
+before its integration exists (the dialog then says "not used yet").
 
 ## Recipes
 

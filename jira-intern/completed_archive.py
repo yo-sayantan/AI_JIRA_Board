@@ -248,8 +248,31 @@ COMPLETED_KEYS = (
     "epic", "parentKey", "parentTitle", "mine", "labels", "components", "fixVersions",
     "description", "acceptanceCriteria", "comments", "commentCount", "related", "confluence",
     "externalLinks", "proposedSolution", "effortEstimate", "openQuestions", "sources",
-    "updateLog", "subtasks", "subtaskCount",
+    "updateLog", "subtasks", "subtaskCount", "vulnFixes",
 )
+
+
+def known_vuln_fixes(data):
+    """{key: vulnFixes} from the current dump — board tickets (and their nested sub-tasks) first,
+    then completed rows. The archive never asks Checkmarx; it only keeps what the daily fetch found."""
+    out = {}
+    for section in ("tickets", "completed"):
+        for row in (data or {}).get(section) or []:
+            if not isinstance(row, dict):
+                continue
+            for t in [row, *[s for s in row.get("subtasks") or [] if isinstance(s, dict)]]:
+                if t.get("key") and isinstance(t.get("vulnFixes"), dict) and t["key"] not in out:
+                    out[t["key"]] = t["vulnFixes"]
+    return out
+
+
+def carry_vuln_fixes(ticket, prior, known):
+    """Carry `vulnFixes` onto a rebuilt archive row: the cached row's first, else the dump's copy.
+    Preserve, never wipe — a rebuild from Jira has no way to know them."""
+    vf = (prior or {}).get("vulnFixes") if isinstance((prior or {}).get("vulnFixes"), dict) else known.get(ticket.get("key"))
+    if vf:
+        ticket["vulnFixes"] = vf
+    return ticket
 
 
 def completed_entry(t):
@@ -405,14 +428,17 @@ def _main(ts):
         pr_overrides = {}
     # Previous completed[] rows: the fallback for a key whose build fails and has no cache file.
     try:
+        current = read_json(DATA_JSON, {}) or {}
         existing_rows = {
             row["key"]: row
-            for row in (read_json(DATA_JSON, {}) or {}).get("completed") or []
+            for row in current.get("completed") or []
             if isinstance(row, dict) and row.get("key")
         }
+        vuln_known = known_vuln_fixes(current)
     except Exception as e:
         sys.stderr.write(f"WARN data.json unreadable for fallback rows: {e}\n")
         existing_rows = {}
+        vuln_known = {}
 
     # ── 1. Everything ever assigned to me — standalone tickets AND my sub-tickets.
     # `was` catches work reassigned away from me after I finished it.
@@ -515,6 +541,7 @@ def _main(ts):
                 pr_overrides, mine_by_key.get(key, key in mine_keys),
                 inherit_details=not clean_rebuild,
             )
+            carry_vuln_fixes(ticket, priors.get(key), vuln_known)
             atomic_write(os.path.join(CACHE, f"{key}.json"), dumps(ticket))
             return key, None
         except Exception as e:

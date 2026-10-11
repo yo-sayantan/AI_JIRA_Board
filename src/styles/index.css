@@ -1290,3 +1290,17 @@ select.jb-field:disabled {
     visibility: visible;
   }
 }
+
+/* API keys dialog: the board draws its own show/hide eye, so hide the browser's own reveal and
+   autofill buttons (Edge/Chromium ::-ms-reveal, Safari's key/contacts buttons). */
+.jb-key-input::-ms-reveal,
+.jb-key-input::-ms-clear {
+  display: none;
+}
+.jb-key-input::-webkit-credentials-auto-fill-button,
+.jb-key-input::-webkit-contacts-auto-fill-button {
+  visibility: hidden;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+}

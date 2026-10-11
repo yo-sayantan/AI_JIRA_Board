@@ -13,7 +13,9 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import checkmarx  # noqa: E402
 import devinfo  # noqa: E402  (needs the path fix above when run from another cwd)
+import jenkins  # noqa: E402
 from _config import bitbucket_hints, identity, today_str  # noqa: E402
 from _jira import (  # noqa: E402
     BITBUCKET_BASE,
@@ -259,6 +261,76 @@ def apply_code(ticket, key, prior=None):
     return ticket
 
 
+def apply_builds(ticket, key, prior=None):
+    """Latest Jenkins build per environment for the ticket's branches (jenkins.py), stored as
+    `builds`. The branches are the ticket's OWN, already scoped by code_for — so a sub-task never
+    picks up builds of its parent's branch. Carry-forward rules, as for PRs:
+      • Jenkins not configured (no jenkins.jobs, or no JENKINS_USER / JENKINS_API_TOKEN) → nothing
+        is asked and `prior`'s builds are kept as they were;
+      • the lookup failed (network, auth) → `prior`'s builds are kept (a partial failure keeps the
+        prior build for just the environments that failed);
+      • no branch in a configured repo, or Jenkins has no build for any of them → no `builds`.
+    `prior` defaults to the ticket itself (the fast path's deep copy of the previous card)."""
+    prior = ticket if prior is None else (prior or {})
+    prior_builds = prior.get("builds") if isinstance(prior.get("builds"), list) else None
+
+    def keep(stale=False):
+        if prior_builds:
+            ticket["builds"] = [{**b, "stale": True} if stale and isinstance(b, dict) else b for b in copy.deepcopy(prior_builds)]
+        return ticket
+
+    jobs = jenkins.jobs_config()
+    if not jenkins.enabled(jobs):
+        return keep()
+    targets = jenkins.targets_for(ticket, (DEV.get(key) or {}).get("repos"), jobs)
+    if not targets:
+        ticket.pop("builds", None)
+        return ticket
+    builds = jenkins.builds_for(targets, prior_builds)
+    if builds is None:
+        return keep(stale=True)  # Jenkins could not be read: carried forward, marked stale
+    if builds:
+        ticket["builds"] = builds
+    else:
+        ticket.pop("builds", None)
+    return ticket
+
+
+def apply_vuln_fixes(ticket, key, prior=None):
+    """Which vulnerabilities a vulnerability-fix ticket fixed, from Checkmarx One (checkmarx.py),
+    stored as `vulnFixes`. Same carry-forward rules as builds and PRs:
+      • not a vulnerability-fix ticket, it names no CVE / query / CWE / result / package, or it has
+        no pull request (or known-repo branch) to compare → no `vulnFixes` (nothing is asked);
+      • Checkmarx not configured (no base URL or CHECKMARX_API_KEY) → nothing is asked and
+        `prior`'s results are kept as they were;
+      • the lookup failed (network, auth, budget) → `prior`'s results are kept.
+    The PRs are the ticket's OWN, already scoped by code_for — a sub-task never inherits its
+    parent's scan. `prior` defaults to the ticket itself (the fast path's copy of the last card)."""
+    prior = ticket if prior is None else (prior or {})
+    prior_vf = prior.get("vulnFixes") if isinstance(prior.get("vulnFixes"), dict) else None
+
+    def keep():
+        if prior_vf:
+            ticket["vulnFixes"] = copy.deepcopy(prior_vf)
+        return ticket
+
+    if not checkmarx.is_vuln_fix(ticket):
+        ticket.pop("vulnFixes", None)
+        return ticket
+    targets = checkmarx.extract_targets(ticket)
+    repos = (DEV.get(key) or {}).get("repos")
+    if not targets or not checkmarx.scan_plan(ticket, repos):
+        ticket.pop("vulnFixes", None)
+        return ticket
+    if not checkmarx.enabled():
+        return keep()
+    found = checkmarx.vuln_fixes_for(ticket, targets, repos)
+    if found is None:
+        return keep()
+    ticket["vulnFixes"] = found
+    return ticket
+
+
 def is_mine(assignee):
     """Is this Jira user me? Exact (case-insensitive) match on the identifier fields; the
     display name only counts when it contains my id as a whole word — "ABC12" must not match
@@ -387,8 +459,9 @@ def build_basic_subtask(si, parent_key, prior=None):
 
 def refresh_prs_only(ticket, key):
     """Review activity lives in Bitbucket and does NOT bump Jira's `updated` — so even an
-    otherwise-unchanged in-flight ticket needs its PR badges refreshed."""
-    return apply_code(ticket, key)
+    otherwise-unchanged in-flight ticket needs its PR badges refreshed. Jenkins builds and
+    Checkmarx scans do not bump it either, so they are re-read here too."""
+    return apply_vuln_fixes(apply_builds(apply_code(ticket, key), key), key)
 
 
 def build_ticket(issue, prior, state_entry, force_refresh=False):
@@ -505,6 +578,8 @@ def build_ticket(issue, prior, state_entry, force_refresh=False):
         "updateLog": update_log,
     }
     apply_sprint(ticket, f.get("customfield_10404"))
+    apply_builds(ticket, key, prior or {})
+    apply_vuln_fixes(ticket, key, prior or {})
     if (prior or {}).get("estDays"):
         ticket["estDays"] = prior["estDays"]
 
@@ -602,6 +677,8 @@ def _main(existing_path, state_path):
 
     prior_map = {t["key"]: t for t in existing.get("tickets", [])}
     carried_qa = []
+    jenkins.reset_run()
+    checkmarx.reset_run()
 
     # Probe Bitbucket once; the key-scan supplement is skipped for the run when it is down.
     BB_OK = True
@@ -774,7 +851,11 @@ def _main(existing_path, state_path):
 
     set_progress("daily", done=total, total=total, phase="writing")
     day = today_str(INTERN)
-    notes = [f"{day}: Daily fetch — Jira REST" + ("" if BB_OK else "; Bitbucket unreachable — PR/branch data carried forward") + ("" if raised_ok else "; raised-tickets search failed — previous list kept") + "."]
+    jenkins_down = jenkins.hosts_down()
+    notes = [f"{day}: Daily fetch — Jira REST" + ("" if BB_OK else "; Bitbucket unreachable — PR/branch data carried forward")
+             + ("; Jenkins unreachable — builds carried forward" if jenkins_down else "")
+             + ("; Checkmarx unreachable — vulnerability results carried forward" if checkmarx.unreachable() else "")
+             + ("" if raised_ok else "; raised-tickets search failed — previous list kept") + "."]
     if changes["new"]:
         notes.append("New: " + ", ".join(k.split(":")[0] for k in changes["new"]))
     if changes["done"]:
@@ -900,6 +981,8 @@ def refresh_one(key):
     if prior and prior_where == "subtask":
         prior_map[key] = prior
 
+    jenkins.reset_run()
+    checkmarx.reset_run()
     # Skip Bitbucket entirely for single-ticket refresh. A hung BB from Docker was
     # timing out the shell (and before that, making the agent-only path look "successful"
     # while never writing). Status/column come from Jira; PR badges from Jira's own

@@ -187,6 +187,11 @@ class FetchOneTests(unittest.TestCase):
         info = self.fetch(_dev_status([_dev_pr(61, PLAIN)]), bb, enrich_open=False)
         self.assertEqual(info["branch"], NEWEST)
 
+    def test_each_branch_knows_its_repo_for_the_jenkins_lookup(self):
+        single = {"detail": [{"branches": [_branch(PLAIN)], "pullRequests": [_dev_pr(61, PLAIN)]}]}
+        info = self.fetch(single, _bb_router({}))
+        self.assertEqual(info["repos"], {PLAIN: "svc"})
+
     def test_a_failed_dev_status_call_is_none_not_empty(self):
         with mock.patch.object(devinfo, "jira_get", side_effect=RuntimeError("boom")):
             self.assertIsNone(devinfo.fetch_one("1"))

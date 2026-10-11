@@ -36,6 +36,96 @@ export interface PullRequest {
   updatedAt?: string | null
 }
 
+/** Result of a Jenkins build; BUILDING while it is still running (Jenkins reports no result yet). */
+export type BuildResult = 'SUCCESS' | 'FAILURE' | 'UNSTABLE' | 'ABORTED' | 'NOT_BUILT' | 'BUILDING'
+
+/** JUnit totals of a build (Jenkins' test result action). */
+export interface BuildTests {
+  total: number
+  failed: number
+  skipped: number
+  /** Up to 5 failing tests as "className.name" — only read for a build with failures. */
+  failing?: string[]
+}
+
+/**
+ * The LATEST build of one of the ticket's branches in one environment's Jenkins multibranch job
+ * (config → jenkins.jobs.<repo>.<env>). Written only by jira-intern/jenkins.py via daily_fetch.py:
+ * refreshed on every daily run (builds never bump Jira's `updated`) and by the single-ticket refresh;
+ * carried forward unchanged when Jenkins cannot be reached. A sub-task never carries builds of its
+ * parent's branch (same scoping as its PRs).
+ */
+export interface JenkinsBuild {
+  /** Environment name as configured (free-form: qa, uat, …). */
+  env: string
+  /** Repository slug — the key under jenkins.jobs. */
+  repo: string
+  branch: string
+  number: number
+  result: BuildResult
+  /** The build page in Jenkins. */
+  url?: string | null
+  /** When the build started (ISO, UTC). */
+  at?: string | null
+  /** Run time; null while building. */
+  durationMs?: number | null
+  tests?: BuildTests | null
+  /** First pipeline stage that FAILED / went UNSTABLE (failed and unstable builds only). */
+  failedStage?: string | null
+  /** Where it deployed: an ENV / ENVIRONMENT / TARGET / DEPLOY_ENV build parameter, else `env`. */
+  deployTarget?: string | null
+  /** True when Jenkins could not be re-read and this is the previous run's build, carried forward — not current proof. */
+  stale?: boolean
+}
+
+/** What a vulnerability-fix ticket names as fixed: a CVE id, a SAST query name or CWE id, a Checkmarx result / similarity id, or a package version. */
+export type VulnFixKind = 'cve' | 'sast' | 'result' | 'package'
+
+/**
+ * Decided by comparing the latest completed Checkmarx One scan of the PR's source branch with the latest one of
+ * its base branch: `fixed` = in the base scan and not open on the branch (gone, status FIXED, or triaged Not
+ * exploitable — the detail says which); `open` = still detected on the branch; `not-found` = in neither scan;
+ * `unknown` = the branch is not scanned yet, the base has no scan to compare, no project matches the repo, or a
+ * scan has more results than the board reads.
+ */
+export type VulnFixStatus = 'fixed' | 'open' | 'not-found' | 'unknown'
+
+export interface VulnFixItem {
+  /** As named on the ticket: "CVE-2021-44228", "SQL_Injection", "CWE-89", "result abc123", "log4j-core 2.14.1 → 2.17.1". */
+  target: string
+  kind: VulnFixKind
+  status: VulnFixStatus
+  /** CRITICAL / HIGH / MEDIUM / LOW / INFO — from the base scan when it was there, else the branch. */
+  severity?: string | null
+  /** Where: "file:line" for SAST, "package version" for SCA. */
+  location?: string | null
+  /** One line of evidence: "Fixed — gone on feature/x (scan 2026-10-09) · was HIGH on develop (scan 2026-10-01)." */
+  detail?: string | null
+}
+
+/**
+ * Which vulnerabilities a vulnerability-fix ticket fixed — only the targets the ticket itself names, never the
+ * scan's other findings. Written only by jira-intern/checkmarx.py via daily_fetch.py (full fetch, fast path,
+ * single-ticket refresh), only for vulnerability-fix tickets with a pull request; carried forward unchanged when
+ * Checkmarx cannot be read; kept by the archive. A sub-task only gets its own PR's scan.
+ */
+export interface VulnFixes {
+  /** When the board asked Checkmarx (ISO, UTC). */
+  scannedAt: string
+  /** The Checkmarx project (matched by the PR's repository slug). */
+  project: string
+  /** The PR's source branch. */
+  branch: string
+  /** What it is compared with: the PR's destination, else the project's main branch, else main/master/develop. */
+  baseBranch?: string | null
+  /** createdAt of the scans compared; null when that branch has no completed scan. */
+  branchScanAt?: string | null
+  baseScanAt?: string | null
+  /** Why nothing could be decided (no project, branch not scanned yet). */
+  note?: string | null
+  items: VulnFixItem[]
+}
+
 export interface Comment {
   author?: string | null
   when?: string | null
@@ -139,6 +229,16 @@ export interface Ticket {
   openQuestions?: string[]
   sources?: LinkRef[]
   updateLog?: UpdateLogEntry[]
+  /**
+   * Latest Jenkins build per (environment, branch) — see JenkinsBuild. Absent when Jenkins is not
+   * configured or no branch of the ticket has a build; every view must cope without it.
+   */
+  builds?: JenkinsBuild[]
+  /**
+   * Vulnerability-fix tickets only: what Checkmarx One says about each vulnerability the ticket names — see
+   * VulnFixes. Absent for every other ticket and when Checkmarx is not configured; every view must cope without it.
+   */
+  vulnFixes?: VulnFixes | null
 }
 
 /**
@@ -199,6 +299,8 @@ export interface CompletedTicket {
   openQuestions?: string[]
   sources?: LinkRef[]
   updateLog?: UpdateLogEntry[]
+  /** Kept from the board copy when the ticket was archived (the archive never asks Checkmarx) — see VulnFixes. */
+  vulnFixes?: VulnFixes | null
 }
 
 /** One assignee hand-off from the Jira changelog. The first assignment has from=null. */

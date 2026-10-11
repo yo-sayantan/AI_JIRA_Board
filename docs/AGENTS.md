@@ -8,7 +8,8 @@ AI agent to make a correct change without re-deriving the architecture.
 
 ```
  Jira / Bitbucket / Confluence  ──(your tokens)──▶  jira-intern/*.py  ──▶  jira-intern/data.json + data.js
-                                                        (the "intern")           │
+ Jenkins / Checkmarx One (proof) ─────────────────▶  (the "intern")           │  (+ builds, vulnFixes)
+ setup/.env ◀── server/secrets.mjs ◀── key dialog   tokens read from setup/.env │
  AI-Intern container (worker.py) ◀── .ai-queue jobs ◀── server ◀─────────────────┤ reads
         │ writes aiSummary/reports back into data.json / reports/                ▼
         └────────────────────────────────────────────────────▶  dist/index.html (React, single file)
@@ -19,6 +20,8 @@ AI agent to make a correct change without re-deriving the architecture.
 - **One data contract.** `src/types.ts` is the single source of truth for every shape in
   `data.json`. `jira-intern/prompts/intern-prompt.md` restates it in prose for the LLM-agent
   fallback path. **Change one → change both.**
+- **One secrets file.** Every token is in `setup/.env`, written only by the board's API keys dialog
+  (`server/secrets.mjs`); `setup/api-keys.json` lists what may go there. Scripts and the worker read it.
 - **One writer at a time.** Every job that writes `data.json` is serialised by lock files and the
   server's in-memory flags. Never add a second concurrent writer.
 
@@ -32,16 +35,16 @@ AI agent to make a correct change without re-deriving the architecture.
 | `src/lib/` | Pure logic: `boardView` (derivations/index), `search` (query grammar), `columns` (status→column), `format` (every display helper), `runner` (typed API client), `settings` (feature registry), `statusPoller`. |
 | `src/hooks/` | Stateful glue: `useBoardData`, `useInternJobs` (daily/archive/raised/per-ticket jobs), `useReports`, `useDrawerStack`, `useBoardSettings`, `useToasts`. |
 | `src/components/` | Feature folders: `board/` `header/` `ticket/` `completed/` `raised/` `reports/` `settings/` `common/`. |
-| `jira-intern/` | The data pipeline. `daily_fetch.py` (active tickets + raised list + single-ticket refresh), `completed_archive.py` (historical archive), `raised.py` (raised-by-me fetch, shared), `_jira.py` (HTTP + field formatting), `devinfo.py` (branches/PRs via Jira dev-status), `pr_report.py` (deterministic PR reports), `datafile.py` (atomic writes, data.js sync), `progress.py` (progress file for button fills). |
+| `jira-intern/` | The data pipeline. `daily_fetch.py` (active tickets + raised list + single-ticket refresh), `completed_archive.py` (historical archive), `raised.py` (raised-by-me fetch, shared), `_jira.py` (HTTP + field formatting), `devinfo.py` (branches/PRs via Jira dev-status), `jenkins.py` (latest Jenkins multibranch build per branch and environment → `Ticket.builds`), `checkmarx.py` (Checkmarx One: which vulnerabilities a fix ticket fixed, branch scan vs base scan → `Ticket.vulnFixes`; also the worker's Checkmarx client), `_safe_http.py` (the proof clients' hardened urllib: verified TLS context with an opt-out per source, same-origin-only redirects), `pr_report.py` (deterministic PR reports), `datafile.py` (atomic writes, data.js sync), `progress.py` (progress file for button fills). |
 | `jira-intern/local-runner/` | Shell entrypoints the server invokes: `run-intern.sh`, `update-completed.sh`, `refresh-ticket.sh`, `refresh-raised.sh`, `pr-report.sh`; `runner-env.sh` (env, locks, timeouts), `config.mjs` (config merge → shellenv/prompts), `sync-datajs.mjs`. |
-| `server/` (entry: `server/serve.mjs`) | Zero-dependency Node server: static allowlist + the `/api/*` routes (jobs, reports, settings, API keys, AI proxy, status). `secrets.mjs` reads/writes `setup/.env` for the API keys dialog. |
+| `server/` (entry: `server/serve.mjs`) | Zero-dependency Node server: static allowlist + the `/api/*` routes (jobs, reports, settings, API keys, AI proxy, status). `secrets.mjs` reads/writes `setup/.env` for the API keys dialog; `keycheck.mjs` is the dialog's Test button (`POST /api/keys/test`: one cheap authenticated call per service, redirects never followed). |
 | `docker/` | `Dockerfile` (build context is the repo root — `docker-compose.yml` sets `dockerfile: docker/Dockerfile`) and `docker-entrypoint.sh`. `docker-compose.yml` stays at the root on purpose. |
 | `scripts/` | `start-jira-board.sh` (host build + Docker deploy), `open-guide.sh` / `open-guide.bat` (open `help/00-start-here.html`, no server), `build-help-data.mjs` (writes `help/help-data.js`; `npm run build` runs it first) and `Open Board.html`. |
 | `tooling/` | `vite.config.ts`, `vitest.config.ts` — selected by `--config` in the npm scripts. `src/tsconfig.json` is the TypeScript config; `.claude/CLAUDE.md` is the agent entry point. |
 | `ai-intern/` | The AI worker container: `worker.py` (job queue + HTTP; Ollama local or Claude/Cursor/Gemini cloud), `models.json` (local model catalog), `cloud-models.json` (THE cloud model list: models, efforts, costly line) + `cloud_config.py`, `cursor-prices.json` (Cursor's price table — reference data). |
 | `config/` | `jira-board.config.json` — tracked, **generic** project defaults (+ JSON schema). Personal values live OUTSIDE the repo in `~/.ai/config.json`. |
 | `setup/` | `api-keys.json` (tracked: THE list of API keys the board knows), the git-ignored `.env` the board's API keys dialog writes (the only secrets file the board reads), and templates (personal config, IDE MCP servers, Desktop launcher) — the guide is `docs/SETUP.md`. Shipped into the Docker image minus `.env` (docker-ignored); compose mounts `./setup` instead. |
-| `help/` | **The help guide** (the board's **?** button): plain HTML pages that open straight from disk, numbered in deploy order — `00-start-here.html` … `10-developer-documentation.html`, `developer-doc-viewer.html` (renders `docs/*.md`), `legal-privacy-and-accessibility.html`. One `help.css`, one `help.js`, and `help-data.js` — a GENERATED copy of `ai-intern/models.json`, `cursor-prices.json`, `cloud-models.json` and `docs/*.md` so tables and docs work offline (`scripts/build-help-data.mjs`; a test fails when it is stale). |
+| `help/` | **The help guide** (the board's **?** button): plain HTML pages that open straight from disk, numbered in deploy order — `00-start-here.html` … `11-api-keys-and-integrations.html`, `developer-doc-viewer.html` (renders `docs/*.md`), `legal-privacy-and-accessibility.html`. One `help.css`, one `help.js`, and `help-data.js` — a GENERATED copy of `ai-intern/models.json`, `cursor-prices.json`, `cloud-models.json` and `docs/*.md` so tables and docs work offline (`scripts/build-help-data.mjs`; a test fails when it is stale). |
 | `docs/` | **Developer documentation** (markdown, see index at the bottom). The only `.md` files outside are runtime inputs, not docs: `jira-intern/prompts/*.md` (LLM prompts read by scripts) and `.github/pull_request_template.md` (GitHub requires its location). |
 | `jira-intern/demo/` | Demo mode's sample board: `data.json` (the only source — tracked in git, unlike the real dump) and `README.md`. |
 | `src/demo/` | Demo mode's code: loads + re-dates `jira-intern/demo/data.json`, two canned PR reports, and a browser-side mirror of the move gates. Driven by the `demoMode` feature toggle; `runner.ts::setDemoMode` blocks every server call while it is on. |
@@ -99,6 +102,37 @@ assignee, hand-off history) is the most recent full-stack feature — copy its s
    `Settings.tsx::FEATURE_STYLE` (TypeScript forces this) + `FEATURE_ORDER`.
 8. **AI** — `ai-intern/worker.py::summarize_active` walks `raised[]` after `tickets[]`;
    `write_briefs` stamps both copies of a key; `fetch_raised` carries briefs across refreshes.
+
+## How to add a proof source (worked example: Jenkins and Checkmarx)
+
+A proof source is an outside system that confirms what a ticket claims — Jenkins builds
+(`Ticket.builds`) and Checkmarx One fixes (`Ticket.vulnFixes`) are the two so far. Copy their shape:
+
+1. **Key** — a service row in `setup/api-keys.json` (id, colour, why, usedBy, getIt, keys with a `kind`).
+   Add the key names to `runner-env.sh::load_agent_secrets` (and the worker if it reads them), or
+   `tests/test_api_keys.py` fails. A key nothing reads yet must say `planned: true`.
+2. **Config** — non-secret wiring in `config/jira-board.config.json` + schema, generic and empty by default
+   (`jenkins.jobs: {}`, `endpoints.checkmarxBase: ""`); real hosts go in `~/.ai/config.json`, never the repo.
+   Unconfigured = nothing is asked and prior data is kept. Document it in `docs/CONFIG.md`.
+3. **Client** — one module in `jira-intern/` (`jenkins.py`, `checkmarx.py`): credentials only in headers or
+   POST bodies, never URLs or logs; follow-up URLs built from config, never from what the server returns; a
+   per-run call budget and a "host unreachable → stop asking this run" switch. Return **None when the lookup
+   failed**, an empty/absent answer when there is genuinely nothing.
+4. **Contract** — the field in `src/types.ts` (`JenkinsBuild[]`, `VulnFixes`), optional so old dumps render,
+   and in `prompts/intern-prompt.md` ("preserve unchanged").
+5. **One writer** — `daily_fetch.apply_<x>` on every fully built ticket, full AND fast path (outside systems
+   never bump Jira's `updated`) and in `--key` refresh; only the ticket's own branches/PRs after
+   `scope_to_subtask`; None → carry the prior value forward. Every other writer passes the field through
+   (the archive: `carry_vuln_fixes` + `COMPLETED_KEYS`, if Completed should keep it). Run note on failure.
+6. **UI** — a chip on the card (`common/Builds.tsx`, `common/VulnFixes.tsx`, rendered by `board/TicketCard.tsx`)
+   and a group in the drawer's Proof section (`ticket/Proof.tsx`); format helpers in `src/lib/format.ts` with tests.
+   Hidden when the field is absent; demo data in `jira-intern/demo/data.json` exercises it.
+7. **Report gate** — one gate function in `pr_report.py` (`jenkins_ci`, `vuln_gate`) used by the deterministic
+   base and the worker alike, plus evidence rows; include the field in the fingerprint only when present, so
+   adding it does not make every existing report stale.
+8. **Tests + docs** — `tests/test_<x>.py` (URL building, failure → None, matching), the INTEGRATIONS.md
+   section (endpoints, failure semantics), DATA-FLOW.md writer/reader lines, FEATURES/USAGE, and the help page
+   `help/11-api-keys-and-integrations.html`.
 
 ## UI style guardrails
 
@@ -159,6 +193,30 @@ deployed from** (see `docs/DEPLOYMENT.md` → "the data mount follows the deploy
 - PR review state lives in Bitbucket and does NOT bump Jira `updated` — the daily fast path
   re-checks PRs even for "unchanged" tickets (`refresh_prs_only`); sprints are re-applied on the
   fast path too (sprint objects mutate without touching the issue).
+- Jenkins and Checkmarx send credentials, so they never use `_jira`'s opener: `_safe_http.opener` follows a redirect only to
+  the same scheme + host + port, and `verified_context` ignores `JIRA_INSECURE_TLS` (Jenkins has its own
+  `JENKINS_INSECURE_TLS`, passed through wherever `JIRA_INSECURE_TLS` is — compose, `runner-env.sh`, the worker; a test
+  checks). Jenkins job URLs must be https. A carried-forward build is `stale: true` and can never pass the CI gate.
+- Jenkins multibranch names a branch's job with `/` written as `%2F` (and `%` as `%25`), and that name is URL-encoded
+  AGAIN in the path: `feature/ABC-1` → `<job>/job/feature%252FABC-1/`. One function does it (`jenkins.branch_segment`);
+  never hand-build a branch job URL. A 404 there = "no build for this branch", not an error.
+- `Ticket.builds` follows the PR rules: re-read on the daily fast path (a build never bumps `updated`), only for
+  the ticket's OWN branches after `scope_to_subtask` (a sub-task never shows its parent's builds), and a failed
+  Jenkins lookup CARRIES FORWARD the prior builds (`jenkins.builds_for` → None). Only `daily_fetch.apply_builds`
+  writes the field; every other writer passes it through. The report fingerprint includes builds only when a
+  ticket has some, so adding the field did not make every existing report stale.
+- `Ticket.vulnFixes` (Checkmarx) answers "did THIS ticket fix what it names" by comparing TWO scans — the latest completed
+  scan of the PR's source branch against the base branch's — never by reading one scan's totals (a clean-looking count
+  says nothing about the ticket's CVE, and a CVE absent from one scan may never have been there: that is `not-found`, not
+  `fixed`). A truncated or missing scan is `unknown`, not a verdict. Same rules as builds: re-read on the fast path, only
+  for the ticket's own PRs, a failed lookup CARRIES FORWARD the prior results (`checkmarx.vuln_fixes_for` → None), only
+  `daily_fetch.apply_vuln_fixes` writes it (the archive carries it), fingerprint only when present. `pr_report.vuln_gate`
+  is the one gate rule (base and worker). The worker has no Checkmarx client of its own — it imports `checkmarx.py` and
+  calls `isolated_lookup` (under `RUN_LOCK`), never `reset_run` + `vuln_fixes_for` bare: the module state is per run.
+  "Unknown, not a verdict" also covers: a scan that did not run the target's ENGINE (SCA for CVEs/packages, SAST for
+  queries/CWEs/result ids — the newest of the last 20 completed scans that ran it is used), a branch scan OLDER than the
+  base scan, and a per-scan result `id` (only `similarityId` is stable across scans). The project must be named exactly
+  `<slug>` or `…/<slug>` — the API's name search is a substring match, never take its only hit as a guess.
 - `resolutiondate` can be null for tickets transitioned straight to Done —
   `changelog_done_date()` is the fallback.
 - A sub-task of yours is stored TWICE (own card + nested under parent); `_merge_ticket` must
@@ -214,11 +272,12 @@ deployed from** (see `docs/DEPLOYMENT.md` → "the data mount follows the deploy
 | `docs/FEATURES.md` | Every user-facing feature, how it behaves, where its code lives. |
 | `docs/DATA-FLOW.md` | Every file on disk, every writer/reader, locks, lifecycles, flows per job. |
 | `docs/AI-PIPELINE.md` | Levels, backends, model catalog, briefs, PR-report enrichment, queues. |
-| `docs/INTEGRATIONS.md` | Jira/Bitbucket/Confluence specifics, the full HTTP API, Docker topology, config/settings chain. |
+| `docs/INTEGRATIONS.md` | Jira/Bitbucket/Jenkins/Checkmarx/Confluence specifics, the full HTTP API, Docker topology, config/settings chain. |
 | `docs/ARCHITECTURE.md` | The component-level overview (start here if new). |
 | `docs/DEPLOYMENT.md` | Run modes, Docker details, deploy pitfalls. |
 | `docs/USAGE.md` | The board as a user sees it. |
-| `docs/SETUP.md` | The two outside-the-repo files (secrets, personal config), MCP templates, the public-repo checklist. |
+| `docs/SETUP.md` | API keys (`setup/.env` via the key dialog), the personal config, MCP templates, the public-repo checklist. |
+| `docs/SECURITY.md` | Where every secret lives, who reads it, what is served, TLS, the leak scan. |
 | `docs/CONFIG.md` | Key-by-key reference for `config/jira-board.config.json` and the personal override. |
 | `docs/INTERN.md` | The fetch pipeline (`jira-intern/`) from the inside: scripts, runners, behaviours. |
 | `docs/OVERVIEW.md` | The project overview (features, quick start, repository layout). |

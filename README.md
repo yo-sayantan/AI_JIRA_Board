@@ -42,6 +42,7 @@ bash scripts/start-jira-board.sh                                     # build, de
 - Smart search (`PROJ-6115`, bare numbers, people, branches, PR ids) and one-click stat chips.
 - **Completed archive** — your whole delivery history by year and month, with lead-time vs dev-time.
 - **Raised by me** — every ticket you filed, who holds it now, and the full hand-off trail.
+- **Proof on every card** — the latest Jenkins build per environment (result, tests, failed stage) and, for vulnerability-fix tickets, which named CVEs / Checkmarx findings are really fixed on the branch; both feed the PR report's CI and security gates.
 - Toasts that appear instantly and queue politely (you choose how many and for how long).
 
 **🤖 AI features**
@@ -171,6 +172,7 @@ Every file, its writer and its reader: [`docs/RUNTIME-FILES.md`](docs/RUNTIME-FI
 | [`08-other-ways-to-run.html`](help/08-other-ways-to-run.html) | Run without Docker, develop the app, refresh by hand |
 | [`09-troubleshooting-and-faq.html`](help/09-troubleshooting-and-faq.html) | Fix a problem |
 | [`10-developer-documentation.html`](help/10-developer-documentation.html) | Find the developer docs (readable in [`developer-doc-viewer.html`](help/developer-doc-viewer.html)) |
+| [`11-api-keys-and-integrations.html`](help/11-api-keys-and-integrations.html) | Add API keys, connect Jenkins and Checkmarx One, see what each unlocks |
 | [`legal-privacy-and-accessibility.html`](help/legal-privacy-and-accessibility.html) | Privacy, your data, cookies, terms, accessibility |
 
 ### Everyday commands
@@ -197,7 +199,7 @@ docker compose logs -f             # watch the containers
 | [`docs/FEATURES.md`](docs/FEATURES.md) | Every feature and where its code lives |
 | [`docs/DATA-FLOW.md`](docs/DATA-FLOW.md) | Every file, writer, lock and lifecycle |
 | [`docs/AI-PIPELINE.md`](docs/AI-PIPELINE.md) | Briefs, report enrichment, models, queues |
-| [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md) | Jira/Bitbucket, the full HTTP API, config chain |
+| [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md) | Jira/Bitbucket/Jenkins/Checkmarx One, the full HTTP API, config chain |
 | [`docs/RUNTIME.md`](docs/RUNTIME.md) | Containers, agents, queues, schedulers, runbook |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | How the fetch, data file and app fit together |
 | [`docs/INTERN.md`](docs/INTERN.md) | The fetch pipeline (`jira-intern/`) from the inside |

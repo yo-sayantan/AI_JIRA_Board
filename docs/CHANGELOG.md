@@ -5,6 +5,25 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Proof: Jenkins builds on every card.** `jira-intern/jenkins.py` reads the latest build of each of a ticket's own
+  branches per environment from the multibranch jobs in `jenkins.jobs.<repo>.<env>` (new, empty by default) with
+  `JENKINS_USER` / `JENKINS_API_TOKEN`: result, number, tests, up to five failing test names, failed stage, deploy target.
+  Stored as `Ticket.builds` by `daily_fetch.apply_builds` (full and fast path, `--key` refresh); a failed lookup carries
+  the prior builds forward. Shown as build chips on the card and in the drawer's new **Proof → Builds** group; the PR
+  readiness report's "CI green" gate uses it (`pr_report.jenkins_ci`), Bitbucket build status as the fallback.
+- **Proof: Checkmarx One vulnerability fixes.** For a vulnerability-fix ticket with a PR, `jira-intern/checkmarx.py`
+  compares the latest completed scan of the PR's source branch with the base branch's and gives each CVE / query / CWE /
+  result / package the ticket names a status — fixed, open, not-found, unknown. Stored as `Ticket.vulnFixes`
+  (`daily_fetch.apply_vuln_fixes`; kept by the archive), shown as a shield chip and **Proof → Vulnerabilities**, and
+  gated in the report's "Security scan (Checkmarx) clean" row (`pr_report.vuln_gate`, deterministic base and worker).
+- **API keys dialog: key kinds, planned keys, new services.** Each key in `setup/api-keys.json` has a `kind` —
+  `secret` (masked), `url`, `email`, `text` (shown in full) — and `planned: true` marks a key that can be saved before
+  anything reads it (the only keys `tests/test_api_keys.py` exempts). New rows: Atlassian Cloud (`ATLASSIAN_TOKEN`, used
+  for Bitbucket when no HTTP access token is set; email and site planned), Checkmarx One, Jenkins, GitHub (planned).
+  One eye per secret, compact rows; a new base URL clears its service's secrets.
+- **Help guide: `help/11-api-keys-and-integrations.html`.** The key dialog, what each key unlocks, Jenkins jobs and
+  Checkmarx setup, where the results show, troubleshooting. Architecture docs gained "API keys" and "External proof
+  sources" sections ([ARCHITECTURE.md](ARCHITECTURE.md)) and a "How to add a proof source" worked example ([AGENTS.md](AGENTS.md)).
 - **API keys are added in the board, and live in `setup/.env`.** A key button in the header (amber dot while the
   Jira token is missing; also **Add API keys first** on a new install's empty screen) opens one list with a row
   per service from `setup/api-keys.json` — why it's needed, what uses it, where to get it, one field per key.

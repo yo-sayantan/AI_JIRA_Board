@@ -85,9 +85,39 @@ so a refresh never wipes them (`carry_ai_fields`, `fetch_raised`'s prior-map).
    per-file change assessment (Required/Neutral/Risky), review focus, risks, business impact,
    ticket-specific release gate — each block tagged with provenance `ai` so the UI renders it
    distinctly from `derived` facts.
-3. Staleness is a **PR fingerprint** (ids/states/approvals hash): a report regenerates only when
-   the underlying PRs actually changed, and `--if-needed` runs (auto after a ticket refresh) are
-   cheap no-ops otherwise.
+3. Staleness is a **PR fingerprint** (ids/states/approvals hash, plus each Jenkins build's env, branch,
+   number and result when the ticket has builds): a report regenerates only when the underlying PRs —
+   or a newer build — actually changed, and `--if-needed` runs (auto after a ticket refresh) are
+   cheap no-ops otherwise. A ticket without builds keeps the fingerprint it had before builds existed.
+   Checkmarx results join the same way: the scan dates and each target's (target, kind, status) are in the
+   fingerprint only when the ticket has `vulnFixes`.
+
+**The "CI green" gate — source order.** (1) **Jenkins builds** already in `data.json`
+(`Ticket.builds`, from `jenkins.py`): `pr_report.jenkins_ci` judges the builds of the open PRs' source
+branches (else the primary branch's, else all): **Pass** when the latest build of every environment that
+built the branch is `SUCCESS`, **Fail** on any `FAILURE` / `UNSTABLE` (evidence names the failed stage),
+**In progress** while one is `BUILDING`, **Not verified** otherwise (aborted, not built, or a `stale` build — one
+the fetch carried forward because Jenkins could not be re-read; the evidence gives its age, and a stale build
+can never make the gate Pass, though a fresh failure still fails it). This is in the
+deterministic base report — AI level None included — with one evidence row per build ("Jenkins · qa ·
+#412 SUCCESS · 2h ago · 312 tests, 0 failed", plus the failed stage, failing tests and a link). The worker's
+proof step calls the same function, so base and enrichment never disagree. (2) **Bitbucket build status**
+on the PR's latest commit (`worker.bitbucket_ci`) — only when the ticket has no builds, and only during
+enrichment. The gate never blocks closure and never moves the verdict or score.
+
+**The "Security scan (Checkmarx) clean" gate — source.** `Ticket.vulnFixes` (from `checkmarx.py` in the daily
+fetch), judged by `pr_report.vuln_gate` in the deterministic base report — AI level None included: only the
+targets the ticket names count (the generic "N critical / N high still open" summary is gone). **Pass** when every
+target is fixed, **Fail** when any is still open on the branch (evidence names them), **Not verified** otherwise —
+with the reason: not a vulnerability-fix ticket, nothing named, Checkmarx not read yet, N not found in either scan,
+N unknown, or the result's note (no project, branch not scanned yet). One evidence row per target ("Checkmarx · CVE ·
+`CVE-2021-44228` · CRITICAL · `log4j-core 2.14.1` → Fixed — gone on feature/x (scan …) · was CRITICAL on develop
+(scan …)"). The worker's "Proof · vulnerability fix" table lists the same targets (`pr_report.vuln_proof_rows`) and
+sets the gate with the same function, so the enriched row equals the base row. Only when the dump has no results for
+a vulnerability ticket does the worker look Checkmarx up live — with the same `checkmarx.py` — and fill the gate from
+that. It calls `checkmarx.isolated_lookup`, which takes `checkmarx.RUN_LOCK`, resets the module's per-run state (token,
+call budget, "down" flag, caches) and does one `vuln_fixes_for` — so two concurrent worker jobs never reset or reuse
+each other's token or budget mid-lookup (the daily fetch calls `reset_run` once per run instead). The gate never blocks closure and never moves the verdict or score.
 4. Bulk runs queue through one pump (`server/reports.mjs` + `pr-reports-backfill.sh`) with
    scope all/year/since/keys; `.status.json` records in-flight PIDs so even a cron-launched run
    shows a spinner in the drawer.

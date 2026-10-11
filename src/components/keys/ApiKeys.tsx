@@ -1,12 +1,29 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { API_SERVICES, canSave, keyCounts, serviceReady, type ApiKeyField, type ApiService, type KeyStatus } from '../../lib/apiKeys'
+import {
+  API_SERVICES,
+  TEST_TONE_COLOR,
+  canSave,
+  keyCounts,
+  kindOf,
+  servicePlanned,
+  serviceReady,
+  testBlocker,
+  testResultView,
+  type ApiKeyField,
+  type ApiService,
+  type KeyStatus,
+  type KeyTestResult,
+} from '../../lib/apiKeys'
 import { hexToRgba } from '../../lib/format'
 import type { ApiKeySave } from '../../lib/runner'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { CheckIcon, ChevronIcon, EyeIcon, EyeOffIcon, KeyIcon } from '../common/Icons'
 
 type SaveFn = (name: string, value: string) => Promise<ApiKeySave>
+type TestFn = (service: string) => Promise<KeyTestResult>
+/** One service's Test state: running, and the last answer (cleared when one of its keys is saved). */
+type TestState = { busy: boolean; result?: KeyTestResult }
 const UNSET = { set: false, masked: '' }
 const QUIET = '#8b94a8'
 
@@ -22,6 +39,7 @@ export function ApiKeysDialog({
   onClose,
   onRefresh,
   onSave,
+  onTest,
 }: {
   open: boolean
   status: KeyStatus | null
@@ -30,16 +48,32 @@ export function ApiKeysDialog({
   onClose: () => void
   onRefresh: () => void
   onSave: SaveFn
+  /** Check a service's SAVED key against its host (POST /api/keys/test). */
+  onTest: TestFn
 }) {
   const panelRef = useRef<HTMLElement>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [tests, setTests] = useState<Record<string, TestState>>({})
   useDialogFocus(open, panelRef)
+
+  const runTest = async (id: string) => {
+    setTests((t) => ({ ...t, [id]: { busy: true, result: t[id]?.result } }))
+    const result = await onTest(id)
+    setTests((t) => ({ ...t, [id]: { busy: false, result } }))
+  }
+  // A saved key makes the last test stale: drop its answer (a running test keeps going).
+  const saveFor = (id: string): SaveFn => async (name, value) => {
+    const r = await onSave(name, value)
+    if (r.ok) setTests((t) => (t[id]?.result ? { ...t, [id]: { busy: t[id].busy } } : t))
+    return r
+  }
 
   // Fresh status on every open; start on the first required service that still needs a key.
   const wasOpen = useRef(false)
   useEffect(() => {
     if (open && !wasOpen.current) {
       onRefresh()
+      setTests({})
       setExpanded(API_SERVICES.find((s) => s.required && !serviceReady(s, status))?.id ?? null)
     }
     wasOpen.current = open
@@ -114,7 +148,7 @@ export function ApiKeysDialog({
               </p>
             )}
 
-            <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 py-3">
+            <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 py-2.5">
               {API_SERVICES.map((s) => (
                 <ServiceRow
                   key={s.id}
@@ -122,7 +156,9 @@ export function ApiKeysDialog({
                   status={status}
                   open={expanded === s.id}
                   onToggle={() => setExpanded((cur) => (cur === s.id ? null : s.id))}
-                  onSave={onSave}
+                  onSave={saveFor(s.id)}
+                  test={tests[s.id]}
+                  onTest={() => void runTest(s.id)}
                 />
               ))}
             </ul>
@@ -144,21 +180,30 @@ function ServiceRow({
   open,
   onToggle,
   onSave,
+  test,
+  onTest,
 }: {
   service: ApiService
   status: KeyStatus | null
   open: boolean
   onToggle: () => void
   onSave: SaveFn
+  test: TestState | undefined
+  onTest: () => void
 }) {
   const ready = serviceReady(service, status)
+  const planned = servicePlanned(service)
   const color = ready ? service.color : QUIET
   const bodyId = `api-key-${service.id}`
   const pill = ready
     ? { text: 'Set', color: service.color }
     : service.required
       ? { text: 'Required', color: '#f59e0b' }
-      : { text: 'Not set', color: QUIET }
+      : { text: planned ? 'Not used yet' : 'Not set', color: QUIET }
+  const blocker = testBlocker(service, status)
+  const busy = !!test?.busy
+  const view = test?.result ? testResultView(test.result) : null
+  const viewColor = view ? TEST_TONE_COLOR[view.tone] : QUIET
 
   return (
     <li
@@ -170,20 +215,31 @@ function ServiceRow({
         onClick={onToggle}
         aria-expanded={open}
         aria-controls={open ? bodyId : undefined}
-        className="flex w-full items-center gap-2.5 px-3 py-2 text-left"
+        className="flex w-full items-center gap-2.5 px-2.5 py-1.5 text-left"
       >
         <span
-          className="grid h-7 w-7 shrink-0 place-items-center rounded-lg"
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-lg"
           style={{ background: ready ? `linear-gradient(135deg, ${service.color}, ${hexToRgba(service.color, 0.65)})` : hexToRgba(QUIET, 0.18) }}
         >
-          {ready ? <CheckIcon size={11} color="#fff" /> : <KeyIcon size={11} color={QUIET} />}
+          {ready ? <CheckIcon size={10} color="#fff" /> : <KeyIcon size={10} color={QUIET} />}
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[13px] font-bold" style={{ color: ready ? service.color : 'var(--ink-soft)' }}>
+        <span className="flex min-w-0 flex-1 items-baseline gap-2">
+          <span className="shrink-0 text-[13px] font-bold" style={{ color: ready ? service.color : 'var(--ink-soft)' }}>
             {service.name}
           </span>
-          <span className="block truncate text-[11px] text-[var(--muted)]">{service.why}</span>
+          <span className="min-w-0 truncate text-[11px] text-[var(--muted)]" title={service.why}>
+            {service.why}
+          </span>
         </span>
+        {view && (
+          <span
+            role="img"
+            aria-label={`Last test: ${view.text}`}
+            title={view.text}
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ background: viewColor, boxShadow: `0 0 0 3px ${hexToRgba(viewColor, 0.18)}` }}
+          />
+        )}
         <span
           className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold"
           style={{ color: pill.color, background: hexToRgba(pill.color, 0.12), border: `1px solid ${hexToRgba(pill.color, 0.4)}` }}
@@ -202,21 +258,57 @@ function ServiceRow({
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.18 }}
           >
-            <div className="space-y-2.5 border-t px-3 pb-3 pt-2.5" style={{ borderColor: hexToRgba(color, 0.2) }}>
-              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                <span className="font-semibold text-[var(--muted)]">Used by</span>
+            <div className="space-y-1.5 border-t px-2.5 pb-2 pt-1.5" style={{ borderColor: hexToRgba(color, 0.2) }}>
+              <p className="flex flex-wrap items-center gap-1 text-[10.5px] leading-snug text-[var(--muted)]">
+                <span className="font-semibold">Used by</span>
                 {service.usedBy.map((u) => (
                   <span
                     key={u}
-                    className="rounded-md px-1.5 py-0.5 font-medium"
+                    className="rounded px-1.5 py-px font-medium"
                     style={{ color: service.color, background: hexToRgba(service.color, 0.08), border: `1px solid ${hexToRgba(service.color, 0.3)}` }}
                   >
                     {u}
                   </span>
                 ))}
-              </div>
-              <p className="text-[11px] text-[var(--muted)]">
-                <span className="font-semibold">Where to get it:</span> {service.getIt}
+                <motion.button
+                  type="button"
+                  onClick={onTest}
+                  disabled={busy || !!blocker}
+                  whileHover={busy || blocker ? undefined : { scale: 1.05 }}
+                  whileTap={busy || blocker ? undefined : { scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                  aria-label={`Test ${service.name} connection`}
+                  aria-busy={busy || undefined}
+                  title={blocker ?? `Check the saved ${service.name} key against its host`}
+                  className="ml-auto h-5 shrink-0 rounded-md border px-1.5 text-[10.5px] font-bold disabled:cursor-default disabled:opacity-45"
+                  style={{
+                    color: blocker ? QUIET : service.color,
+                    borderColor: hexToRgba(blocker ? QUIET : service.color, 0.45),
+                    background: hexToRgba(blocker ? QUIET : service.color, 0.07),
+                  }}
+                >
+                  {busy ? 'Testing…' : 'Test'}
+                </motion.button>
+                <span className="basis-full">
+                  <span className="font-semibold">Get it:</span> {service.getIt}
+                </span>
+                {/* The live region is always mounted (so a result is announced) but sr-only — absolutely
+                    positioned, it is no flex item, so an empty one adds no row gap. The visible pill is a
+                    separate, aria-hidden line that exists only when there is a result. */}
+                <span className="sr-only" aria-live="polite">
+                  {view?.text ?? ''}
+                </span>
+                {view && (
+                  <span className="basis-full" aria-hidden="true">
+                    <span
+                      className="inline-block max-w-full truncate rounded px-1.5 py-px align-middle font-semibold"
+                      title={view.title}
+                      style={{ color: viewColor, background: hexToRgba(viewColor, 0.08), border: `1px solid ${hexToRgba(viewColor, 0.35)}` }}
+                    >
+                      {view.text}
+                    </span>
+                  </span>
+                )}
               </p>
               {service.keys.map((k) => (
                 <KeyField key={k.env} field={k} saved={status?.[k.env] ?? UNSET} color={service.color} onSave={onSave} />
@@ -229,6 +321,8 @@ function ServiceRow({
   )
 }
 
+const PLACEHOLDER: Record<string, string> = { secret: 'Paste the key', url: 'https://…', email: 'you@example.com', text: 'user name' }
+
 function KeyField({
   field,
   saved,
@@ -240,9 +334,10 @@ function KeyField({
   color: string
   onSave: SaveFn
 }) {
+  const secret = kindOf(field) === 'secret'
   // A secret's box starts empty with its mask as the placeholder — the mask is a picture of the
-  // key, not something to edit. A URL is shown in full, so its box holds the value itself.
-  const fromServer = field.secret ? '' : saved.masked
+  // key, not something to edit. URLs, emails and names are shown in full, so the box holds them.
+  const fromServer = secret ? '' : saved.masked
   const [draft, setDraft] = useState(fromServer)
   const [shown, setShown] = useState(fromServer)
   const [reveal, setReveal] = useState(false)
@@ -258,7 +353,7 @@ function KeyField({
     if (draft === shown) setDraft(fromServer)
   }
 
-  const enabled = !busy && canSave(draft, saved, field.secret)
+  const enabled = !busy && canSave(draft, saved, secret)
 
   const submit = async (value: string) => {
     setBusy(true)
@@ -267,7 +362,7 @@ function KeyField({
     setBusy(false)
     setConfirmRemove(false)
     if (!r.ok) return setNote({ text: r.error, error: true })
-    const next = field.secret ? '' : (r.keys[field.env]?.masked ?? '')
+    const next = secret ? '' : (r.keys[field.env]?.masked ?? '')
     setDraft(next)
     setShown(next)
     setReveal(false)
@@ -275,48 +370,53 @@ function KeyField({
     setNote({ text: (value ? 'Saved' : 'Removed') + cleared, error: false })
   }
 
+  const hint = field.hint ?? ''
+
   return (
-    <div>
-      <label htmlFor={inputId} className="mb-1 flex items-baseline gap-1.5 text-[11.5px] font-semibold text-[var(--ink-soft)]">
-        {field.label}
-        {field.optional && <span className="font-normal text-[var(--muted)]">optional</span>}
-        <code className="ml-auto text-[10px] font-normal text-[var(--muted)]">{field.env}</code>
+    <div className="grid grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0.5">
+      <label htmlFor={inputId} className="min-w-0 leading-tight" title={field.env}>
+        <span className="block truncate text-[11.5px] font-semibold text-[var(--ink-soft)]">{field.label}</span>
+        <span className="block truncate font-mono text-[9.5px] text-[var(--muted)]">
+          {field.env}
+          {field.optional ? ' · optional' : ''}
+          {field.planned ? ' · not used yet' : ''}
+        </span>
       </label>
-      <div className="flex items-center gap-1.5">
-        <div className="relative min-w-0 flex-1">
-          <input
-            id={inputId}
-            type={field.secret && !reveal ? 'password' : 'text'}
-            value={draft}
-            placeholder={saved.set && field.secret ? saved.masked : field.secret ? 'Paste the key' : 'https://…'}
-            aria-describedby={field.hint || field.secret ? hintId : undefined}
-            // An API key is not a login: keep password managers from offering to save or fill it.
-            autoComplete="new-password"
-            data-1p-ignore
-            data-lpignore="true"
-            spellCheck={false}
-            onChange={(e) => {
-              setDraft(e.target.value)
-              setNote(null)
-            }}
-            onKeyDown={(e) => e.key === 'Enter' && enabled && void submit(draft.trim())}
-            // A saved secret's mask sits in the placeholder; drawn in ink, it reads as the value.
-            className={`h-8 w-full rounded-lg border border-[var(--line)] bg-[var(--surface-solid)] px-2.5 pr-8 font-mono text-[12px] text-[var(--ink)] outline-none focus:border-[var(--muted)] ${
-              saved.set && field.secret ? 'placeholder:text-[var(--ink-soft)]' : 'placeholder:text-[var(--muted)]'
-            }`}
-          />
-          {field.secret && draft && (
-            <button
-              type="button"
-              onClick={() => setReveal((r) => !r)}
-              aria-label={reveal ? 'Hide key' : 'Show key'}
-              aria-pressed={reveal}
-              className="absolute right-1.5 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded text-[var(--muted)] hover:text-[var(--ink)]"
-            >
-              {reveal ? <EyeOffIcon size={11} /> : <EyeIcon size={11} />}
-            </button>
-          )}
-        </div>
+      <div className="relative min-w-0">
+        <input
+          id={inputId}
+          type={secret && !reveal ? 'password' : field.kind === 'email' ? 'email' : 'text'}
+          value={draft}
+          placeholder={saved.set && secret ? saved.masked : PLACEHOLDER[kindOf(field)]}
+          aria-describedby={hint ? hintId : undefined}
+          // An API key is not a login: keep password managers from offering to save or fill it.
+          autoComplete="new-password"
+          data-1p-ignore
+          data-lpignore="true"
+          spellCheck={false}
+          onChange={(e) => {
+            setDraft(e.target.value)
+            setNote(null)
+          }}
+          onKeyDown={(e) => e.key === 'Enter' && enabled && void submit(draft.trim())}
+          // A saved secret's mask sits in the placeholder; drawn in ink, it reads as the value.
+          className={`jb-key-input h-7 w-full rounded-lg border border-[var(--line)] bg-[var(--surface-solid)] px-2 font-mono text-[11.5px] text-[var(--ink)] outline-none focus:border-[var(--muted)] ${
+            secret ? 'pr-7' : ''
+          } ${saved.set && secret ? 'placeholder:text-[var(--ink-soft)]' : 'placeholder:text-[var(--muted)]'}`}
+        />
+        {secret && draft && (
+          <button
+            type="button"
+            onClick={() => setReveal((r) => !r)}
+            aria-label={reveal ? 'Hide key' : 'Show key'}
+            aria-pressed={reveal}
+            className="absolute right-1 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded text-[var(--muted)] hover:text-[var(--ink)]"
+          >
+            {reveal ? <EyeOffIcon size={10} /> : <EyeIcon size={10} />}
+          </button>
+        )}
+      </div>
+      <div className="flex items-center gap-1">
         <motion.button
           type="button"
           whileHover={enabled ? { scale: 1.04 } : undefined}
@@ -325,7 +425,7 @@ function KeyField({
           onClick={() => void submit(draft.trim())}
           aria-label={`Save ${field.label}`}
           aria-busy={busy || undefined}
-          className="h-8 shrink-0 rounded-lg px-3 text-[12px] font-bold text-white transition-opacity disabled:cursor-default disabled:opacity-35"
+          className="h-7 rounded-lg px-2.5 text-[11.5px] font-bold text-white transition-opacity disabled:cursor-default disabled:opacity-35"
           style={{ background: enabled ? `linear-gradient(135deg, ${color}, ${hexToRgba(color, 0.75)})` : QUIET }}
           title={enabled ? `Save ${field.env}` : saved.set ? 'Type a new value to replace the saved one' : 'Paste a value first'}
         >
@@ -337,7 +437,7 @@ function KeyField({
             disabled={busy}
             onClick={() => (confirmRemove ? void submit('') : setConfirmRemove(true))}
             onBlur={() => setConfirmRemove(false)}
-            className="h-8 shrink-0 rounded-lg border px-2 text-[11px] font-semibold"
+            className="h-7 rounded-lg border px-1.5 text-[11px] font-semibold"
             style={{ color: '#e11d48', borderColor: hexToRgba('#e11d48', confirmRemove ? 0.6 : 0.3), background: hexToRgba('#e11d48', confirmRemove ? 0.1 : 0.03) }}
             aria-label={confirmRemove ? `Confirm removing ${field.env}` : `Remove ${field.env}`}
           >
@@ -345,9 +445,22 @@ function KeyField({
           </button>
         )}
       </div>
-      <p className="min-h-[14px] text-[10.5px] font-semibold" aria-live="polite" style={{ color: note?.error ? '#e11d48' : color }}>
+      {hint && !note && (
+        <p id={hintId} className="col-start-2 col-end-4 text-[10.5px] leading-snug text-[var(--muted)]">
+          {hint}
+        </p>
+      )}
+      {/* Same pattern: an always-mounted sr-only live region (no grid track, so no gap when empty) and a
+          visible, aria-hidden note only while there is one. display:none on the live region would drop
+          the announcement in some screen readers. */}
+      <span className="sr-only" aria-live="polite">
         {note?.text ?? ''}
-      </p>
+      </span>
+      {note?.text && (
+        <p className="col-start-2 col-end-4 text-[10.5px] font-semibold leading-snug" aria-hidden="true" style={{ color: note.error ? '#e11d48' : color }}>
+          {note.text}
+        </p>
+      )}
     </div>
   )
 }

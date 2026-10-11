@@ -64,6 +64,8 @@ the whole set.
 - **QA tickets that are not assigned to me** — `DEMO-247` I raised, linked to my Blocked `DEMO-210`, so it shows
   in To Do (and under Raised by me); `DEMO-248` I raised too; `DEMO-249` is QA's own, shown because it is
   linked to my `DEMO-261`.
+- **Jenkins builds** — every build state, on cards and in the drawer's Proof section: `DEMO-220` green QA with
+- **Checkmarx vulnerability fixes** — every status and every kind of target, on the card's shield chip, in the
 - **Every priority and type** — Critical / Blocker, Highest, High, Medium, Low / Minor, Lowest and an
   unprioritised ticket; Story, Task, Bug, Security, Requirement, Dev Task, QA Task, Incident, Spike,
   Improvement, Tech Debt, Epic, Sub-task, Documentation (the default glyph), and the title-derived Release

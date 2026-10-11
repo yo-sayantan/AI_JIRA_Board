@@ -109,6 +109,17 @@ A) ACTIVE + RECENT — `tickets[]` (rich objects). All issues where assignee = c
      [label|url] (those render as corrupted text). type, priority, status, story points,
      labels, components, fix versions, sprint, sprintOverflow (true when the issue has been in
      more than one distinct sprint — Jira's carry-over signal), sprintCount, reporter, assignee, created date, last update.
+   - builds — Jenkins builds (latest build of each of the ticket's branches per environment:
+     [{env, repo, branch, number, result, url, at, durationMs, tests?, failedStage?, deployTarget?, stale?}]; `stale: true`
+     marks a build carried forward because Jenkins could not be re-read). Only the
+     scripted fetch (daily_fetch.py → jenkins.py) writes them — do NOT look them up here. If a ticket already has
+     `builds`, PRESERVE the array unchanged; otherwise omit the field.
+   - vulnFixes — Checkmarx One results for a VULNERABILITY-FIX ticket: which of the vulnerabilities the ticket
+     names (CVE ids, SAST query names / CWE ids, Checkmarx result ids, package versions) are fixed on its PR
+     branch, compared with the base branch's scan ({scannedAt, project, branch, baseBranch, branchScanAt,
+     baseScanAt, note?, items: [{target, kind: cve|sast|result|package, status: fixed|open|not-found|unknown,
+     severity?, location?, detail?}]}). Only the scripted fetch (daily_fetch.py → checkmarx.py) writes it — do
+     NOT look it up here. If a ticket already has `vulnFixes`, PRESERVE the object unchanged; otherwise omit it.
    - aiSummary — do NOT generate this here (the AI intern's summarize-active job owns it: deep
      source-enriched briefs for todo/prog tickets, quick summaries for the rest). If a ticket already
      has `aiSummary` and/or `aiSummaryAt`, PRESERVE BOTH unchanged; otherwise just omit the fields.
@@ -246,7 +257,22 @@ data.json SCHEMA (match git/jira-board/src/types.ts EXACTLY — same keys, same 
       "proposedSolution": "<p>…</p>", "effortEstimate": "<p>…</p>",
       "openQuestions": ["…"],
       "sources": [ { "title": "Jira PROJ-123", "url": "…" } ],
-      "updateLog": [ { "when": "2026-06-30", "text": "In Review" }, { "when": "2026-06-24", "text": "Opened" } ]
+      "updateLog": [ { "when": "2026-06-30", "text": "In Review" }, { "when": "2026-06-24", "text": "Opened" } ],
+      "builds": [                                  // OPTIONAL — Jenkins, written ONLY by daily_fetch.py; PRESERVE unchanged
+        { "env": "qa", "repo": "my-service", "branch": "feature/PROJ-123_…", "number": 412,
+          "result": "SUCCESS",                     // SUCCESS|FAILURE|UNSTABLE|ABORTED|NOT_BUILT|BUILDING
+          "url": "https://jenkins.example.com/job/…/412/", "at": "<ISO>", "durationMs": 252000,
+          "tests": { "total": 312, "failed": 0, "skipped": 4, "failing": [] },
+          "failedStage": null, "deployTarget": "qa" }
+      ],
+      "vulnFixes": {                               // OPTIONAL — Checkmarx, vulnerability-fix tickets only, written ONLY by daily_fetch.py; PRESERVE unchanged
+        "scannedAt": "<ISO>", "project": "my-service", "branch": "feature/PROJ-123_…", "baseBranch": "develop",
+        "branchScanAt": "<ISO or null>", "baseScanAt": "<ISO or null>",
+        "items": [ { "target": "CVE-2021-44228", "kind": "cve",          // cve|sast|result|package
+                     "status": "fixed",                                   // fixed|open|not-found|unknown
+                     "severity": "CRITICAL", "location": "log4j-core 2.14.1",
+                     "detail": "Fixed — gone on feature/PROJ-123_… (scan 2026-10-09) · was CRITICAL on develop (scan 2026-10-01)." } ]
+      }
     }
   ],
   "completed": [                                // FULL HISTORY of Done tickets (lighter)

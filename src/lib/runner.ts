@@ -4,7 +4,7 @@ import type { JiraData } from '../types'
 import type { MoveTarget } from './columns'
 import { summarizeReport, type PrReport, type PrReportSummary } from './reportTypes'
 import type { ServerSettings } from './settings'
-import type { KeyStatus } from './apiKeys'
+import type { KeyStatus, KeyTestResult } from './apiKeys'
 
 export const RUN_COMMAND = 'bash jira-intern/local-runner/run-intern.sh'
 
@@ -293,6 +293,31 @@ export async function saveApiKey(name: string, value: string): Promise<ApiKeySav
     return { ok: false, error: body?.error || `save failed (HTTP ${r.status})` }
   } catch {
     return { ok: false, error: 'the board server did not answer' }
+  }
+}
+
+/**
+ * Test one service's SAVED key: the server makes one authenticated read (server/keycheck.mjs) and
+ * answers with what happened. Never rejects — a server that is down, busy or refuses the request
+ * comes back as an `error` result with the reason in `detail`.
+ */
+export async function testApiKey(service: string): Promise<KeyTestResult> {
+  const fail = (detail: string): KeyTestResult => ({ ok: false, service, status: 'error', ms: 0, detail })
+  try {
+    // The server gives the remote host 10 s; leave room for that plus the round trip.
+    const r = await fetchWithTimeout(
+      '/api/keys/test',
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ service }) },
+      15_000,
+    )
+    const body = (await r.json().catch(() => null)) as (Partial<KeyTestResult> & { error?: string }) | null
+    if (r.ok && body && typeof body.status === 'string') {
+      return { ok: !!body.ok, service, status: body.status, httpStatus: body.httpStatus, ms: Number(body.ms) || 0, detail: String(body.detail ?? '') }
+    }
+    if (r.status === 409) return fail('A test is already running')
+    return fail(body?.error || `test failed (HTTP ${r.status})`)
+  } catch {
+    return fail('the board server did not answer')
   }
 }
 

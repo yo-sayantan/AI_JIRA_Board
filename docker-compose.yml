@@ -52,9 +52,11 @@ services:
       - ALLOWED_HOSTS
       # TLS to Jira/Bitbucket is verified by default. Private corporate CA: mount the PEM
       # (volume below) and set JIRA_CA_BUNDLE=/etc/ssl/private-ca.pem. JIRA_INSECURE_TLS=1
-      # switches verification off entirely — last resort only.
+      # switches verification off entirely — last resort only. Jenkins is verified on its own:
+      # JIRA_INSECURE_TLS never applies to it; JENKINS_INSECURE_TLS=1 is its separate opt-out.
       - JIRA_CA_BUNDLE
       - JIRA_INSECURE_TLS
+      - JENKINS_INSECURE_TLS
       # The board starts/stops AI-Ollama to match the AI settings (server/ollama.mjs).
       - OLLAMA_URL=http://ollama:11434
       - OLLAMA_CONTAINER=AI-Ollama
@@ -125,6 +127,7 @@ services:
       # Pass-throughs (see jira-board above for what they mean).
       - JIRA_CA_BUNDLE
       - JIRA_INSECURE_TLS
+      - JENKINS_INSECURE_TLS
       # Optional scanner / observability endpoints the intern can read; these may instead
       # live in config/jira-board.config.json under endpoints.*.
       - CHECKMARX_BASE_URL

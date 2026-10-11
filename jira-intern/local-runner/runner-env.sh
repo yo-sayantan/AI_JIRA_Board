@@ -66,13 +66,17 @@ export_secrets_from_file() {
   done < "$file"
 }
 
-# Jira / Bitbucket / connector tokens, exported to child processes. Only the variables the
-# fetch scripts and the agent CLI actually read leave the file (same list as the AI intern).
+# Jira / Bitbucket / Jenkins / Checkmarx / connector tokens, exported to child processes. Only the
+# variables the fetch scripts and the agent CLI actually read leave the file (the AI intern exports
+# the subset it reads; it never calls Jenkins — the CI gate uses the builds already in data.json —
+# and reads the Checkmarx key from setup/.env itself, only for a ticket the fetch has no results for).
 load_agent_secrets() {
   export_secrets_from_file "$APP_SECRETS" \
     JIRA_URL CONFLUENCE_URL BITBUCKET_URL \
     JIRA_PERSONAL_TOKEN CONFLUENCE_PERSONAL_TOKEN BITBUCKET_PAT ATLASSIAN_TOKEN \
-    JIRA_CA_BUNDLE JIRA_INSECURE_TLS \
+    JIRA_CA_BUNDLE JIRA_INSECURE_TLS JENKINS_INSECURE_TLS \
+    JENKINS_USER JENKINS_API_TOKEN \
+    CHECKMARX_API_KEY CHECKMARX_BASE_URL CHECKMARX_AUTH_URL \
     ${AGENT_API_KEY_ENV:+"$AGENT_API_KEY_ENV"}
 }
 

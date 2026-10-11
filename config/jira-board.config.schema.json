@@ -43,6 +43,18 @@
       },
       "additionalProperties": false
     },
+    "jenkins": {
+      "type": "object",
+      "description": "Jenkins multibranch pipelines per repository and environment: jobs.<repo slug>.<env> = https job URL (an http URL is skipped). Builds are read with JENKINS_USER + JENKINS_API_TOKEN from setup/.env.",
+      "properties": {
+        "jobs": {
+          "type": "object",
+          "additionalProperties": { "type": "object", "additionalProperties": { "type": "string" } },
+          "default": {}
+        }
+      },
+      "additionalProperties": false
+    },
     "connector": {
       "type": "object",
       "required": ["active"],

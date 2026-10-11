@@ -36,6 +36,7 @@ INTERN = Path(os.environ.get("INTERN_DIR") or str(HERE.parent / "jira-intern")).
 sys.path.insert(0, str(INTERN))
 
 import ai_queue  # noqa: E402
+import checkmarx  # noqa: E402  (the ONE Checkmarx One client — shared with the daily fetch)
 from _config import endpoints, load_config, load_secrets as load_config_secrets  # noqa: E402
 
 PORT = int(os.environ.get("PORT") or 4322)
@@ -107,6 +108,7 @@ _ENV_EXPORT = (
     "ATLASSIAN_TOKEN",
     "JIRA_CA_BUNDLE",
     "JIRA_INSECURE_TLS",
+    "JENKINS_INSECURE_TLS",
 )
 SECRETS_ENV = load_secrets()
 for _k in _ENV_EXPORT:
@@ -137,7 +139,7 @@ def _verified_ssl():
 
 # Ollama plus the public chat APIs (Anthropic, Gemini, Cursor).
 CTX = _verified_ssl()
-# Checkmarx / Dynatrace SaaS. Always verified; a corporate proxy CA goes in JIRA_CA_BUNDLE.
+# Dynatrace SaaS. Always verified; a corporate proxy CA goes in JIRA_CA_BUNDLE. (Checkmarx: jira-intern/checkmarx.py, same rule.)
 CLOUD_SSL = _verified_ssl()
 # On-prem Jira / Bitbucket. JIRA_INSECURE_TLS=1 is the only switch that disables verification.
 MCP_SSL = _verified_ssl()
@@ -983,10 +985,11 @@ def _plain(ticket):
 
 
 def classify_ticket(ticket):
-    """Which proof this ticket actually needs. Unrelated systems are omitted, not listed as skipped."""
+    """Which proof this ticket actually needs. Unrelated systems are omitted, not listed as skipped.
+    "security" is jira-intern/checkmarx.py's rule — the same one the fetch and the base report use."""
     text = _plain(ticket).lower()
     kinds = []
-    if re.search(r"cve-\d{4}-\d+|checkmarx|vulnerab|\bsca\b|\bsast\b|cwe-\d|dependency|spring4shell", text):
+    if checkmarx.is_vuln_fix(ticket):
         kinds.append("security")
     if re.search(r"dynatrace|splunk|\blogging\b|\blogs\b|distributed trace|\bspan\b|observab", text):
         kinds.append("observability")
@@ -1028,8 +1031,9 @@ def _cloud_json(url, payload=None, headers=None, timeout=30):
 
 
 def _setting(name):
-    """Deployment value: container env first, then the secrets file (never printed)."""
-    return (os.environ.get(name) or SECRETS_ENV.get(name) or "").strip()
+    """Deployment value: container env first, then setup/.env — re-read, so a value saved in the
+    board's API keys dialog is used without a restart (never printed)."""
+    return (os.environ.get(name) or load_secrets().get(name) or "").strip()
 
 
 def _config_endpoints():
@@ -1037,62 +1041,6 @@ def _config_endpoints():
         return load_config(str(INTERN)).get("endpoints") or {}
     except Exception:
         return {}
-
-
-def _strip_url(url):
-    return str(url or "").strip().rstrip("/")
-
-
-def checkmarx_urls():
-    """(api_base, token_url); both empty when Checkmarx One is not configured.
-
-    CHECKMARX_BASE_URL / endpoints.checkmarxBase is the tenant's API host, e.g.
-    https://<tenant>.cxone.cloud. CHECKMARX_AUTH_URL / endpoints.checkmarxAuthUrl is the full
-    OAuth token endpoint; when absent it is derived as
-    <base>/auth/realms/<tenant>/protocol/openid-connect/token, <tenant> being the first DNS
-    label of the base host. Regions whose IAM lives on a separate host set the auth URL.
-    """
-    ep = _config_endpoints()
-    # CHECKMARX_URL is the name jira-intern/_config.py uses for the same value; both work.
-    base = _strip_url(_setting("CHECKMARX_BASE_URL") or _setting("CHECKMARX_URL") or ep.get("checkmarxBase"))
-    if not base:
-        return "", ""
-    auth = _strip_url(_setting("CHECKMARX_AUTH_URL") or ep.get("checkmarxAuthUrl"))
-    if not auth:
-        host = urllib.parse.urlsplit(base).hostname or ""
-        tenant = host.split(".")[0] if host else ""
-        if not tenant:
-            return base, ""
-        auth = f"{base}/auth/realms/{_q(tenant)}/protocol/openid-connect/token"
-    return base, auth
-
-
-def _checkmarx_token(auth_url):
-    key = file_secret("CHECKMARX_API_KEY")
-    if not key:
-        raise RuntimeError("no CHECKMARX_API_KEY")
-    if not auth_url:
-        raise RuntimeError("no CHECKMARX_AUTH_URL")
-    body = urllib.parse.urlencode({
-        "grant_type": "refresh_token",
-        "client_id": "ast-app",
-        "refresh_token": key,
-    }).encode()
-    req = urllib.request.Request(
-        auth_url,
-        data=body,
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    with urllib.request.urlopen(req, context=CLOUD_SSL, timeout=25) as r:
-        tok = json.loads(r.read().decode("utf-8"))
-    access = tok.get("access_token") or ""
-    if not access:
-        raise RuntimeError(tok.get("error") or "no access token")
-    return access
-
-
-def _cx_get(base, token, path):
-    return _cloud_json(base + path, headers={"Authorization": f"Bearer {token}"})
 
 
 _TENANT_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}$")
@@ -1144,24 +1092,6 @@ def _pick_tenant(tenants, plain):
     return env, tenants[env]
 
 
-def _sev_count(counters, name):
-    for row in (counters or {}).get("severityCounters") or []:
-        if str(row.get("severity") or "").upper() == name:
-            return int(row.get("counter") or 0)
-    return 0
-
-
-def _pkg_name(data):
-    pkg = (data or {}).get("packageIdentifier")
-    if isinstance(pkg, str) and pkg.strip():
-        return pkg.strip()
-    if isinstance(pkg, dict):
-        for k in ("packageName", "name", "id", "packageId"):
-            if pkg.get(k):
-                return str(pkg[k])
-    return "package"
-
-
 def bitbucket_ci(ticket):
     """Build status already posted on the PR commit (Jenkins, Bamboo, or Checkmarx)."""
     _jira, _conf, bb_base = endpoints(str(INTERN))
@@ -1211,113 +1141,6 @@ def bitbucket_ci(ticket):
         state = "Not verified"
     tone = {"Pass": "success", "Fail": "danger"}.get(state, "warning")
     return {"state": state, "tone": tone, "detail": "; ".join(bits)[:180], "error": False}
-
-
-def checkmarx_proof(ticket):
-    text = _plain(ticket)
-    cves = []
-    for cve in re.findall(r"CVE-\d{4}-\d+", text, re.I):
-        cve = cve.upper()
-        if cve not in cves:
-            cves.append(cve)
-    slugs = []
-    branches = set()
-    for pr in _prs_of(ticket):
-        parsed = parse_pr_url(pr.get("url"))
-        if parsed and parsed["slug"] not in slugs:
-            slugs.append(parsed["slug"])
-        for b in (pr.get("sourceBranch"), pr.get("destinationBranch")):
-            if b:
-                branches.add(b)
-    if not slugs:
-        return [{"check": "Checkmarx", "result": "No repo", "detail": "No pull request to match to a project", "tone": "warning"}], True
-    cx_base, cx_auth = checkmarx_urls()
-    if not cx_base:
-        return [{"check": "Checkmarx", "result": "Not read", "detail": "No CHECKMARX_BASE_URL / endpoints.checkmarxBase configured", "tone": "warning"}], True
-    try:
-        token = _checkmarx_token(cx_auth)
-    except Exception as e:
-        return [{"check": "Checkmarx", "result": "Not read", "detail": str(e)[:140], "tone": "warning"}], True
-    project = None
-    slug = slugs[0]
-    try:
-        data = _cx_get(cx_base, token, f"/api/projects?limit=8&name={_q(slug)}")
-        for p in data.get("projects") or []:
-            name = p.get("name") or ""
-            if name == slug or name.endswith("/" + slug):
-                project = p
-                break
-        if project is None and (data.get("projects") or []):
-            project = data["projects"][0]
-    except Exception as e:
-        return [{"check": "Checkmarx", "result": "Not read", "detail": str(e)[:140], "tone": "warning"}], True
-    if not project:
-        return [{"check": "Checkmarx", "result": "No project", "detail": f"No Checkmarx project named {slug}", "tone": "warning"}], True
-    try:
-        scans = _cx_get(cx_base, token, f"/api/scans?project-id={_q(project['id'])}&limit=8&statuses=Completed").get("scans") or []
-    except Exception as e:
-        return [{"check": "Checkmarx", "result": "Not read", "detail": str(e)[:140], "tone": "warning"}], True
-    scan = next((s for s in scans if s.get("branch") in branches), None) or (scans[0] if scans else None)
-    if not scan:
-        return [{"check": "Checkmarx", "result": "No scan", "detail": f"No completed scan for {slug}", "tone": "warning"}], True
-    sid = scan["id"]
-    try:
-        summary = _cx_get(cx_base, token, f"/api/scan-summary?scan-ids={_q(sid)}")
-        sca = ((summary.get("scansSummaries") or [{}])[0].get("scaCounters")) or {}
-    except Exception:
-        sca = {}
-    day = str(scan.get("createdAt") or "")[:10]
-    branch = scan.get("branch") or "?"
-    crit, high = _sev_count(sca, "CRITICAL"), _sev_count(sca, "HIGH")
-    rows = [{
-        "check": "Checkmarx",
-        "result": "Scan read",
-        "detail": f"{day} · {branch} · {crit} critical · {high} high still open (SCA)",
-        "tone": "danger" if crit else ("warning" if high else "success"),
-    }]
-    found = {}
-    if cves:
-        wanted = set(cves)
-        try:
-            for sev in ("CRITICAL", "HIGH", "MEDIUM"):
-                offset = 0
-                while offset < 250 and wanted - set(found):
-                    page = _cx_get(cx_base, token, f"/api/results?scan-id={_q(sid)}&limit=100&offset={offset}&severity={sev}")
-                    batch = page.get("results") or []
-                    if not batch:
-                        break
-                    for row in batch:
-                        name = str(((row.get("vulnerabilityDetails") or {}).get("cveName")) or "").upper()
-                        if name in wanted and name not in found:
-                            found[name] = row
-                    offset += len(batch)
-                    if offset >= int(page.get("totalCount") or 0):
-                        break
-        except Exception as e:
-            rows.append({"check": "CVEs", "result": "Not read", "detail": str(e)[:140], "tone": "warning"})
-            return rows, True
-        open_states = {"TO_VERIFY", "CONFIRMED", "URGENT", "PROPOSED_NOT_EXPLOITABLE"}
-        for cve in cves[:6]:
-            hit = found.get(cve)
-            if not hit:
-                rows.append({
-                    "check": cve,
-                    "result": "Not in scan",
-                    "detail": f"Absent from critical, high, and medium on {branch} ({day})",
-                    "tone": "success",
-                })
-                continue
-            state = str(hit.get("state") or "")
-            pkg = _pkg_name(hit.get("data") or {})
-            sev = str(hit.get("severity") or "")
-            cleared = state.upper() in {"NOT_EXPLOITABLE", "RESOLVED"} or str(hit.get("status") or "").upper() == "FIXED"
-            rows.append({
-                "check": cve,
-                "result": "Cleared" if cleared else "Still open",
-                "detail": f"{sev} · {state or hit.get('status') or 'open'} · {pkg}",
-                "tone": "success" if cleared or state.upper() not in open_states else "danger",
-            })
-    return rows, False
 
 
 def dynatrace_proof(ticket, kinds):
@@ -1390,13 +1213,26 @@ def collect_class_proof(ticket):
     rows = []
     warnings = []
     sources = []
-    ci = bitbucket_ci(ticket)
+    # Jenkins builds already in data.json (daily_fetch → jenkins.py) lead; the build status posted on
+    # the PR commit in Bitbucket is only the fallback. pr_report owns the rule, so base and AI agree.
+    import pr_report as pr
+
+    ci = pr.jenkins_ci(ticket)
+    if ci:
+        sources.append("Jenkins builds")
+    else:
+        ci = bitbucket_ci(ticket)
+        sources.append("Bitbucket builds")
     rows.append({"check": "CI", "result": ci["state"], "detail": ci["detail"], "tone": ci.get("tone") or "neutral"})
-    sources.append("Bitbucket builds")
     if ci.get("error"):
         warnings.append("CI was not read.")
+    vuln_ticket = ticket
     if "security" in kinds:
-        cx_rows, failed = checkmarx_proof(ticket)
+        vuln_ticket, failed = _with_vuln_fixes(ticket)
+        cx_rows = pr.vuln_proof_rows(vuln_ticket)
+        if not cx_rows:
+            cx_rows = [{"check": "Checkmarx", "result": "Not read" if failed else "Not checked",
+                        "detail": pr.vuln_gate(vuln_ticket)[1], "tone": "warning" if failed else "neutral"}]
         rows.extend(cx_rows)
         sources.append("Checkmarx")
         if failed:
@@ -1419,11 +1255,30 @@ def collect_class_proof(ticket):
         title = "Proof · incident"
     elif "spec" in kinds:
         title = "Proof · spec"
-    return {"kinds": kinds, "rows": rows, "warnings": warnings, "sources": sources, "title": title, "ci": ci}
+    return {"kinds": kinds, "rows": rows, "warnings": warnings, "sources": sources, "title": title, "ci": ci,
+            "securityGate": list(pr.vuln_gate(vuln_ticket))}
 
 
-def _set_gate(report, name, state, evidence):
-    tone = {"Pass": "success", "Fail": "danger"}.get(state, "neutral")
+def _with_vuln_fixes(ticket):
+    """(ticket with vulnFixes, lookup failed?). The daily fetch's stored results are used as they are
+    (no live call — and then the gate is byte-identical to the base report's). Only a vulnerability
+    ticket the fetch has no results for is looked up live, with the same checkmarx.py."""
+    if isinstance(ticket.get("vulnFixes"), dict):
+        return ticket, False
+    targets = checkmarx.extract_targets(ticket)
+    if not targets or not checkmarx.scan_plan(ticket):
+        return ticket, False
+    if not checkmarx.enabled():
+        return ticket, True
+    # A fresh run under checkmarx.RUN_LOCK: two concurrent jobs must not reset each other's token / budget.
+    found = checkmarx.isolated_lookup(ticket, targets)
+    if found is None:
+        return ticket, True
+    return {**ticket, "vulnFixes": found}, False
+
+
+def _set_gate(report, name, state, evidence, tone=None):
+    tone = tone or {"Pass": "success", "Fail": "danger"}.get(state, "neutral")
     for tab in report.get("tabs") or []:
         if tab.get("id") != "verdict":
             continue
@@ -1442,23 +1297,12 @@ def apply_class_proof(report, proof):
         return report
     ci = proof.get("ci") or {}
     if ci.get("state"):
-        _set_gate(report, "CI green", ci["state"], ci.get("detail") or "")
-    if "security" in (proof.get("kinds") or []):
-        cx = next((r for r in proof["rows"] if r["check"] == "Checkmarx"), None)
-        cve_open = [r for r in proof["rows"] if str(r["check"]).startswith("CVE-") and r["result"] == "Still open"]
-        cleared = [r["check"] for r in proof["rows"] if str(r["check"]).startswith("CVE-") and r["result"] == "Not in scan"]
-        if cve_open:
-            _set_gate(report, "Security scan (Checkmarx) clean", "Fail", "; ".join(r["check"] + " still open" for r in cve_open[:4]))
-        elif cx and cx.get("tone") == "success":
-            evidence = (", ".join(cleared[:4]) + " not in the latest scan") if cleared else (cx.get("detail") or "Scan clean")
-            _set_gate(report, "Security scan (Checkmarx) clean", "Pass", evidence)
-        elif cx and cx.get("result") == "Scan read":
-            extra = ("; " + ", ".join(cleared[:3]) + " not in this scan") if cleared else ""
-            _set_gate(report, "Security scan (Checkmarx) clean", "Fail", (cx.get("detail") or "Findings still open") + extra)
-        elif cx:
-            _set_gate(report, "Security scan (Checkmarx) clean", "Not verified", cx.get("detail") or "Not read")
-    else:
-        _set_gate(report, "Security scan (Checkmarx) clean", "Not verified", "Not required for this ticket type")
+        # Jenkins' gate tone is pr_report's (the same as the base report's row); Bitbucket keeps the old mapping.
+        _set_gate(report, "CI green", ci["state"], ci.get("detail") or "", ci.get("tone") if ci.get("source") == "jenkins" else None)
+    gate = proof.get("securityGate")
+    if gate:
+        # pr_report.vuln_gate decides, exactly as in the base report (same evidence, same tone).
+        _set_gate(report, "Security scan (Checkmarx) clean", gate[0], gate[1], gate[2])
     block = {
         "kind": "table",
         "title": proof.get("title") or "Proof",

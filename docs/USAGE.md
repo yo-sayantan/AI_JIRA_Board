@@ -106,7 +106,9 @@ or **not verified** (a gap — shown, never hidden). A ring shows the 0–100 re
    reads `ANTHROPIC_API_KEY`, `CURSOR_API_KEY`, or `GEMINI_API_KEY` only from `setup/.env` — add them with the key button.
    Cursor lists a few Gemini Flash models, GPT-4o, Grok, and Chinese models (Qwen, DeepSeek, Kimi, GLM).
    The models in the dropdown are the ones in `ai-intern/cloud-models.json` — add or delete a row there and it follows. Effort is **Auto** (default — the model's own), **Low**, **Medium** or **High**, as listed for each model; a **costly** model (⚠, output at or above the file's `costlyOutputUsd`, $10 by default) is fixed at **Medium** and its effort dropdown is shown disabled. An effort the model cannot take as a parameter is passed as guidance in the prompt. Local models see on-disk
-   intern data plus live Jira/Bitbucket (MCP tokens). CI / Checkmarx / live Dynatrace stay Not verified.
+   intern data plus live Jira/Bitbucket (MCP tokens). Live Dynatrace stays Not verified; CI is read from the
+   ticket's Jenkins builds when it has them, and the Checkmarx gate from the vulnerability results the fetch
+   stored for a vulnerability-fix ticket (both at every level, None included).
 
 **When they are generated.** Automatically after every fetch for any ticket whose PR appeared or
 changed (background, capped by `reports.maxPerRun`), after a single-ticket refresh, or on demand from
@@ -115,11 +117,13 @@ Backfill a whole year by hand: `bash jira-intern/local-runner/pr-reports-backfil
 
 ## API keys
 
-The key button in the header (beside Settings) opens one list with a row per service — Jira (required),
-Bitbucket, Confluence, Claude, Cursor, Gemini, OpenAI. A row is lit in its colour once its keys are saved,
-grey until then. Click a row to see why it is needed, what uses it and where to get it, then paste the key
+The key button in the header (beside Settings) opens one list with a row per service — Jira (required), Atlassian Cloud, Bitbucket, Confluence, Jenkins, Checkmarx One, Claude, Cursor, Gemini, OpenAI, GitHub. A row is lit in its colour once its keys are saved,
+grey until then; a key marked **Not used yet** (GitHub, the Atlassian Cloud email and site) can be filled in now for
+integrations that are coming. Click a row to see why it is needed, what uses it and where to get it, then paste the key
 and **Save**. A saved key shows masked (first and last few characters only); paste a new key into the box to replace it,
-or **Remove** it (asks to confirm). Keys are stored in `setup/.env` on this machine — git-ignored, never
+or **Remove** it (asks to confirm). **Test** checks the saved key against its host and answers inline — **✓ Connected**
+with the account name, **Key rejected (401)**, **Can't reach host**, a certificate problem, or what is still missing — and
+leaves a coloured dot on the row. Keys are stored in `setup/.env` on this machine — git-ignored, never
 served — and take effect on the next fetch or AI call, no restart. A brand-new board with no data yet
 shows **Add API keys first** on its empty screen. The button is hidden when the board is opened as a file.
 
@@ -131,11 +135,32 @@ border** means the ticket carried across more than one sprint. Done cards spark 
 paint after a page load. **Click a card** to open its full detail drawer. On a Done card, the
 trophy button retires it to Completed immediately (undo from the strip under the board).
 
+**Build chips.** When Jenkins is set up (key button → Jenkins, plus `jenkins.jobs` in your config), a
+card shows one small chip per environment for its branch's latest build: `QA ✓ #412` (green, passed),
+`✗` red (failed), amber `!` (unstable), a spinning blue ring (building now), grey (aborted / not
+built). Hover for the branch, when it ran, how long it took, test counts and the stage that failed.
+If Jenkins could not be reached on the last refresh, the chip keeps the previous build and its tooltip says
+**stale** ("Jenkins could not be re-read; this is the last build seen"); the PR report's CI gate then shows
+**Not verified** rather than Pass. Only https Jenkins job links are read.
+
+**Vulnerability chip.** On a vulnerability-fix ticket (it names a CVE, a Checkmarx query or CWE, a Checkmarx
+result link or a vulnerable package version) with a pull request, and with Checkmarx One set up (key button →
+Checkmarx One), a shield chip says how many of those the scans show as fixed: `2/3 fixed`. Green = all fixed, red =
+at least one is still on the branch, amber = one was not found in either scan or is not known yet (the branch has not
+been scanned, say). Hover for every target and its status. Only what the ticket names counts — not the scan's other
+findings.
+
 ## Ticket detail (drawer)
 
 A slide-in with every section expanded: status pipeline, overview (sprint/people/epic/labels),
 PR card, description, an interactive acceptance-criteria checklist, comments, related issues,
 Confluence/docs, proposed solution, effort, open questions, a copy-able branch, and sources.
+**Proof → Builds** lists each environment's latest Jenkins build of the ticket's branches: result,
+`#number ↗` (opens the build in Jenkins), branch, when, duration, tests passed / failed / skipped with
+up to five failing test names, the stage that failed and the deploy target. **Proof → Vulnerabilities ·
+Checkmarx** names the two scans compared (the PR's branch and its base, with scan dates) and gives each target a
+status — Fixed, Open, Not found, Unknown — with its kind, severity, file and line or package version, and one line of
+evidence. Nothing to show → no section.
 Open a sub-task to stack another drawer on top; **Esc** or the backdrop closes.
 
 ## Completed archive

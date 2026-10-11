@@ -83,12 +83,31 @@ class RegistryContractTest(unittest.TestCase):
         worker = (ROOT / "ai-intern" / "worker.py").read_text()
         config = json.loads((ROOT / "config" / "jira-board.config.json").read_text())
         api_key_envs = {c.get("apiKeyEnv") for c in config["connector"].values() if isinstance(c, dict)}
+        planned = {k["env"] for s in REGISTRY["services"] for k in s["keys"] if k.get("planned")}
         for name in ENV_NAMES:
+            if name in planned:
+                continue  # listed so the user can add it now; the integration that reads it comes later
             with self.subTest(name=name):
                 self.assertTrue(
                     name in exported or f'"{name}"' in worker or name in api_key_envs,
                     f"{name} is in setup/api-keys.json but nothing reads it",
                 )
+
+    def test_jenkins_tls_opt_out_passes_through_wherever_jira_one_does(self):
+        """JENKINS_INSECURE_TLS is Jenkins' own switch (JIRA_INSECURE_TLS never applies to it), so it
+        must reach every place JIRA_INSECURE_TLS reaches: both compose services, the runner, the worker."""
+        compose = (ROOT / "docker-compose.yml").read_text()
+        bare = lambda name: len(re.findall(rf"^\s*- {name}\s*$", compose, re.M))
+        self.assertGreaterEqual(bare("JIRA_INSECURE_TLS"), 2)
+        self.assertEqual(bare("JENKINS_INSECURE_TLS"), bare("JIRA_INSECURE_TLS"))
+        runner = (INTERN / "local-runner" / "runner-env.sh").read_text()
+        exported = re.search(r"load_agent_secrets\(\) \{(.*?)\n\}", runner, re.S).group(1)
+        self.assertIn("JIRA_INSECURE_TLS", exported)
+        self.assertIn("JENKINS_INSECURE_TLS", exported)
+        worker = (ROOT / "ai-intern" / "worker.py").read_text()
+        env_export = re.search(r"_ENV_EXPORT = \((.*?)\)", worker, re.S).group(1)
+        if '"JIRA_INSECURE_TLS"' in env_export:
+            self.assertIn('"JENKINS_INSECURE_TLS"', env_export)
 
     def test_registry_shape(self):
         ids = [s["id"] for s in REGISTRY["services"]]
@@ -101,6 +120,8 @@ class RegistryContractTest(unittest.TestCase):
             self.assertRegex(s["color"], r"^#[0-9a-f]{6}$")
             for k in s["keys"]:
                 self.assertRegex(k["env"], r"^[A-Z][A-Z0-9_]*$")
+                self.assertIn(k.get("kind", "secret"), ("secret", "url", "email", "text"), k["env"])
+                self.assertNotIn("secret", k, "use kind, not the old secret flag")
 
     def test_secrets_file_is_ignored_by_git_and_docker(self):
         self.assertRegex((ROOT / ".gitignore").read_text(), r"(?m)^\.env$")

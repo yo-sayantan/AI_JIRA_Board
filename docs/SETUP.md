@@ -46,8 +46,11 @@ header (it carries an amber dot while the Jira token is missing). Expand **Jira*
 **Where the Jira token comes from:** Jira → your avatar → **Profile** → **Personal Access
 Tokens** → **Create token**. Copy it immediately (you can't see it again). Read scope is enough.
 
-Optional, for richer cards: Bitbucket (`BITBUCKET_PAT`) for real branches and PR state; Claude /
-Cursor / Gemini keys for Cloud AI. Each row in the dialog says why it's needed and where to get
+Optional, for richer cards: Bitbucket (`BITBUCKET_PAT`, or an Atlassian Cloud `ATLASSIAN_TOKEN`) for
+real branches and PR state; Jenkins (`JENKINS_USER` + `JENKINS_API_TOKEN`, plus `jenkins.jobs` in your
+personal config — [`CONFIG.md`](CONFIG.md)) for build chips; Checkmarx One (`CHECKMARX_API_KEY` +
+`CHECKMARX_BASE_URL`) for vulnerability-fix proof; Claude / Cursor / Gemini keys for Cloud AI. Keys marked
+**Not used yet** (GitHub, the Atlassian Cloud email and site) can be saved ahead of their integration. Each row in the dialog says why it's needed and where to get
 it. A key works from the next fetch or AI call — no restart. The optional base-URL fields override
 `endpoints.*` from the config.
 

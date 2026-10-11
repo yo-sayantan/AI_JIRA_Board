@@ -66,8 +66,10 @@ describe('maskValue', () => {
 })
 
 describe('validateValue', () => {
-  const secret = { env: 'X', secret: true }
-  const url = { env: 'X_URL', secret: false }
+  const secret = { env: 'X', kind: 'secret' }
+  const url = { env: 'X_URL', kind: 'url' }
+  const email = { env: 'X_EMAIL', kind: 'email' }
+  const text = { env: 'X_USER', kind: 'text' }
   it('accepts a normal token and trims it', () => {
     expect(validateValue(secret, '  tok-123  ')).toEqual({ value: 'tok-123' })
   })
@@ -87,6 +89,15 @@ describe('validateValue', () => {
   })
   it('secrets are printable ASCII only — no mask bullets, no unicode or control characters', () => {
     for (const bad of ['abcd••••••••wxyz', 'abc"\x85', 'tok en', 'tok\u2028x', 'tok\x1cx']) expect(validateValue(secret, bad).error, JSON.stringify(bad)).toBeTruthy()
+  })
+  it('a field without a kind is a secret', () => {
+    expect(validateValue({ env: 'X' }, 'tok en').error).toBeTruthy()
+  })
+  it('email fields take an address, text fields one printable word', () => {
+    expect(validateValue(email, ' me@example.com ')).toEqual({ value: 'me@example.com' })
+    for (const bad of ['me', 'me@', 'me @example.com', 'me@example']) expect(validateValue(email, bad).error, bad).toBeTruthy()
+    expect(validateValue(text, 'build-bot')).toEqual({ value: 'build-bot' })
+    expect(validateValue(text, 'build bot').error).toBeTruthy()
   })
   it('an empty value means remove', () => {
     expect(validateValue(secret, '   ')).toEqual({ value: '' })
@@ -140,6 +151,16 @@ describe('createSecretsStore', () => {
     const r = await store.save('JIRA_URL', 'https://jira.example.com')
     expect(r.cleared).toEqual(['JIRA_PERSONAL_TOKEN'])
     expect(parseEnv(await readFile(file, 'utf8'))).toEqual({ BITBUCKET_PAT: 'bbbb1234567890zzzz', JIRA_URL: 'https://jira.example.com' })
+  })
+
+  it('email and text fields come back in full; a changed email clears nothing', async () => {
+    const file = await tempFile()
+    await writeFile(file, 'ATLASSIAN_TOKEN=atl-0123456789abcdef\n')
+    const store = createSecretsStore({ file, registry })
+    const r = await store.save('ATLASSIAN_EMAIL', 'me@example.com')
+    expect(r.cleared).toEqual([])
+    expect(r.status.ATLASSIAN_EMAIL).toEqual({ set: true, masked: 'me@example.com' })
+    expect(r.status.ATLASSIAN_TOKEN.masked).toBe('atl-••••••••cdef')
   })
 
   it('re-saving the same URL, or removing it, keeps the token', async () => {

@@ -25,6 +25,8 @@ This page is the folder-level tour; the mechanics live in [`DATA-FLOW.md`](DATA-
 | `raised.py` | Every non-sub-task ticket you **reported**: parallel-paged JQL, assignee hand-off log from the changelog, issue links. Shared by the daily fetch, the archive and the Raised view's own refresh. |
 | `_jira.py` | Shared Jira/Bitbucket HTTP (token auth, retries), field formatting, status→column mapping, changelog helpers, comment pagination. |
 | `devinfo.py` | Branches / PRs / reviewers via Jira's dev-status index, batched and parallel. |
+| `jenkins.py` | Latest Jenkins multibranch build of each of a ticket's branches, per environment (config → `jenkins.jobs`): result, tests, failed stage, deploy target → `Ticket.builds`. Called by `daily_fetch.apply_builds`; a failed lookup carries the prior builds forward. |
+| `checkmarx.py` | Checkmarx One for vulnerability-fix tickets: classifies the ticket, extracts what it names (CVE, SAST query / CWE, result id, package version), compares the latest completed scan of the PR branch with the base branch's → `Ticket.vulnFixes` (fixed / open / not-found / unknown per target). Called by `daily_fetch.apply_vuln_fixes`; a failed lookup carries the prior results forward. Also the AI worker's only Checkmarx client. |
 | `pr_report.py` | Deterministic PR Readiness Report base + fingerprint staleness. |
 | `datafile.py` | The ONLY writer of `data.json`/`data.js` (atomic temp-file + rename, both files together). |
 | `progress.py` | `.progress.json` for the header buttons' live fill. |

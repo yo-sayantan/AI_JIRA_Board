@@ -14,6 +14,8 @@ written against the current code; file paths are given so you can check.
 - Hostile text inside a ticket or PR steering the AI enrichment (prompt injection).
 - A crashed or killed job corrupting `data.json` or wedging the pipeline with a stale lock.
 - Unverified TLS to your Jira/Bitbucket (the token travels as a bearer header).
+- A redirect bouncing a credential (Jenkins basic auth, the Checkmarx key or bearer token) to another host or
+  down to plain http.
 
 **Out of scope**
 
@@ -64,12 +66,14 @@ file the same way). These are the only names ever read:
 |---|---|---|
 | `JIRA_PERSONAL_TOKEN` | fetch scripts, AI worker | Jira REST (required). |
 | `CONFLUENCE_PERSONAL_TOKEN` | fetch scripts, MCP wrapper | Confluence excerpts (optional). |
-| `BITBUCKET_PAT` / `ATLASSIAN_TOKEN` | fetch scripts, AI worker | Bitbucket REST: PR comments, changed files, build status (optional). |
+| `BITBUCKET_PAT` / `ATLASSIAN_TOKEN` | fetch scripts, AI worker | Bitbucket REST: PR comments, changed files, build status (optional). `ATLASSIAN_TOKEN` is the Atlassian Cloud token (its own row in the dialog); today it backs Bitbucket when no PAT is set. |
+| `CHECKMARX_API_KEY` (+ `CHECKMARX_BASE_URL` / `CHECKMARX_AUTH_URL`) | fetch scripts (`checkmarx.py`), AI worker (same module) | Checkmarx One scan lookups for vulnerability-fix tickets (optional). The key is POSTed only to the token URL, once per run, in the request body; the short-lived bearer token it returns goes in the `Authorization` header to the configured https base URL only. |
+| `JENKINS_USER` / `JENKINS_API_TOKEN` | fetch scripts (`jenkins.py`) | Jenkins builds per branch and environment, HTTP basic in the `Authorization` header, sent only to the **https** job URLs in config → `jenkins.jobs` (an `http://` job is skipped, never sent the token) (optional). |
+| `GITHUB_TOKEN` | nothing yet | Saved for a coming integration (`planned` in `setup/api-keys.json`). |
 | `JIRA_URL` / `CONFLUENCE_URL` / `BITBUCKET_URL` | fetch scripts, AI worker | Endpoint overrides. |
-| `JIRA_CA_BUNDLE` / `JIRA_INSECURE_TLS` | fetch scripts, AI worker | TLS posture (below). |
+| `JIRA_CA_BUNDLE` / `JIRA_INSECURE_TLS` / `JENKINS_INSECURE_TLS` | fetch scripts, AI worker | TLS posture (below). |
 | `CURSOR_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` | AI worker (`file_secret`, re-read per call, never exported) | Cloud AI providers. |
 | `OPENAI_API_KEY` | shell runners (`connector.codex.apiKeyEnv`) | Only for the optional Codex agent fallback. |
-| `CHECKMARX_API_KEY` | AI worker | Optional security-scan proof rows. |
 | `DYNATRACE_PAT` | AI worker | Optional production-proof rows. |
 
 Process boundaries: the Docker entrypoint **does not export** the secrets file into the Node
@@ -84,7 +88,7 @@ The board's key button writes `setup/.env` through `GET`/`POST /api/keys` (`serv
 
 - **No full value ever leaves the server.** `GET /api/keys` returns `{ set, masked }` per key: first 4
   + `••••••••` + last 4 for 16+ characters, all bullets below that — the length is never revealed.
-  Only the base-URL fields (`secret: false` in `setup/api-keys.json`) come back in full. The browser
+  Only `url`, `email` and `text` fields (their `kind` in `setup/api-keys.json`) come back in full. The browser
   keeps no copy; a new secret is typed into a password field (the saved mask is only its placeholder).
 - **Only known names, only clean values.** The name must be in `setup/api-keys.json`; the value must
   be one line, ≤ 4096 characters, without surrounding quotes. Secrets are printable ASCII only (which
@@ -103,6 +107,31 @@ The board's key button writes `setup/.env` through `GET`/`POST /api/keys` (`serv
   local processes and pages served by the board itself (loopback). Exposing the board on the LAN
   extends that to the LAN; there is no separate authentication. (Env vars set on the container still
   win over `setup/.env`, in Python and bash alike.)
+
+### The Test button (`POST /api/keys/test`)
+
+The browser sends only a service id; the server (`server/keycheck.mjs`) reads the saved key itself and makes ONE
+read-only, authenticated request to the service the key belongs to — nothing else:
+
+| Service | Goes to | Credential sent as |
+|---|---|---|
+| Jira · Confluence · Bitbucket | the saved `*_URL`, else `endpoints.*Base` — `/rest/api/2/myself`, `/rest/api/user/current`, `/rest/api/1.0/projects?limit=1` | `Authorization: Bearer` (Bitbucket falls back to `ATLASSIAN_TOKEN`) |
+| Atlassian Cloud | `ATLASSIAN_SITE_URL/rest/api/3/myself` | HTTP Basic email + token |
+| Jenkins | the first https job URL in `jenkins.jobs` + `api/json?tree=name` | HTTP Basic user + token |
+| Checkmarx One | its token URL (as `checkmarx.py`) | the key in the POST body only (refresh-token grant) |
+| Claude · Cursor · Gemini · OpenAI | the vendor's fixed `/models` URL | `x-api-key` · Basic · `x-goog-api-key` · Bearer — never in a URL |
+| GitHub | `https://api.github.com/user` | Bearer |
+
+- `https://` only (`http://` only for localhost); a base URL with a user, `?` or `#`, or the config's `.example`
+  placeholder, sends nothing (`not-configured`).
+- Redirects are **never followed**: a 3xx is reported as "Redirected to <host>", so a credential cannot be bounced to
+  another host. 10 s timeout, 256 KB response cap, one test per service at a time (a second gets 409).
+- TLS always verified; `JIRA_CA_BUNDLE` / `~/.ai/ca-bundle.pem` is **added** to the system roots; `JIRA_INSECURE_TLS=1`
+  relaxes only the Jira / Confluence / Bitbucket hosts and `JENKINS_INSECURE_TLS=1` only Jenkins — the same
+  switches the fetch honours, so Test and the real fetch agree.
+- The answer carries a status, the HTTP code, the time and a short detail built only from safe fields (a display name,
+  a login, a model count, a host name); every saved secret is scrubbed from it, and the remote error text is never
+  echoed. The log line is `[keys] test <service> → <status>`. Same Host/Origin guards and JSON-only rule as every POST.
 
 ## Data flow per AI backend
 
@@ -128,6 +157,12 @@ Optional proof lookups run only when configured: Bitbucket build status (needs `
 Checkmarx (`CHECKMARX_API_KEY` + `endpoints.checkmarxBase`), Dynatrace (`DYNATRACE_PAT` +
 `endpoints.dynatraceTenants`). Each is a read; results become gate rows in the report.
 
+**What goes to Checkmarx One.** Only for a vulnerability-fix ticket with a pull request, the daily fetch (and,
+for a ticket the fetch has no results for, the AI worker) sends: the API key to the token URL, then GETs with the
+PR's **repository slug** (project search), its **source and destination branch names** (scan search) and scan ids
+(results). No ticket text, title, CVE list or comment ever leaves — the targets are matched locally against the
+results that come back. Nothing is written to Checkmarx.
+
 ## Prompt-injection boundary
 
 Every piece of third-party text the model sees — ticket fields, comments, PR titles and comments,
@@ -144,8 +179,16 @@ sanitised by the app; links are restricted to `http(s)://` and site-relative pat
 ## TLS posture
 
 Certificate verification is **on** for every outbound call: `jira-intern/_jira.py ssl_context()`
-(fetch) and `ai-intern/worker.py _verified_ssl()` (worker; the public AI, Checkmarx and Dynatrace
-endpoints always verify and ignore `JIRA_INSECURE_TLS`).
+(fetch) and `ai-intern/worker.py _verified_ssl()` (worker; the public AI and Dynatrace endpoints always
+verify and ignore `JIRA_INSECURE_TLS`). Checkmarx One (`jira-intern/checkmarx.py`, used by both) always verifies
+too and ignores `JIRA_INSECURE_TLS`. Jenkins (`jira-intern/jenkins.py`) has its **own** verified context and
+ignores `JIRA_INSECURE_TLS` as well; it reads https job URLs only. Both proof clients build their TLS context and
+opener from `jira-intern/_safe_http.py` (`verified_context`, `opener`).
+
+- **Redirects never carry a credential off its origin:** Jenkins and Checkmarx requests follow a redirect only to
+  the same scheme + host + port (`_safe_http.SameOriginRedirect`). A redirect to another host, or from https to
+  http, is refused and counts as a failed lookup (prior data carried forward) — so the `Authorization` header and
+  the POSTed Checkmarx key never reach a host the config did not name, and never travel in clear text.
 
 - **Private corporate CA:** put the PEM at `~/.ai/ca-bundle.pem` — both containers mount `~/.ai`,
   so the fetch scripts and the worker pick it up with no further setting — or point
@@ -155,6 +198,8 @@ endpoints always verify and ignore `JIRA_INSECURE_TLS`).
 - **Last resort:** `JIRA_INSECURE_TLS=1` disables verification for Jira/Bitbucket only and prints
   `WARN: TLS verification disabled (JIRA_INSECURE_TLS=1)` on every run. The bearer token then
   travels over an unverified channel; do not leave this on.
+- **Jenkins' own last resort:** `JENKINS_INSECURE_TLS=1` disables verification for Jenkins only (WARN on every run);
+  the CA bundle above is the better fix. Checkmarx has no opt-out.
 - The MCP templates in `setup/` show `*_SSL_VERIFY=false` lines for the community Atlassian MCP
   server; remove them (or point that server at your CA bundle) unless you really need them.
 
