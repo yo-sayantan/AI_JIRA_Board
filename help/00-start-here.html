@@ -65,7 +65,7 @@
       <div class="stepper">
         <a href="02-install-the-tools.html"><span class="qn">1</span><b>Install the tools</b><span>Docker Desktop + Git, per your OS</span></a>
         <a href="03-get-the-code-with-git.html"><span class="qn">2</span><b>Clone the repo</b><span>one <code class="inl">git clone</code></span></a>
-        <a href="04-configure-token-and-settings.html#secrets"><span class="qn">3</span><b>Add your token</b><span>Jira PAT → secrets file</span></a>
+        <a href="04-configure-token-and-settings.html#secrets"><span class="qn">3</span><b>Add your token</b><span>Jira PAT → key button in the board</span></a>
         <a href="04-configure-token-and-settings.html#personal-config"><span class="qn">4</span><b>Personal config</b><span>your name + company URLs</span></a>
         <a href="05-deploy-with-docker.html"><span class="qn">5</span><b>Deploy</b><span>one command → port 4321</span></a>
       </div>
@@ -117,12 +117,13 @@
           <text class="t2" x="783" y="86" text-anchor="middle">localhost:4321</text>
 
           <rect class="bx" x="242" y="152" width="196" height="44" rx="10" />
-          <text class="t2" x="340" y="171" text-anchor="middle">🔑 ~/.cursor/mcp-secrets.env</text>
-          <text class="t2" x="340" y="186" text-anchor="middle">tokens — always OUTSIDE the repo</text>
+          <text class="t2" x="340" y="171" text-anchor="middle">🔑 setup/.env</text>
+          <text class="t2" x="340" y="186" text-anchor="middle">tokens — never committed</text>
           <path class="ar dash" d="M340 150 V 110" />
         </svg>
-        <div class="note pink"><b>Your tokens never enter the repo.</b> They live in one file outside it
-          (<code class="inl">~/.cursor/mcp-secrets.env</code>); everything else points at it by path.</div>
+        <div class="note pink"><b>Your tokens never enter git.</b> You add them in the board with the key button
+          in the header; they are saved in one git-ignored file (<code class="inl">setup/.env</code>) that is never
+          copied into the Docker image and never served.</div>
       </div>
 
       
@@ -134,7 +135,7 @@
         <li><a href="01-requirements.html"><span class="pn">01</span><b>Requirements — what to install</b><span class="d">Docker, Git and a Jira token; optional Node, Python and extra tokens. <code>help/01-requirements.html</code></span></a></li>
         <li><a href="02-install-the-tools.html"><span class="pn">02</span><b>Install the tools</b><span class="d">Copy-ready installs for Windows, macOS and Linux, and how to check them. <code>help/02-install-the-tools.html</code></span></a></li>
         <li><a href="03-get-the-code-with-git.html"><span class="pn">03</span><b>Get the code with Git</b><span class="d">Clone the repository, set your Git identity, everyday Git. <code>help/03-get-the-code-with-git.html</code></span></a></li>
-        <li><a href="04-configure-token-and-settings.html"><span class="pn">04</span><b>Configure your token and settings</b><span class="d">Your Jira token (secrets file) and your personal config — two files, once. <code>help/04-configure-token-and-settings.html</code></span></a></li>
+        <li><a href="04-configure-token-and-settings.html"><span class="pn">04</span><b>Configure your token and settings</b><span class="d">Your Jira token (added in the board) and your personal config — once. <code>help/04-configure-token-and-settings.html</code></span></a></li>
         <li><a href="05-deploy-with-docker.html"><span class="pn">05</span><b>Deploy with Docker</b><span class="d">The start script, the one command, managing the containers, environment knobs. <code>help/05-deploy-with-docker.html</code></span></a></li>
         <li><a href="06-ai-local-models.html"><span class="pn">06</span><b>AI with local models</b><span class="d">The AI Intern, host Ollama, downloading a GGUF model, adding a new model. <code>help/06-ai-local-models.html</code></span></a></li>
         <li><a href="07-ai-cloud-models-and-prices.html"><span class="pn">07</span><b>AI with cloud models and prices</b><span class="d">Cursor, Claude and Gemini: which models Settings offers, efforts, prices, what is costly. <code>help/07-ai-cloud-models-and-prices.html</code></span></a></li>

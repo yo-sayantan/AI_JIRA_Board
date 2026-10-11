@@ -4,6 +4,7 @@ import type { JiraData } from '../types'
 import type { MoveTarget } from './columns'
 import { summarizeReport, type PrReport, type PrReportSummary } from './reportTypes'
 import type { ServerSettings } from './settings'
+import type { KeyStatus } from './apiKeys'
 
 export const RUN_COMMAND = 'bash jira-intern/local-runner/run-intern.sh'
 
@@ -256,6 +257,42 @@ export async function saveServerSettings(patch: ServerSettings): Promise<OllamaA
     return body?.ollama === 'starting' || body?.ollama === 'stopping' || body?.ollama === 'no-models' ? body.ollama : 'unchanged'
   } catch {
     return null
+  }
+}
+
+/**
+ * The API keys in setup/.env, masked (a URL comes back in full). null when the server cannot be
+ * reached. Works in demo mode: like Settings, it configures the machine, not a ticket.
+ */
+export async function getApiKeys(): Promise<KeyStatus | null> {
+  try {
+    const r = await fetchWithTimeout('/api/keys', { cache: 'no-store' })
+    if (!r.ok) return null
+    const body = (await r.json()) as { keys?: KeyStatus }
+    return body.keys ?? null
+  } catch {
+    return null
+  }
+}
+
+export type ApiKeySave = { ok: true; keys: KeyStatus; cleared: string[] } | { ok: false; error: string }
+
+/**
+ * Save one key ('' removes it). Resolves with the new masked status — plus any tokens the server
+ * cleared because their service's URL changed — or the server's reason.
+ */
+export async function saveApiKey(name: string, value: string): Promise<ApiKeySave> {
+  try {
+    const r = await fetchWithTimeout('/api/keys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, value }),
+    })
+    const body = (await r.json().catch(() => null)) as { keys?: KeyStatus; cleared?: string[]; error?: string } | null
+    if (r.ok && body?.keys) return { ok: true, keys: body.keys, cleared: body.cleared ?? [] }
+    return { ok: false, error: body?.error || `save failed (HTTP ${r.status})` }
+  } catch {
+    return { ok: false, error: 'the board server did not answer' }
   }
 }
 

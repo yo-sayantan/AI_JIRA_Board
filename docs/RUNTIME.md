@@ -7,8 +7,8 @@ checking on all of it. Written for both engineers and AI agents operating this d
 
 | Container | Image | Port | Role | Key mounts |
 |---|---|---|---|---|
-| **JIRA-Board** | `jira-board:latest` | `4321` (published) | `server/serve.mjs` (UI + API) under `tini`; runs every fetch script (python3 in-image); in-container refresh loop (`REFRESH_ON_START=1`, `REFRESH_INTERVAL=900`) + the Settings-cadence scheduler | `./jira-intern` (**DATA** — read-write), `./config`, `~/.cursor` (ro, tokens), `~/.ai` (ro, identity) |
-| **AI-Intern** | `ai-intern:latest` | `4322` (internal; board proxies it) | `worker.py` — the only model-calling process: AI briefs, PR-report enrichment, model pulls; small HTTP API (`/health`, `/api/models`, `/api/jobs`) | `./jira-intern` (rw — writes briefs/reports), `~/.cursor` (ro, cloud keys) |
+| **JIRA-Board** | `jira-board:latest` | `4321` (published) | `server/serve.mjs` (UI + API) under `tini`; runs every fetch script (python3 in-image); in-container refresh loop (`REFRESH_ON_START=1`, `REFRESH_INTERVAL=900`) + the Settings-cadence scheduler | `./jira-intern` (**DATA** — read-write), `./config`, `./setup` (rw — API keys in `setup/.env`, written by the key dialog), `~/.ai` (ro, identity) |
+| **AI-Intern** | `ai-intern:latest` | `4322` (internal; board proxies it) | `worker.py` — the only model-calling process: AI briefs, PR-report enrichment, model pulls; small HTTP API (`/health`, `/api/models`, `/api/jobs`) | `./jira-intern` (rw — writes briefs/reports), `./setup` (ro — cloud keys in `setup/.env`, re-read per call) |
 | **AI-Ollama** | `ollama/ollama` | `11434` (internal) | Local inference for the worker when backend=local and Host Ollama is OFF | volume `jira-ai-models` (weights) |
 
 All three restart `unless-stopped`. The **data mount follows the deploy directory**: whichever

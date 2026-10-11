@@ -17,7 +17,7 @@ Backend choice is independent of level:
   checkbox, Ollama.app on the host via `host.docker.internal:11434` (Apple-Silicon Metal; use for
   14B+ models). Ticket text never leaves the machine.
 - **Cloud** — Cursor, Anthropic (Claude), or Gemini, with per-provider model dropdowns and (Cursor
-  an effort setting (Low · Medium · High · Auto). The models, their efforts and the costly line (output ≥ $10 per 1M by default) are all `ai-intern/cloud-models.json`; a model with no effort parameter of its own gets the effort as prompt guidance. Uses YOUR API keys from `~/.cursor/mcp-secrets.env`; the summarised
+  an effort setting (Low · Medium · High · Auto). The models, their efforts and the costly line (output ≥ $10 per 1M by default) are all `ai-intern/cloud-models.json`; a model with no effort parameter of its own gets the effort as prompt guidance. Uses YOUR API keys from `setup/.env` (added with the key button in the board header; re-read on every call); the summarised
   ticket text goes to that provider under its terms.
 
 Settings relevant to jobs mirror to `jira-intern/.settings.json` (`server/settings.mjs`), which
@@ -126,4 +126,4 @@ contract comment at the top of that file says so for a reason.
 - Inference failures skip the ticket with a log line — never block the pass, never write junk.
 - `SKIP_SUMMARY=1` in the fetch container: no model runs inside JIRA-Board itself; everything
   AI lives in AI-Intern.
-- Cloud keys are read from the secrets file at job time and never logged or persisted elsewhere.
+- Cloud keys are read from `setup/.env` (the board's API keys dialog) at job time and never logged or persisted elsewhere.

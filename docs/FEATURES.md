@@ -169,8 +169,25 @@ raised rows queue after active tickets. Render path heals JSON-wrapped model out
 - **Refresh board** — the quick daily fetch; the button IS its own progress bar (fill + x/y count
   from `.progress.json`). **Archive menu** — full/year/since/key rebuild with live progress and
   Stop. **Reports menu** — bulk PR-report generation with scope.
+- **API keys** (key button beside Settings; an amber dot while the required Jira token is missing) → the API keys
+  dialog, below.
 - Settings gear, help (?) → the help guide (`help/00-start-here.html`; plain pages, also open from disk), theme toggle.
 - `src/components/header/Header.tsx`, `ArchiveMenu.tsx`, `ReportsMenu.tsx`.
+
+## API keys
+
+The one place to add tokens and keys — no file to edit by hand. One list, a row per service from
+`setup/api-keys.json` (Jira — required, Bitbucket, Confluence, Claude, Cursor, Gemini, OpenAI): lit in the service's
+colour when its non-optional keys are set, greyed when not. A row expands in place: why it is needed, **Used by**
+chips, where to get it, and one field per key (the optional base-URL fields override `endpoints.*` from the config).
+An unsaved key shows an empty box and a greyed Save; a saved key shows its **masked** value in the box (first 4 + bullets + last 4;
+keys under 16 characters show bullets only, and the length is never revealed) with Save greyed until you type a new one.
+Saving a new base URL clears that service's token, so it is never sent to a host it was not entered for. A new secret is typed
+as a password with an eye toggle; **Remove** (asks twice) clears a key. The empty-state screen of a new install
+(no `data.json` yet) has an **Add API keys first** button. Values are written to `setup/.env` by the server
+(`GET`/`POST /api/keys`) — the browser never receives a full secret back. Hidden on `file://` (needs the server);
+works in demo mode (it configures the machine, like Settings).
+`src/components/keys/ApiKeys.tsx`, `src/hooks/useApiKeys.ts`, `src/lib/apiKeys.ts`, `server/secrets.mjs`.
 
 ## Settings
 

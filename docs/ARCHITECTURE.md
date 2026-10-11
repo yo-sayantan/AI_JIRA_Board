@@ -19,7 +19,7 @@ double-click, and refreshing the data **never rebuilds the app**.
   ┌─────────────┐   fetch (Python/agent)   ┌──────────────────────┐   reads    ┌───────────────┐
   │    Jira      │ ───────────────────────▶ │  jira-intern/data.js  │ ─────────▶ │  dist/         │
   │  Confluence  │   tokens from            │  window.__JIRA_DATA__  │            │  index.html    │
-  │  Bitbucket   │   ~/.cursor/mcp-secrets  │  window.__JIRA_CONFIG  │            │  (React app)   │
+  │  Bitbucket   │   setup/.env (key dialog)│  window.__JIRA_CONFIG  │            │  (React app)   │
   └─────────────┘                          └──────────────────────┘            └───────────────┘
 ```
 
@@ -150,5 +150,5 @@ See [`DEPLOYMENT.md`](DEPLOYMENT.md) for step-by-step instructions.
 `aiLocalModel` live in `jira-intern/.settings.json`. The board writes a deterministic report in
 seconds, then enqueues `{type: enrich-report}` unless the level is None. Local inference is Ollama
 (CPU in Docker, or host Metal via `host.docker.internal`). Cloud uses the HTTP API and keys in
-`~/.cursor/mcp-secrets.env`. Local enrichment (Gemma / GPT-OSS / mini / nano included) reads the intern
+`setup/.env` (added with the key button in the board header). Local enrichment (Gemma / GPT-OSS / mini / nano included) reads the intern
 volume plus live Jira/Bitbucket REST with those same tokens. CI / Checkmarx / Dynatrace stay **Not verified**.

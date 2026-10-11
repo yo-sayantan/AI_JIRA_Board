@@ -32,8 +32,8 @@ Node, Python, the local server, shell runners, Docker, and the AI worker all use
 deep-merge contract. Run `node jira-intern/local-runner/config.mjs validate` to validate it,
 or `... export` to inspect the effective configuration.
 
-> **Note:** no API tokens live in `config.json` — those go in your secrets env file
-> (see `setup/mcp-secrets.env.template`).
+> **Note:** no API tokens live in `config.json` — add them with the key button in the board header
+> (stored in `setup/.env`, git-ignored; the list of keys is `setup/api-keys.json`).
 
 Consumed by:
 - `local-runner/config.mjs` — resolver. Runners call it for shell vars (`shellenv`), rendered
@@ -104,8 +104,7 @@ Per-profile keys:
 | `promptFlag` | Flag/subcommand that takes the prompt (`-p` for cursor/claude, `exec` for codex). |
 | `extraArgs` | Additional args. **Each arg must not contain spaces** (they are space-joined for the shell). |
 | `modelFlag` | Flag that selects a model (`--model`). |
-| `secretsFile` | Env file sourced before each run (API key + MCP tokens). Never committed. |
-| `apiKeyEnv` | Env var the CLI needs for headless auth (warned about when empty). |
+| `apiKeyEnv` | Env var the CLI needs for headless auth (warned about when empty). Its value comes from `setup/.env` (the board's API keys dialog), like every other token. |
 | `install` | One-liner shown when the CLI is missing. |
 
 The MCP **servers themselves** (jira/confluence/bitbucket) are configured in the connector's
@@ -181,8 +180,9 @@ Defaults for Settings → Jobs. A choice saved in the app wins over this file.
 `dailySec` (default 1800), `weeklySec` (7200, env `TIMEOUT_SEC` overrides), `refreshSec` (600).
 
 ## Environment variables read by the Python fetch scripts
-Set these in the shell, the Docker environment, or the connector's secrets file (loaded by
-`load_env()` before the first request). Config keys they override are in brackets.
+Set these in the shell, the Docker environment, or `setup/.env` (loaded by `load_env()` before the
+first request; a variable already in the environment wins). Tokens and the three base URLs can be
+saved from the board's API keys dialog. Config keys they override are in brackets.
 
 | variable | meaning |
 |---|---|
@@ -192,7 +192,7 @@ Set these in the shell, the Docker environment, or the connector's secrets file 
 | `JIRA_URL` / `CONFLUENCE_URL` / `BITBUCKET_URL` | Override `endpoints.*Base` for one run or container. |
 | `CHECKMARX_BASE_URL` (or `CHECKMARX_URL`), `CHECKMARX_AUTH_URL`, `DYNATRACE_TENANTS` | Override the optional proof endpoints — see `endpoints` above. |
 | `AI_CONFIG_FILE` | Path of the personal override instead of `~/.ai/config.json`. |
-| `AGENT_SECRETS` | Path of the secrets env file instead of `connector.<active>.secretsFile`. |
+| `JB_SECRETS_FILE` | Path of the secrets env file instead of `setup/.env` (tests, unusual layouts). The server, runners, entrypoint and worker all honour it. |
 | `REFRESH_WORKERS` | Parallel ticket builds in `daily_fetch.py` (1–16) [`refresh.workers`, Settings → Parallel refresh]. |
 | `COMPLETED_WORKERS` | Parallel ticket builds in `completed_archive.py` [`archive.workers`, Settings]. |
 | `COMPLETED_MAX_FETCH` | Max tickets rebuilt per archive run; the rest stay as cached [`archive.maxFetch`]. |
@@ -227,8 +227,8 @@ different containers or launchers never interleave a read-modify-write.
 ## Porting checklist (new user)
 0. `mkdir -p ~/.ai && cp setup/config.example.json ~/.ai/config.json` — optional sparse
    personal override, outside the repo.
-1. Edit `~/.ai/config.json`: your `user`, your `endpoints`, your `connector.active` (+ its
-   `secretsFile` with your API key/tokens), your `app.branding`.
+1. Edit `~/.ai/config.json`: your `user`, your `endpoints`, your `connector.active`, your
+   `app.branding`. Tokens and API keys go in through the board's key button (→ `setup/.env`).
 2. Make sure your connector CLI has the three MCP servers (jira / confluence / bitbucket)
    configured (e.g. `~/.cursor/mcp.json` for cursor).
 3. `bash local-runner/run-intern.sh` → daily data; `bash local-runner/update-completed.sh` →

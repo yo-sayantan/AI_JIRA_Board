@@ -126,6 +126,8 @@ export function createStaticHandler(root, allow, { noStore = [] } = {}) {
     // patterns run, so the leading-`..` strip and the root check below are defence in depth only.
     const safe = normalize(path).replace(/^(\.\.([/\\]|$))+/, '')
     const file = join(root, safe)
+    // Dotfiles are never static content (setup/.env holds the API keys), whatever `allow` says.
+    if (/(^|[/\\])\./.test(safe)) return notFound(res)
     if (!file.startsWith(root) || !allow.some((re) => re.test(safe))) return notFound(res)
     let entry
     try {

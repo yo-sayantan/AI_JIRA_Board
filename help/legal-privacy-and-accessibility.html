@@ -112,8 +112,8 @@
           </tr>
           <tr>
             <td>Your credentials: Jira/Bitbucket/Confluence personal access tokens, optional AI API keys</td>
-            <td><code class="inl">~/.cursor/mcp-secrets.env</code> — <b>outside the repository</b>, mounted
-              read-only into the container</td>
+            <td><code class="inl">setup/.env</code>, written by the board's API keys dialog — <b>git-ignored</b>, kept out
+              of the Docker image, never served; the board shows saved keys only masked</td>
             <td>Authenticating the fetches you run</td>
             <td>Only to the matching service (your Jira, your Bitbucket, your chosen AI provider) over TLS —
               never elsewhere, never logged, never committed</td>
@@ -145,7 +145,7 @@
           <li>All fetched data: delete <code class="inl">jira-intern/data.json</code>,
             <code class="inl">data.js</code>, <code class="inl">cache/</code>, <code class="inl">reports/</code>,
             <code class="inl">logs/</code> (or <code class="inl">docker compose down</code> and remove the folder).</li>
-          <li>Credentials: delete <code class="inl">~/.cursor/mcp-secrets.env</code> and revoke the tokens in
+          <li>Credentials: remove each key in the API keys dialog (or delete <code class="inl">setup/.env</code>) and revoke the tokens in
             Jira/Bitbucket — revocation kills any copy instantly.</li>
           <li>Browser state: clear site data for <code class="inl">localhost:4321</code>.</li>
           <li>AI models &amp; queues: <code class="inl">docker volume rm jira-ai-models</code>.</li>
@@ -184,8 +184,9 @@
           <li><b>Follow your employer's policies.</b> The board mirrors company Jira/Bitbucket data using tokens
             issued to you. Creating tokens, where you run the board, and who can reach the machine that hosts it
             are governed by your organisation's security policies — comply with them.</li>
-          <li><b>Guard your tokens.</b> Keep <code class="inl">~/.cursor/mcp-secrets.env</code> private
-            (<code class="inl">chmod 600</code>), never commit it, and revoke tokens you no longer need.</li>
+          <li><b>Guard your tokens.</b> Keep <code class="inl">setup/.env</code> private (the board writes it
+            <code class="inl">chmod 600</code>), never commit it, keep the board on loopback (anyone who can reach it can
+            save a key), and revoke tokens you no longer need.</li>
           <li><b>Cloud AI is your call.</b> Enabling a cloud model sends ticket text to that provider under your
             key and their terms. If your employer forbids that, use a local model or AI level
             <b>None</b>.</li>

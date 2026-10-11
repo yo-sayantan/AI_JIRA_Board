@@ -1,5 +1,5 @@
 {
-  "_readme": "OPTIONAL SPARSE PERSONAL OVERRIDE. Project defaults live in config/jira-board.config.json. Keep API tokens in ~/.cursor/mcp-secrets.env.",
+  "_readme": "OPTIONAL SPARSE PERSONAL OVERRIDE. Project defaults live in config/jira-board.config.json. API tokens go in through the board's key button (stored in setup/.env), never here.",
   "user": {
     "name": "Your Name (exactly as Jira displays it)",
     "accountId": "YOUR_CORP_ID",

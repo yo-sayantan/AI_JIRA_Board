@@ -66,6 +66,9 @@
           packages that build into the image (<code class="inl">DIST_SOURCE=prebuilt</code>), frees port 4321, redeploys,
           waits until the board is healthy and opens it. Safe to run again and again — it never stacks containers or
           drifts ports. It needs Node.js 22+ for the build step.</p>
+        <div class="note"><b>First run:</b> the board is empty and shows <b>Add API keys first</b>. Paste your Jira
+          token there (or use the key button in the header), <b>Save</b>, then <b>Refresh</b>. The key is saved in
+          <code class="inl">setup/.env</code> and works from the next fetch — no restart.</div>
       </div>
       <div class="card">
         <h3>Without Node on the machine — plain Docker Compose</h3>
@@ -73,8 +76,9 @@
         <p class="small">This builds the app inside the image instead. It works, but over a slow or flaky Docker network
           <code class="inl">npm ci</code> can silently skip the TypeScript compiler's platform binary and the build dies —
           see <a href="09-troubleshooting-and-faq.html#faq-typescript-binary">the FAQ</a>. Compose starts project
-          <code class="inl">JIRA-Project</code> with the <code class="inl">JIRA-Board</code> container, mounts your secrets
-          read-only, fetches once on boot, then on the schedule set in Settings.</p>
+          <code class="inl">JIRA-Project</code> with the <code class="inl">JIRA-Board</code> container, mounts
+          <code class="inl">./setup</code> (where the API keys dialog saves your keys), fetches once on boot, then on
+          the schedule set in Settings.</p>
       </div>
 
       <h2 id="by-hand">Build and run by hand</h2>
@@ -88,13 +92,15 @@ docker compose up -d
 <span class="cmt"># or plain docker, without compose (the Dockerfile lives in docker/)</span>
 docker build -f docker/Dockerfile --build-arg DIST_SOURCE=prebuilt -t jira-board:latest .
 docker run -d --name JIRA-Board -p 127.0.0.1:4321:4321 \
-  -v "$HOME/.cursor:/home/node/.cursor:ro" \
+  -v "$(pwd)/setup:/app/setup" \
   -v "$HOME/.ai:/home/node/.ai:ro" \
   -v "$(pwd)/jira-intern:/app/jira-intern" \
   jira-board:latest</pre>
-        <p class="small">Mount the <b>folder</b> that holds <code class="inl">mcp-secrets.env</code>, not the file itself:
-          a single-file mount keeps pointing at the old file after an editor rewrites it. Windows PowerShell equivalents
-          for the volume flags: <code class="inl">-v "${HOME}\.cursor:/home/node/.cursor:ro"</code> and
+        <p class="small">Mount the <b>folder</b> <code class="inl">setup/</code> (read-write — the key dialog writes
+          <code class="inl">setup/.env</code> there), not the file itself: a save replaces the file, and a single-file
+          mount would keep pointing at the old one. On a Linux host, <code class="inl">setup/</code> and
+          <code class="inl">jira-intern/</code> must be writable by uid 1000. Windows PowerShell equivalents for the volume
+          flags: <code class="inl">-v "${PWD}\setup:/app/setup"</code> and
           <code class="inl">-v "${PWD}\jira-intern:/app/jira-intern"</code>.</p>
         <div class="note warn"><b>Never add <code class="inl">--pull</code></b> to a build here: it re-downloads the base
           image every time, and Docker Hub can crawl from the Docker VM.</div>

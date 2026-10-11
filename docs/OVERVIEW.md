@@ -52,17 +52,17 @@ React 19 · Vite 6 · Tailwind v4 · Motion · a Python fetch pipeline · one se
 git clone https://github.com/yo-sayantan/AI-JIRA-Board.git
 cd AI-JIRA-Board
 
-# 1. one-time setup — your token + your details (see docs/SETUP.md). Both live OUTSIDE the repo.
-mkdir -p ~/.cursor ~/.ai
-cp setup/mcp-secrets.env.template ~/.cursor/mcp-secrets.env   # then add your Jira token
-cp setup/config.example.json      ~/.ai/config.json           # then add your name + URLs
+# 1. one-time setup — your details (see docs/SETUP.md). Lives OUTSIDE the repo.
+mkdir -p ~/.ai
+cp setup/config.example.json ~/.ai/config.json   # then add your name + URLs
 
-# 2. build, fetch, and serve
+# 2. build and serve
 docker compose up -d --build
 ```
 
-Open **http://localhost:4321/dist/index.html**. That's it — the container fetches on start and
-auto-refreshes every 15 minutes. Full details and other run modes: [`DEPLOYMENT.md`](DEPLOYMENT.md).
+Open **http://localhost:4321/dist/index.html**, click **Add API keys first** (or the key button in
+the header) and paste your Jira token — it is saved in `setup/.env`, git-ignored. Then **Refresh**.
+From there the container fetches on start and auto-refreshes every 15 minutes. Full details and other run modes: [`DEPLOYMENT.md`](DEPLOYMENT.md).
 
 ## Repository layout
 
@@ -91,9 +91,11 @@ AI-JIRA-Board/
 │   ├── CONFIG.md            ←   key-by-key reference for the project config + personal override
 │   ├── INTERN.md            ←   the fetch pipeline (jira-intern/) from the inside
 │   └── OVERVIEW.md          ←   this page
-├── setup/                   ← 🔐 TEMPLATES only — secrets, config & MCP (no real values)
-│   ├── mcp-secrets.env.template
+├── setup/                   ← 🔐 the API key list, your keys (git-ignored) + templates (no real values)
+│   ├── api-keys.json        ←   THE list of API keys the board's key dialog offers
+│   ├── .env                 ←   your keys, written by that dialog — git-ignored, never served
 │   ├── config.example.json
+│   ├── mcp-secrets.env.template  ←   tokens for your IDE's MCP servers (not read by the board)
 │   ├── mcp.cursor.json.template  ·  mcp.claude.json.template  ·  mcp-with-secrets.sh.template
 │   └── Start Jira Board.command.template   ←   macOS double-click launcher
 ├── src/                     ← ⚛️ the React app (compiled to dist/index.html)
@@ -113,12 +115,12 @@ AI-JIRA-Board/
 ## Setup
 
 You need **one Jira Personal Access Token**; everything else is optional. Nothing personal is ever
-committed — both of your files live **outside this repo**:
+committed — your tokens sit in a git-ignored file, your identity outside the repo:
 
 | File | Holds | Resolution |
 |---|---|---|
 | `config/jira-board.config.json` | All non-secret project defaults and policy | Always loaded first and schema-validated |
-| `~/.cursor/mcp-secrets.env` | Your API tokens | referenced by the central connector config |
+| `setup/.env` | Your API tokens | Written by the board's API keys dialog (key button in the header); git-ignored, docker-ignored, never served |
 | `~/.ai/config.json` | Sparse personal override: identity, company URLs, branding | Deep-merged over project defaults |
 
 The central project config contains **placeholders only** and acts as the defaults layer,
@@ -143,7 +145,7 @@ in prose by `jira-intern/prompts/intern-prompt.md`. Keep the two in sync. See
 ## Publishing this repo
 
 It's safe to push **because your secrets never enter it** — they live only in
-`~/.cursor/mcp-secrets.env` (git-ignored). Before going **public**, confirm no `*.env` with real
+`setup/.env` (git-ignored). Before going **public**, confirm no `*.env` with real
 values is staged and keep `config/jira-board.config.json` generic (real identity and internal
 hostnames belong in `~/.ai/config.json`). Checklist:
 [`SETUP.md → Before you make the repo public`](SETUP.md#before-you-make-the-repo-public).

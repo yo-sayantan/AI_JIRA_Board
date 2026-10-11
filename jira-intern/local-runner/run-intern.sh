@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # JIRA Intern — Mac local runner via the Cursor CLI (cursor-agent).
 # Uses the MODELS and MCP SERVERS you already have configured in Cursor (~/.cursor/mcp.json):
-# jira, confluence, bitbucket, etc. Auth + tokens come from ~/.cursor/mcp-secrets.env at runtime —
+# jira, confluence, bitbucket, etc. Auth + tokens come from setup/.env (the board's API keys) at runtime —
 # nothing is stored or read by this repo.
 #
 # Trigger from a Mac Shortcut ("Run Shell Script") or any scheduler:
@@ -75,8 +75,8 @@ if ! find_agent; then
   exit 127
 fi
 if [ -n "$AGENT_API_KEY_ENV" ] && [ -z "${!AGENT_API_KEY_ENV}" ]; then
-  echo "$(date): WARNING: $AGENT_API_KEY_ENV is empty after sourcing $AGENT_SECRETS." | tee -a "$LOG"
-  echo "$(date):   -> add a valid  $AGENT_API_KEY_ENV=<key>  line to that file, or log the $AGENT_CONNECTOR CLI in once." | tee -a "$LOG"
+  echo "$(date): WARNING: $AGENT_API_KEY_ENV is empty after reading $APP_SECRETS." | tee -a "$LOG"
+  echo "$(date):   -> add it in the board's API keys dialog (key button in the header), or log the $AGENT_CONNECTOR CLI in once." | tee -a "$LOG"
 fi
 echo "$(date): falling back to $AGENT (connector=$AGENT_CONNECTOR)" | tee -a "$LOG"
 # Render the prompt: {{TOKENS}} (user id, endpoints, MCP allow/read-write policy) come from config.json.

@@ -9,9 +9,9 @@ __pycache__/
 .vscode/.checkmarxIgnored
 
 # ── SECRETS — never commit real tokens ──────────────────────────────────────
-# Real secrets live OUTSIDE this repo (~/.cursor/mcp-secrets.env). These rules are
-# a backstop in case a filled-in copy ever lands inside the repo. The safe, empty
-# setup/*.template files are NOT matched (they don't end in .env) and stay tracked.
+# The board's API keys live in setup/.env (written by the board's API keys dialog;
+# the list of keys is the tracked setup/api-keys.json). `.env` below matches it at any
+# depth. The safe, empty setup/*.template files are NOT matched and stay tracked.
 .env
 .env.*
 *.env
@@ -69,4 +69,4 @@ my_dashboard.xml
 
 # NOTE: project defaults live in config/jira-board.config.json (tracked, no secrets);
 # your personal name/id/endpoint overrides go in ~/.ai/config.json, outside the repo.
-# API keys live only in the connector's secretsFile under ~ (see setup/).
+# API keys live only in setup/.env (git-ignored above; see docs/SETUP.md).

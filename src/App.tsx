@@ -27,6 +27,9 @@ import { RaisedOverlay } from './components/raised/Raised'
 import { TicketDetail } from './components/ticket/TicketDetail'
 import { PrReportOverlay } from './components/reports/PrReport'
 import { SettingsPanel } from './components/settings/Settings'
+import { ApiKeysDialog } from './components/keys/ApiKeys'
+import { useApiKeys } from './hooks/useApiKeys'
+import { missingRequired } from './lib/apiKeys'
 import { Toasts } from './components/common/Toast'
 import { NoticesDock } from './components/common/NoticesDock'
 import { Footer } from './components/common/Footer'
@@ -65,6 +68,9 @@ export default function App() {
   useEffect(() => resetMoves(), [demo, resetMoves])
 
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [keysOpen, setKeysOpen] = useState(false)
+  const apiKeys = useApiKeys(served)
+  const keysMissing = missingRequired(apiKeys.status).length > 0
   const [completedOpen, setCompletedOpen] = useState(false)
   const [raisedOpen, setRaisedOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -96,8 +102,8 @@ export default function App() {
     drawers.closeAll()
     toast('Demo board reset — every ticket is back where it started.', 'success')
   }, [clearToasts, moves, resetDemo, drawers.closeAll, toast])
-  useScrollLock(drawers.open || completedOpen || raisedOpen || settingsOpen || !!reports.openReport)
-  useShortcuts(features.shortcuts && !drawers.open && !completedOpen && !raisedOpen && !settingsOpen && !reports.openReport, jobs.refreshBoard)
+  useScrollLock(drawers.open || completedOpen || raisedOpen || settingsOpen || keysOpen || !!reports.openReport)
+  useShortcuts(features.shortcuts && !drawers.open && !completedOpen && !raisedOpen && !settingsOpen && !keysOpen && !reports.openReport, jobs.refreshBoard)
 
   useEffect(() => {
     if (saveFailed) toast('Settings did not reach the server — your changes are saved in this browser only.', 'error')
@@ -153,6 +159,15 @@ export default function App() {
     else toast('Loading saved settings…', 'loading')
   }, [settingsReady, toast])
   const closeSettings = useCallback(() => setSettingsOpen(false), [])
+  const openKeys = useCallback(() => setKeysOpen(true), [])
+  const closeKeys = useCallback(() => setKeysOpen(false), [])
+  // Rendered in both returns below at the same position (right after the first child), so React
+  // keeps its state when a first fetch turns the empty state into the board.
+  const keysDialog = (
+    <ErrorBoundary label="API keys" overlay onClose={closeKeys}>
+      <ApiKeysDialog open={keysOpen} status={apiKeys.status} failed={apiKeys.failed} onClose={closeKeys} onRefresh={apiKeys.refresh} onSave={apiKeys.save} />
+    </ErrorBoundary>
+  )
   const openCompleted = useCallback(() => setCompletedOpen(true), [])
   const closeCompleted = useCallback(() => setCompletedOpen(false), [])
   const openRaised = useCallback(() => setRaisedOpen(true), [])
@@ -184,7 +199,15 @@ export default function App() {
   if (source === 'empty') {
     return (
       <div className="w-full px-4 pb-24 md:px-6 lg:px-8">
-        <EmptyState served={served} refreshing={refreshing} onRefresh={jobs.refreshBoard} runCommand={RUN_COMMAND} />
+        <EmptyState
+          served={served}
+          refreshing={refreshing}
+          onRefresh={jobs.refreshBoard}
+          runCommand={RUN_COMMAND}
+          onOpenKeys={served ? openKeys : undefined}
+          keysMissing={keysMissing}
+        />
+        {keysDialog}
         <Footer />
         <Toasts toasts={toasts} onDismiss={dismiss} />
       </div>
@@ -210,8 +233,11 @@ export default function App() {
         onArchiveRefresh={jobs.rebuildArchive}
         onStopArchive={jobs.stopArchive}
         onOpenSettings={openSettings}
+        onOpenKeys={served ? openKeys : undefined}
+        keysMissing={keysMissing}
         reports={reportsMenu}
       />
+      {keysDialog}
 
       <ErrorBoundary label="Settings" overlay onClose={closeSettings}>
         <SettingsPanel open={settingsOpen} settings={settings} onChange={setSettings} onClose={closeSettings} aiLevelSynced={served} aiStatus={ai} />

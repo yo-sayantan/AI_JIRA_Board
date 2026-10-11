@@ -29,7 +29,7 @@ export interface Settings {
   aiBackend: AiBackend
   /** Ollama tag to pull/run when aiBackend is local. */
   aiLocalModel: string
-  /** Claude, Cursor, or Gemini. Keys stay in ~/.cursor/mcp-secrets.env. */
+  /** Claude, Cursor, or Gemini. Keys live in setup/.env (the header's API keys dialog). */
   aiCloudProvider: AiCloudProvider
   /** Model id returned by that provider's list-models API. */
   aiCloudModel: string

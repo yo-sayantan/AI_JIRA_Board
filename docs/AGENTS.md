@@ -34,13 +34,13 @@ AI agent to make a correct change without re-deriving the architecture.
 | `src/components/` | Feature folders: `board/` `header/` `ticket/` `completed/` `raised/` `reports/` `settings/` `common/`. |
 | `jira-intern/` | The data pipeline. `daily_fetch.py` (active tickets + raised list + single-ticket refresh), `completed_archive.py` (historical archive), `raised.py` (raised-by-me fetch, shared), `_jira.py` (HTTP + field formatting), `devinfo.py` (branches/PRs via Jira dev-status), `pr_report.py` (deterministic PR reports), `datafile.py` (atomic writes, data.js sync), `progress.py` (progress file for button fills). |
 | `jira-intern/local-runner/` | Shell entrypoints the server invokes: `run-intern.sh`, `update-completed.sh`, `refresh-ticket.sh`, `refresh-raised.sh`, `pr-report.sh`; `runner-env.sh` (env, locks, timeouts), `config.mjs` (config merge → shellenv/prompts), `sync-datajs.mjs`. |
-| `server/` (entry: `server/serve.mjs`) | Zero-dependency Node server: static allowlist + the `/api/*` routes (jobs, reports, settings, AI proxy, status). |
+| `server/` (entry: `server/serve.mjs`) | Zero-dependency Node server: static allowlist + the `/api/*` routes (jobs, reports, settings, API keys, AI proxy, status). `secrets.mjs` reads/writes `setup/.env` for the API keys dialog. |
 | `docker/` | `Dockerfile` (build context is the repo root — `docker-compose.yml` sets `dockerfile: docker/Dockerfile`) and `docker-entrypoint.sh`. `docker-compose.yml` stays at the root on purpose. |
 | `scripts/` | `start-jira-board.sh` (host build + Docker deploy), `open-guide.sh` / `open-guide.bat` (open `help/00-start-here.html`, no server), `build-help-data.mjs` (writes `help/help-data.js`; `npm run build` runs it first) and `Open Board.html`. |
 | `tooling/` | `vite.config.ts`, `vitest.config.ts` — selected by `--config` in the npm scripts. `src/tsconfig.json` is the TypeScript config; `.claude/CLAUDE.md` is the agent entry point. |
 | `ai-intern/` | The AI worker container: `worker.py` (job queue + HTTP; Ollama local or Claude/Cursor/Gemini cloud), `models.json` (local model catalog), `cloud-models.json` (THE cloud model list: models, efforts, costly line) + `cloud_config.py`, `cursor-prices.json` (Cursor's price table — reference data). |
 | `config/` | `jira-board.config.json` — tracked, **generic** project defaults (+ JSON schema). Personal values live OUTSIDE the repo in `~/.ai/config.json`. |
-| `setup/` | Templates ONLY (secrets, personal config, MCP, Desktop launcher) — the guide for them is `docs/SETUP.md`. Shipped into the Docker image. |
+| `setup/` | `api-keys.json` (tracked: THE list of API keys the board knows), the git-ignored `.env` the board's API keys dialog writes (the only secrets file the board reads), and templates (personal config, IDE MCP servers, Desktop launcher) — the guide is `docs/SETUP.md`. Shipped into the Docker image minus `.env` (docker-ignored); compose mounts `./setup` instead. |
 | `help/` | **The help guide** (the board's **?** button): plain HTML pages that open straight from disk, numbered in deploy order — `00-start-here.html` … `10-developer-documentation.html`, `developer-doc-viewer.html` (renders `docs/*.md`), `legal-privacy-and-accessibility.html`. One `help.css`, one `help.js`, and `help-data.js` — a GENERATED copy of `ai-intern/models.json`, `cursor-prices.json`, `cloud-models.json` and `docs/*.md` so tables and docs work offline (`scripts/build-help-data.mjs`; a test fails when it is stale). |
 | `docs/` | **Developer documentation** (markdown, see index at the bottom). The only `.md` files outside are runtime inputs, not docs: `jira-intern/prompts/*.md` (LLM prompts read by scripts) and `.github/pull_request_template.md` (GitHub requires its location). |
 | `jira-intern/demo/` | Demo mode's sample board: `data.json` (the only source — tracked in git, unlike the real dump) and `README.md`. |
@@ -64,8 +64,8 @@ AI agent to make a correct change without re-deriving the architecture.
 4. **Atomic writes + twin sync.** All dump writes go through `datafile.write_outputs()` /
    `atomic_dump()` (temp file + `os.replace`). `data.js` must always equal `data.json` —
    `write_outputs` does both; shell paths re-sync with `sync-datajs.mjs`.
-5. **No secrets in the repo. Ever.** Tokens live in `~/.cursor/mcp-secrets.env`, identity in
-   `~/.ai/config.json`. The repo is public. Before every commit run the leak scan:
+5. **No secrets in the repo. Ever.** Tokens live in `setup/.env` (written by the board's API keys
+   dialog; git-ignored, docker-ignored, never served), identity in `~/.ai/config.json`. The repo is public. Before every commit run the leak scan:
    `git diff --cached | grep -icE "<internal hostnames / ids / names>"` must print 0, stage files
    by name (never `git add -A`), and keep `config/jira-board.config.json` generic.
 6. **`npm run build` must pass before any commit** (`tsc --noEmit && vite build`), and
@@ -192,6 +192,14 @@ deployed from** (see `docs/DEPLOYMENT.md` → "the data mount follows the deploy
   `npm run help:data`). A new page: next free number, plain lowercase name, add it to every page's nav (the test says where).
 - Native drag with ⌥ held asks the browser for a COPY: cards set `effectAllowed = 'copyMove'` and zones set
   `dropEffect = 'move'`, or an Option-drop is refused before the board sees it.
+- `.dockerignore` patterns only match at the root unless prefixed `**/` (unlike `.gitignore`) — `setup/.env`
+  stays out of the image only because of the `**/.env`, `**/.env.*`, `**/*.env` rules. Likewise the static
+  allowlist (`server/config.mjs::STATIC_ALLOW`) must never match a dotfile; `server/http.mjs` also refuses any
+  dot-segment path. Break either and the API keys leak.
+- `setup/api-keys.json` is the list of keys the dialog offers and `POST /api/keys` accepts. A key added there must be
+  READ by something — `runner-env.sh::load_agent_secrets`'s list, `ai-intern/worker.py`, or a connector's `apiKeyEnv`
+  in the config; `tests/test_api_keys.py` fails otherwise. The board reads only `setup/.env` (`JB_SECRETS_FILE` moves
+  it): `_config.py::secrets_path`, `runner-env.sh` (`APP_SECRETS`), `docker-entrypoint.sh` and the worker must agree.
 - localStorage keys in use: `jb-settings`, `jb-archived`, `jb-completed-show-context`,
   `jb-guide-os` (+ legacy `jb-theme`, `jb-hidden` migrations). No cookies anywhere.
 - The board can run from `file://` — every feature must degrade: served-only controls hide or

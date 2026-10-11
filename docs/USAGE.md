@@ -5,7 +5,8 @@ A tour of what's on screen and how to drive it.
 ## Layout, top to bottom
 
 - **Header** — your name, last-fetch freshness, the current-sprint pill (name · dates · working
-  days left · progress bar), live **search**, light/dark toggle, and **Refresh/Reload**.
+  days left · progress bar), live **search**, light/dark toggle, **Refresh/Reload**, and the
+  **API keys** key button (amber dot until the Jira token is saved — see below).
 - **Stat chips** — one per column plus scope toggles. Click to filter; click again to clear.
 - **Board** — the kanban columns: To Do · Blocked · In Progress · In Review · QA · Done. Any empty column folds to a slim rail so the columns with cards get the width (it opens to a compact *Drop here* zone while you drag); QA has a separate **QA In Progress** space under it, in the same column, for tickets the QA team has picked up (like On Hold under Blocked, but you cannot drop on it).
 - **QA lane** — QA and QA In Progress are for QA tickets (raised by you or linked to your work — type QA/Test, a `QA` label, or a "QA:" title). A ticket of yours can't be dropped there, and a QA ticket can only go to QA · QA In Progress · Blocked · On Hold · Done.
@@ -101,7 +102,7 @@ or **not verified** (a gap — shown, never hidden). A ring shows the 0–100 re
 2. *AI enrichment* — **JIRA-AI-Intern** (Ollama locally, or Cloud AI) merges structured JSON
    (business impact, per-file notes when a file list exists, risks). Settings **None** stops after
    the base. **Max** is the longest timeout (`full`). Cloud AI is Claude or Cursor; the intern
-   reads `ANTHROPIC_API_KEY`, `CURSOR_API_KEY`, or `GEMINI_API_KEY` only from `~/.cursor/mcp-secrets.env`.
+   reads `ANTHROPIC_API_KEY`, `CURSOR_API_KEY`, or `GEMINI_API_KEY` only from `setup/.env` — add them with the key button.
    Cursor lists a few Gemini Flash models, GPT-4o, Grok, and Chinese models (Qwen, DeepSeek, Kimi, GLM).
    The models in the dropdown are the ones in `ai-intern/cloud-models.json` — add or delete a row there and it follows. Effort is **Auto** (default — the model's own), **Low**, **Medium** or **High**, as listed for each model; a **costly** model (⚠, output at or above the file's `costlyOutputUsd`, $10 by default) is fixed at **Medium** and its effort dropdown is shown disabled. An effort the model cannot take as a parameter is passed as guidance in the prompt. Local models see on-disk
    intern data plus live Jira/Bitbucket (MCP tokens). CI / Checkmarx / live Dynatrace stay Not verified.
@@ -110,6 +111,16 @@ or **not verified** (a gap — shown, never hidden). A ring shows the 0–100 re
 changed (background, capped by `reports.maxPerRun`), after a single-ticket refresh, or on demand from
 the button. Reports live in `jira-intern/reports/` — **git-ignored**, they contain real company data.
 Backfill a whole year by hand: `bash jira-intern/local-runner/pr-reports-backfill.sh --year 2026`.
+
+## API keys
+
+The key button in the header (beside Settings) opens one list with a row per service — Jira (required),
+Bitbucket, Confluence, Claude, Cursor, Gemini, OpenAI. A row is lit in its colour once its keys are saved,
+grey until then. Click a row to see why it is needed, what uses it and where to get it, then paste the key
+and **Save**. A saved key shows masked (first and last few characters only); paste a new key into the box to replace it,
+or **Remove** it (asks to confirm). Keys are stored in `setup/.env` on this machine — git-ignored, never
+served — and take effect on the next fetch or AI call, no restart. A brand-new board with no data yet
+shows **Add API keys first** on its empty screen. The button is hidden when the board is opened as a file.
 
 ## Cards
 

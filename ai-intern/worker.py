@@ -4,7 +4,7 @@
 Listens on PORT (default 4322). Polls jira-intern/.ai-queue for enrich-report,
 summarize-active, and pull-model jobs. Local inference is Ollama (compose
 service or host.docker.internal); cloud is Claude (Messages API) or Cursor
-(Cloud Agents, no repo). Both keys are read only from mcp-secrets.env.
+(Cloud Agents, no repo). Both keys are read only from setup/.env (the board's API keys).
 """
 from __future__ import annotations
 
@@ -93,7 +93,7 @@ def load_secrets():
 
 
 # Cloud chat keys are never copied into the process environment. The intern
-# re-reads mcp-secrets.env on each cloud call so a key added on the host is picked up
+# re-reads setup/.env on each cloud call so a key added on the host is picked up
 # without a container recreate. Only the on-prem Jira / Bitbucket / Confluence values that
 # this process and the imported jira-intern modules actually read from os.environ are
 # exported; everything else stays in the file.
@@ -346,7 +346,7 @@ def chat_anthropic(model, system, user, timeout, key):
 
 
 def file_secret(name):
-    """Cloud keys come only from mcp-secrets.env, re-read each call."""
+    """Cloud keys come only from setup/.env (saved in the board's API keys dialog), re-read each call."""
     return (load_secrets().get(name) or "").strip()
 
 
@@ -444,7 +444,7 @@ def _fetch_cloud_models():
         out[provider] = entry
         key = file_secret(secret)
         if not key:
-            entry["error"] = f"Add {secret} to ~/.cursor/mcp-secrets.env"
+            entry["error"] = f"Add {secret} in API keys (key button in the board header)"
             continue
         entry["configured"] = True
         catalog = None
@@ -702,17 +702,17 @@ def infer(job, system, user):
         if provider == "cursor":
             key = file_secret("CURSOR_API_KEY")
             if not key:
-                raise RuntimeError("Add CURSOR_API_KEY to ~/.cursor/mcp-secrets.env")
+                raise RuntimeError("Add CURSOR_API_KEY in API keys (key button in the board header)")
             text, used = chat_cursor(model, effort, system, user, timeout, key)
             return text, f"cloud · cursor · {model} · {used}"
         if provider == "gemini":
             key = file_secret("GEMINI_API_KEY")
             if not key:
-                raise RuntimeError("Add GEMINI_API_KEY to ~/.cursor/mcp-secrets.env")
+                raise RuntimeError("Add GEMINI_API_KEY in API keys (key button in the board header)")
             return chat_gemini(model, _effort_note(effort) + system, user, timeout, key), f"cloud · gemini · {model} · {effort}"
         key = file_secret("ANTHROPIC_API_KEY")
         if not key:
-            raise RuntimeError("Add ANTHROPIC_API_KEY to ~/.cursor/mcp-secrets.env")
+            raise RuntimeError("Add ANTHROPIC_API_KEY in API keys (key button in the board header)")
         return chat_anthropic(model, _effort_note(effort) + system, user, timeout, key), f"cloud · claude · {model} · {effort}"
     model = model or catalog().get("defaultLocal") or ""
     base = ollama_base(job)

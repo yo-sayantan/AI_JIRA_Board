@@ -97,8 +97,9 @@
         <p class="small">With <b>Claude</b> (billed by Anthropic, console.anthropic.com) or <b>Gemini</b> (billed by Google,
           aistudio.google.com) selected in Settings, the dropdown offers these rows of
           <code class="inl">ai-intern/cloud-models.json</code>. Their <code class="inl">id</code> must be the exact model id
-          that provider's API accepts. Keys live in <code class="inl">~/.cursor/mcp-secrets.env</code>
-          (<code class="inl">ANTHROPIC_API_KEY</code>, <code class="inl">GEMINI_API_KEY</code>).</p>
+          that provider's API accepts. Add the keys with the key button in the board header — they are saved in
+          <code class="inl">setup/.env</code> (<code class="inl">ANTHROPIC_API_KEY</code>, <code class="inl">GEMINI_API_KEY</code>)
+          and used from the next AI call, no restart.</p>
         <table>
           <thead><tr><th>Model</th><th>Provider</th><th>Id</th><th>Output / 1M</th><th>Efforts</th></tr></thead>
           <tbody id="direct-model-rows"><tr><td colspan="5">Loading… (this needs JavaScript; the list itself is <code class="inl">ai-intern/cloud-models.json</code>)</td></tr></tbody>

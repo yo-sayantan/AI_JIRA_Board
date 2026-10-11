@@ -55,7 +55,6 @@
           "promptFlag": { "type": "string" },
           "extraArgs": { "type": "array", "items": { "type": "string" } },
           "modelFlag": { "type": "string" },
-          "secretsFile": { "type": "string" },
           "apiKeyEnv": { "type": "string" },
           "install": { "type": "string" }
         }

@@ -27,7 +27,6 @@
       "promptFlag": "-p",
       "extraArgs": ["--output-format", "text", "--force"],
       "modelFlag": "--model",
-      "secretsFile": "~/.cursor/mcp-secrets.env",
       "apiKeyEnv": "CURSOR_API_KEY",
       "install": "curl https://cursor.com/install -fsS | bash"
     },
@@ -37,7 +36,6 @@
       "promptFlag": "-p",
       "extraArgs": ["--output-format", "text", "--dangerously-skip-permissions"],
       "modelFlag": "--model",
-      "secretsFile": "~/.cursor/mcp-secrets.env",
       "apiKeyEnv": "ANTHROPIC_API_KEY",
       "install": "npm install -g @anthropic-ai/claude-code"
     },
@@ -47,7 +45,6 @@
       "promptFlag": "exec",
       "extraArgs": ["--full-auto"],
       "modelFlag": "--model",
-      "secretsFile": "~/.cursor/mcp-secrets.env",
       "apiKeyEnv": "OPENAI_API_KEY",
       "install": "npm install -g @openai/codex"
     }
