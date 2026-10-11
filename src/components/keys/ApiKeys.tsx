@@ -6,6 +6,7 @@ import {
   canSave,
   keyCounts,
   kindOf,
+  groupedServices,
   servicePlanned,
   serviceReady,
   testBlocker,
@@ -148,20 +149,33 @@ export function ApiKeysDialog({
               </p>
             )}
 
-            <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto px-2.5 py-2.5">
-              {API_SERVICES.map((s) => (
-                <ServiceRow
-                  key={s.id}
-                  service={s}
-                  status={status}
-                  open={expanded === s.id}
-                  onToggle={() => setExpanded((cur) => (cur === s.id ? null : s.id))}
-                  onSave={saveFor(s.id)}
-                  test={tests[s.id]}
-                  onTest={() => void runTest(s.id)}
-                />
+            {/* Clustered by kind of service (setup/api-keys.json groups), alphabetical inside each. */}
+            <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto px-2.5 py-2.5">
+              {groupedServices().map(({ group, services }) => (
+                <section key={group.id} aria-labelledby={`api-group-${group.id}`}>
+                  <h3
+                    id={`api-group-${group.id}`}
+                    className="mb-1 px-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]"
+                  >
+                    {group.name}
+                  </h3>
+                  <ul className="space-y-1">
+                    {services.map((s) => (
+                      <ServiceRow
+                        key={s.id}
+                        service={s}
+                        status={status}
+                        open={expanded === s.id}
+                        onToggle={() => setExpanded((cur) => (cur === s.id ? null : s.id))}
+                        onSave={saveFor(s.id)}
+                        test={tests[s.id]}
+                        onTest={() => void runTest(s.id)}
+                      />
+                    ))}
+                  </ul>
+                </section>
               ))}
-            </ul>
+            </div>
 
             <footer className="shrink-0 border-t border-[var(--line)] px-4 py-2 text-[11px] leading-snug text-[var(--muted)]">
               Saved to <code>setup/.env</code> on this machine — git-ignored, never baked into an image. The board only ever
@@ -227,7 +241,7 @@ function ServiceRow({
           <span className="shrink-0 text-[13px] font-bold" style={{ color: ready ? service.color : 'var(--ink-soft)' }}>
             {service.name}
           </span>
-          <span className="min-w-0 truncate text-[11px] text-[var(--muted)]" title={service.why}>
+          <span className="min-w-0 truncate text-[11px] text-[var(--muted)]" title={service.details}>
             {service.why}
           </span>
         </span>
@@ -259,6 +273,7 @@ function ServiceRow({
             transition={{ duration: 0.18 }}
           >
             <div className="space-y-1.5 border-t px-2.5 pb-2 pt-1.5" style={{ borderColor: hexToRgba(color, 0.2) }}>
+              <p className="text-[11.5px] leading-snug text-[var(--ink-soft)]">{service.details}</p>
               <p className="flex flex-wrap items-center gap-1 text-[10.5px] leading-snug text-[var(--muted)]">
                 <span className="font-semibold">Used by</span>
                 {service.usedBy.map((u) => (

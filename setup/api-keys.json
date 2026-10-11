@@ -1,12 +1,12 @@
 {
-  "$comment": "THE list of API keys the board knows about — read by the server (server/secrets.mjs: only these names can be saved), the board's API keys dialog (src/lib/apiKeys.ts) and tests/test_api_keys.py (every key must be read by something). Values are stored beside it in setup/.env (git-ignored, docker-ignored, never served). Each key has a kind: secret (masked; the default), url (shown in full; a new URL clears its service's secrets), email or text (shown in full). 'planned: true' marks a key the user can add now that nothing reads yet; tests/test_api_keys.py exempts only those.",
+  "$comment": "THE list of API keys the board knows about — read by the server (server/secrets.mjs: only these names can be saved), the board's API keys dialog (src/lib/apiKeys.ts) and tests/test_api_keys.py (every key must be read by something). Values are stored beside it in setup/.env (git-ignored, docker-ignored, never served). Each key has a kind: secret (masked; the default), url (shown in full; a new URL clears its service's secrets), email or text (shown in full). 'planned: true' marks a key the user can add now that nothing reads yet; tests/test_api_keys.py exempts only those. Services are shown grouped (groups[], in order) and alphabetically by name inside a group; 'why' is the one-line summary (≤ 44 chars, so it never truncates), 'details' the full explanation shown when a row is opened.",
   "services": [
     {
       "id": "jira",
       "name": "Jira",
       "color": "#2f86ff",
       "required": true,
-      "why": "Pulls every ticket on the board. Without it nothing can be fetched.",
+      "why": "Your tickets — required",
       "usedBy": [
         "Daily fetch",
         "Completed archive",
@@ -28,14 +28,16 @@
           "hint": "Leave empty to use endpoints.jiraBase from the config.",
           "kind": "url"
         }
-      ]
+      ],
+      "details": "Pulls every ticket on the board. Without it nothing can be fetched.",
+      "group": "atlassian"
     },
     {
       "id": "atlassian",
       "name": "Atlassian Cloud",
       "color": "#0052cc",
       "required": false,
-      "why": "One API token for Jira, Confluence and Bitbucket on Atlassian Cloud, as they move off on-prem.",
+      "why": "One token for Atlassian Cloud",
       "usedBy": [
         "Bitbucket (when no HTTP access token is set)",
         "Jira · Confluence · Bitbucket Cloud (coming)"
@@ -61,14 +63,16 @@
           "optional": true,
           "hint": "Your Cloud site, e.g. https://your-org.atlassian.net."
         }
-      ]
+      ],
+      "details": "One API token for Jira, Confluence and Bitbucket on Atlassian Cloud, as they move off on-prem.",
+      "group": "atlassian"
     },
     {
       "id": "bitbucket",
       "name": "Bitbucket",
       "color": "#6366f1",
       "required": false,
-      "why": "Adds real branches, pull requests and review state to the cards.",
+      "why": "Branches, PRs and review state",
       "usedBy": [
         "PR chips on cards",
         "PR readiness reports",
@@ -87,14 +91,16 @@
           "hint": "Leave empty to use endpoints.bitbucketBase from the config.",
           "kind": "url"
         }
-      ]
+      ],
+      "details": "Adds real branches, pull requests and review state to the cards.",
+      "group": "code"
     },
     {
       "id": "confluence",
       "name": "Confluence",
       "color": "#14b8a6",
       "required": false,
-      "why": "Lets the agent fallback read linked Confluence pages. The normal fetch does not need it.",
+      "why": "Linked pages for the agent fallback",
       "usedBy": [
         "Agent fallback (MCP servers)"
       ],
@@ -111,14 +117,16 @@
           "hint": "Leave empty to use endpoints.confluenceBase from the config.",
           "kind": "url"
         }
-      ]
+      ],
+      "details": "Lets the agent fallback read linked Confluence pages. The normal fetch does not need it.",
+      "group": "atlassian"
     },
     {
       "id": "jenkins",
       "name": "Jenkins",
       "color": "#dc2626",
       "required": false,
-      "why": "Reads the latest build of a ticket's branch per environment: result, tests, deploy target, failed stage.",
+      "why": "Latest branch build per environment",
       "usedBy": [
         "Build chips on cards",
         "Drawer: Proof · Builds",
@@ -136,14 +144,16 @@
           "label": "API token",
           "hint": "Job links per repository and environment go in the config (jenkins.jobs)."
         }
-      ]
+      ],
+      "details": "Reads the latest build of a ticket's branch per environment: result, tests, deploy target, failed stage.",
+      "group": "cicd"
     },
     {
       "id": "checkmarx",
       "name": "Checkmarx One",
       "color": "#65a30d",
       "required": false,
-      "why": "Confirms which vulnerabilities a fix ticket actually closed, for its PR readiness report.",
+      "why": "Which vulnerabilities a fix closed",
       "usedBy": [
         "Vulnerability chip on cards",
         "Drawer: Proof · Vulnerabilities",
@@ -168,14 +178,16 @@
           "optional": true,
           "hint": "Only when the IAM host differs from the API host."
         }
-      ]
+      ],
+      "details": "Confirms which vulnerabilities a fix ticket actually closed, for its PR readiness report.",
+      "group": "cicd"
     },
     {
       "id": "claude",
       "name": "Claude",
       "color": "#d97757",
       "required": false,
-      "why": "Runs Cloud AI with Claude models, billed to this key's Anthropic account.",
+      "why": "Cloud AI with Claude models",
       "usedBy": [
         "Cloud AI briefs (Claude)",
         "PR report enrichment (Claude)",
@@ -187,14 +199,16 @@
           "env": "ANTHROPIC_API_KEY",
           "label": "API key"
         }
-      ]
+      ],
+      "details": "Runs Cloud AI with Claude models, billed to this key's Anthropic account.",
+      "group": "ai"
     },
     {
       "id": "cursor",
       "name": "Cursor",
       "color": "#a855f7",
       "required": false,
-      "why": "Runs Cloud AI with Cursor models, and the default agent fallback when the fast fetch fails.",
+      "why": "Cloud AI + default agent fallback",
       "usedBy": [
         "Cloud AI briefs (Cursor)",
         "PR report enrichment (Cursor)",
@@ -206,14 +220,16 @@
           "env": "CURSOR_API_KEY",
           "label": "API key"
         }
-      ]
+      ],
+      "details": "Runs Cloud AI with Cursor models, and the default agent fallback when the fast fetch fails.",
+      "group": "ai"
     },
     {
       "id": "gemini",
       "name": "Gemini",
       "color": "#f59e0b",
       "required": false,
-      "why": "Runs Cloud AI with Gemini models, billed to this key's Google account.",
+      "why": "Cloud AI with Gemini models",
       "usedBy": [
         "Cloud AI briefs (Gemini)",
         "PR report enrichment (Gemini)"
@@ -224,14 +240,16 @@
           "env": "GEMINI_API_KEY",
           "label": "API key"
         }
-      ]
+      ],
+      "details": "Runs Cloud AI with Gemini models, billed to this key's Google account.",
+      "group": "ai"
     },
     {
       "id": "openai",
       "name": "OpenAI",
       "color": "#10b981",
       "required": false,
-      "why": "Only for the agent fallback when the codex connector is the active one.",
+      "why": "Agent fallback (codex connector)",
       "usedBy": [
         "Agent fallback (codex connector)"
       ],
@@ -241,14 +259,16 @@
           "env": "OPENAI_API_KEY",
           "label": "API key"
         }
-      ]
+      ],
+      "details": "Only for the agent fallback when the codex connector is the active one.",
+      "group": "ai"
     },
     {
       "id": "github",
       "name": "GitHub",
       "color": "#0ea5e9",
       "required": false,
-      "why": "Not used yet — for repositories hosted on GitHub.",
+      "why": "GitHub repositories (later)",
       "usedBy": [
         "Branches and PRs from GitHub (later)"
       ],
@@ -259,7 +279,27 @@
           "label": "Personal access token",
           "planned": true
         }
-      ]
+      ],
+      "details": "Not used yet — for repositories hosted on GitHub.",
+      "group": "code"
+    }
+  ],
+  "groups": [
+    {
+      "id": "atlassian",
+      "name": "Atlassian"
+    },
+    {
+      "id": "code",
+      "name": "Code hosting"
+    },
+    {
+      "id": "cicd",
+      "name": "CI/CD & security"
+    },
+    {
+      "id": "ai",
+      "name": "AI models"
     }
   ]
 }

@@ -222,7 +222,7 @@ raised rows queue after active tickets. Render path heals JSON-wrapped model out
 
 ## API keys
 
-The one place to add tokens and keys — no file to edit by hand. One list, a row per service from
+The one place to add tokens and keys — no file to edit by hand. One list, clustered by kind of service (`groups` in `setup/api-keys.json`: Atlassian · Code hosting · CI/CD & security · AI models) and alphabetical inside each cluster; each row shows a one-line summary (`why`, ≤ 44 characters so it never truncates) and opens to the full explanation (`details`). A row per service from
 `setup/api-keys.json` (Jira — required, Atlassian Cloud, Bitbucket, Confluence, Jenkins, Checkmarx One, Claude, Cursor, Gemini, OpenAI, GitHub): lit in the service's
 colour when its non-optional keys are set, greyed when not. Each key has a kind — `secret` (masked), `url`, `email` or
 `text` (shown in full) — and keys marked `planned` say **not used yet**: they can be saved before the integration that reads

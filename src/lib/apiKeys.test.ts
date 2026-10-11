@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { API_SERVICES, TEST_TONE_COLOR, canSave, keyCounts, missingRequired, servicePlanned, serviceReady, testBlocker, testResultView, type KeyStatus } from './apiKeys'
+import { API_GROUPS, API_SERVICES, groupedServices, TEST_TONE_COLOR, canSave, keyCounts, missingRequired, servicePlanned, serviceReady, testBlocker, testResultView, type KeyStatus } from './apiKeys'
 
 const jira = API_SERVICES.find((s) => s.id === 'jira')!
 const bitbucket = API_SERVICES.find((s) => s.id === 'bitbucket')!
@@ -143,5 +143,27 @@ describe('testResultView', () => {
 
   it('every tone has a colour', () => {
     for (const t of ['ok', 'bad', 'warn', 'idle'] as const) expect(TEST_TONE_COLOR[t]).toMatch(/^#/)
+  })
+})
+
+describe('grouped, alphabetical, readable', () => {
+  it('every service belongs to a known group', () => {
+    const ids = new Set(API_GROUPS.map((g) => g.id))
+    for (const s of API_SERVICES) expect(ids.has(s.group), s.id).toBe(true)
+  })
+  it('groups come in registry order, services alphabetically inside each', () => {
+    const grouped = groupedServices()
+    expect(grouped.map((g) => g.group.id)).toEqual(API_GROUPS.map((g) => g.id).filter((id) => API_SERVICES.some((s) => s.group === id)))
+    for (const { services } of grouped) {
+      const names = services.map((s) => s.name)
+      expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)))
+    }
+    expect(grouped.flatMap((g) => g.services)).toHaveLength(API_SERVICES.length)
+  })
+  it('the one-line summary is short enough not to truncate; the full text is in details', () => {
+    for (const s of API_SERVICES) {
+      expect(s.why.length, s.id).toBeLessThanOrEqual(44)
+      expect(s.details.length, s.id).toBeGreaterThan(0)
+    }
   })
 })
