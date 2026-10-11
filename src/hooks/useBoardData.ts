@@ -64,6 +64,11 @@ export function useBoardData(served: boolean, onError?: (msg: string) => void, d
   )
   const archive = useCallback((key: string) => updateArchived((keys) => keys.add(key)), [updateArchived])
   const restoreArchived = useCallback(() => updateArchived((keys) => keys.clear()), [updateArchived])
+  // Demo mode → Reset. The sample dump itself is never changed by a demo session (moves are pins in
+  // useTicketMoves), so putting the hand-archived cards back is all this half of a reset needs.
+  const resetDemo = useCallback(() => {
+    if (demo) setArchived(new Set())
+  }, [demo])
 
-  return { ...view, source: demo ? ('demo' as const) : view.source, reload, archive, restoreArchived }
+  return { ...view, source: demo ? ('demo' as const) : view.source, reload, archive, restoreArchived, resetDemo }
 }

@@ -59,6 +59,13 @@ export function useToasts(seconds: number, max: number) {
     [remove, pump],
   )
 
+  /** Every toast, visible or waiting — e.g. a demo reset, whose old Undo buttons would undo nothing. */
+  const clear = useCallback(() => {
+    queue.current = []
+    for (const t of visible.current) remove(t.id)
+    render()
+  }, [remove])
+
   const toast = useCallback<ToastFn>(
     (msg, kind = 'info', opts) => {
       const id = ++nextId.current
@@ -82,5 +89,5 @@ export function useToasts(seconds: number, max: number) {
     return () => pending.forEach((t) => clearTimeout(t))
   }, [])
 
-  return { toasts, toast, dismiss }
+  return { toasts, toast, dismiss, clear }
 }

@@ -58,7 +58,6 @@
   },
   "models": {
     "main": "auto",
-    "summary": "auto",
     "report": "auto",
     "catalog": "ai-intern/models.json"
   },
@@ -76,7 +75,6 @@
   "timeouts": {
     "dailySec": 1800,
     "weeklySec": 7200,
-    "summarySec": 900,
     "refreshSec": 600,
     "reportSec": 600
   },

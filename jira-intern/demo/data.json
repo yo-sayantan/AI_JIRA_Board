@@ -1849,7 +1849,7 @@
       "created": "2026-09-17T09:00:00Z",
       "url": "https://jira.example.com/browse/DEMO-247",
       "sprint": "Demo Platform Sprint 24 (active · 2026-10-03 → 2026-10-17)",
-      "reporter": "Priya Raman (LEAD1)",
+      "reporter": "Demo User (DEMO)",
       "assignee": "Rahul Okafor (QA01)",
       "labels": [
         "demo",
@@ -1864,10 +1864,6 @@
         "2026.11"
       ],
       "updateLog": [
-        {
-          "when": "2026-10-08",
-          "text": "Under QA"
-        },
         {
           "when": "2026-09-17",
           "text": "Opened"
@@ -2294,6 +2290,737 @@
           "text": "Opened"
         }
       ]
+    },
+    {
+      "key": "DEMO-206",
+      "title": "Agree how long exported files are kept before they are purged",
+      "status": "Open",
+      "column": "todo",
+      "type": "Requirement",
+      "priority": "Not Prioritized",
+      "storyPoints": null,
+      "commentCount": 0,
+      "lastUpdate": "2026-10-06T10:00:00Z",
+      "created": "2026-10-02T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-206",
+      "sprint": "Demo Platform Sprint 24 (active · 2026-10-03 → 2026-10-17)",
+      "reporter": "Priya Raman (LEAD1)",
+      "assignee": "Demo User (DEMO)",
+      "labels": [
+        "demo",
+        "compliance",
+        "retention"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "description": "<p>Legal and product have not settled the retention period for exported files. Until they do, nothing is purged. Capture the agreed period, who can override it, and what the user sees when a file has expired.</p>",
+      "acceptanceCriteria": [
+        "A retention period is agreed and written into the reporting RFC",
+        "An expired download shows a clear message instead of a 404"
+      ],
+      "openQuestions": [
+        "Is retention per tenant or global?",
+        "Does an admin override need an audit entry?"
+      ],
+      "updateLog": [
+        {
+          "when": "2026-10-02",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-207",
+      "title": "Remember the last export format each user picked",
+      "status": "Backlog",
+      "column": "todo",
+      "type": "Improvement",
+      "priority": "Low",
+      "storyPoints": 2,
+      "commentCount": 0,
+      "lastUpdate": "2026-10-01T09:00:00Z",
+      "created": "2026-09-21T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-207",
+      "sprint": "Team Backlog (future)",
+      "reporter": "Priya Raman (LEAD1)",
+      "assignee": "Demo User (DEMO)",
+      "labels": [
+        "demo",
+        "ux"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "description": "<p>Parked in an undated <i>Team Backlog</i> sprint — not a READY or REFINEMENT bucket, so it stays in the To Do box rather than Next Sprint.</p>",
+      "updateLog": [
+        {
+          "when": "2026-09-21",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-208",
+      "title": "Deploy the 2026.11 reporting release to staging",
+      "status": "To Do",
+      "column": "todo",
+      "type": "Task",
+      "priority": "High",
+      "storyPoints": 1,
+      "commentCount": 0,
+      "lastUpdate": "2026-10-07T15:00:00Z",
+      "created": "2026-10-05T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-208",
+      "sprint": "Demo Platform Sprint 24 (active · 2026-10-03 → 2026-10-17)",
+      "reporter": "Priya Raman (LEAD1)",
+      "assignee": "Demo User (DEMO)",
+      "labels": [
+        "demo",
+        "release"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "fixVersions": [
+        "2026.11"
+      ],
+      "description": "<p>Typed as a plain Task in Jira; the board reads the title and shows it as a <b>Release</b>.</p>",
+      "acceptanceCriteria": [
+        "Staging runs 2026.11 with the migration applied",
+        "Smoke pack DEMO-245 is green on staging"
+      ],
+      "updateLog": [
+        {
+          "when": "2026-10-05",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-209",
+      "title": "Onboarding: walk a new joiner through the export pipeline",
+      "status": "To Do",
+      "column": "todo",
+      "type": "Task",
+      "priority": "Minor",
+      "storyPoints": 1,
+      "commentCount": 0,
+      "lastUpdate": "2026-10-06T09:00:00Z",
+      "created": "2026-10-06T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-209",
+      "sprint": "Demo Platform Sprint 24 (active · 2026-10-03 → 2026-10-17)",
+      "reporter": "Priya Raman (LEAD1)",
+      "assignee": "Demo User (DEMO)",
+      "labels": [
+        "demo",
+        "onboarding"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "description": "<p>A pairing session plus the architecture walkthrough. The title makes it an <b>Onboarding</b> ticket on the board and in Completed.</p>",
+      "updateLog": [
+        {
+          "when": "2026-10-06",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-248",
+      "title": "Exploratory pass on the scheduled-export settings screen",
+      "status": "Blocked",
+      "column": "blocked",
+      "type": "Task",
+      "priority": "Medium",
+      "storyPoints": 2,
+      "commentCount": 1,
+      "lastUpdate": "2026-10-07T11:00:00Z",
+      "created": "2026-10-03T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-248",
+      "sprint": "Demo Platform Sprint 24 (active · 2026-10-03 → 2026-10-17)",
+      "reporter": "Demo User (DEMO)",
+      "assignee": "Rahul Okafor (QA01)",
+      "labels": [
+        "demo",
+        "qa-ticket"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "description": "<p>A plain Task, but its <code>qa-ticket</code> label makes it a QA ticket — so it is locked into the QA lane. Raised by me; blocked until the test environment is rebuilt.</p>",
+      "related": [
+        {
+          "key": "DEMO-201",
+          "url": "https://jira.example.com/browse/DEMO-201",
+          "summary": "Design the scheduled-export settings screen",
+          "status": "To Do",
+          "relation": "tests"
+        }
+      ],
+      "comments": [
+        {
+          "author": "Rahul Okafor",
+          "when": "2026-10-07T11:00:00Z",
+          "body": "<p>Test environment is down for the rebuild — parking this until Thursday.</p>"
+        }
+      ],
+      "updateLog": [
+        {
+          "when": "2026-10-07",
+          "text": "Blocked"
+        },
+        {
+          "when": "2026-10-03",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-213",
+      "title": "Exports fail for one tenant since the signing-key rotation",
+      "status": "In Development",
+      "column": "prog",
+      "type": "Incident",
+      "priority": "Blocker",
+      "storyPoints": 3,
+      "commentCount": 2,
+      "lastUpdate": "2026-10-07T23:30:00Z",
+      "created": "2026-10-06T08:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-213",
+      "sprint": "Demo Platform Sprint 24 (active · 2026-10-03 → 2026-10-17)",
+      "reporter": "Priya Raman (LEAD1)",
+      "assignee": "Demo User (DEMO)",
+      "labels": [
+        "demo",
+        "incident",
+        "hotfix"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "branch": "hotfix/DEMO-213_tenant_key_cache",
+      "pr": {
+        "state": "approved",
+        "id": 436,
+        "url": "https://bitbucket.example.com/projects/DEMO/repos/demo-service/pull-requests/436",
+        "approvals": 2,
+        "openComments": 0,
+        "commentsTotal": 3,
+        "commentsResolved": 3,
+        "reviewers": [
+          "Rahul Okafor (QA01)",
+          "Marta Lindqvist (DEV02)"
+        ],
+        "repo": "demo-service",
+        "author": "demo.user",
+        "merged": false,
+        "sourceBranch": "hotfix/DEMO-213_tenant_key_cache",
+        "destinationBranch": "release/2026.10",
+        "updatedAt": "2026-10-07T22:00:00Z",
+        "title": "hotfix/DEMO-213_tenant_key_cache → main"
+      },
+      "description": "<p>One tenant still signs with the old key: its key cache was never invalidated. Hotfix approved, waiting for the release window.</p>",
+      "comments": [
+        {
+          "author": "Priya Raman",
+          "when": "2026-10-07T23:30:00Z",
+          "body": "<p>Approved for tonight's window.</p>"
+        },
+        {
+          "author": "Demo User",
+          "when": "2026-10-07T20:00:00Z",
+          "body": "<p>Root cause: the per-tenant key cache has no TTL. Fix adds one and a manual flush.</p>"
+        }
+      ],
+      "latestComment": "2026-10-07T23:30:00Z",
+      "updateLog": [
+        {
+          "when": "2026-10-06",
+          "text": "In Development"
+        },
+        {
+          "when": "2026-10-06",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-225",
+      "title": "Wire the quota counters into the export API",
+      "status": "Implementing",
+      "column": "prog",
+      "type": "Dev Task",
+      "priority": "Medium",
+      "storyPoints": 5,
+      "commentCount": 0,
+      "lastUpdate": "2026-10-07T14:00:00Z",
+      "created": "2026-10-01T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-225",
+      "sprint": "Demo Platform Sprint 24 (active · 2026-10-03 → 2026-10-17)",
+      "reporter": "Priya Raman (LEAD1)",
+      "assignee": "Demo User (DEMO)",
+      "labels": [
+        "demo",
+        "quotas"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "branch": "feature/DEMO-225_quota_counters_v2",
+      "branches": [
+        "feature/DEMO-225_quota_counters_v2",
+        "feature/DEMO-225_quota_counters"
+      ],
+      "description": "<p>Two branches and no pull request yet: the card shows only the newest branch.</p>",
+      "estDays": "3d",
+      "updateLog": [
+        {
+          "when": "2026-10-03",
+          "text": "Implementing"
+        },
+        {
+          "when": "2026-10-01",
+          "text": "Opened"
+        }
+      ],
+      "subtasks": [
+        {
+          "key": "DEMO-225-1",
+          "title": "Expose the counters on the admin API",
+          "status": "In Progress",
+          "column": "prog",
+          "type": "Sub-task",
+          "priority": "Medium",
+          "storyPoints": null,
+          "commentCount": 0,
+          "lastUpdate": "2026-10-07T14:00:00Z",
+          "created": "2026-10-02T09:00:00Z",
+          "url": "https://jira.example.com/browse/DEMO-225-1",
+          "sprint": null,
+          "reporter": "Priya Raman (LEAD1)",
+          "assignee": "Demo User (DEMO)",
+          "labels": [
+            "demo"
+          ],
+          "components": [
+            "demo-service"
+          ],
+          "branch": "feature/DEMO-225-1_admin_counters",
+          "description": "<p>No pull request of its own, and its parent has none either — so In Review refuses it.</p>",
+          "parentKey": "DEMO-225",
+          "parentTitle": "Wire the quota counters into the export API"
+        }
+      ],
+      "subtaskCount": 1
+    },
+    {
+      "key": "DEMO-226",
+      "title": "Share a saved report through a read-only link",
+      "status": "Work in Progress",
+      "column": "prog",
+      "type": "Story",
+      "priority": "Medium",
+      "storyPoints": 5,
+      "commentCount": 0,
+      "lastUpdate": "2026-10-06T16:00:00Z",
+      "created": "2026-09-24T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-226",
+      "sprint": "Demo Platform Sprint 24 (active · 2026-10-03 → 2026-10-17)",
+      "reporter": "Priya Raman (LEAD1)",
+      "assignee": "Demo User (DEMO)",
+      "labels": [
+        "demo",
+        "sharing"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "branch": "feature/DEMO-226_share_link",
+      "pr": {
+        "state": "declined",
+        "id": 434,
+        "url": "https://bitbucket.example.com/projects/DEMO/repos/demo-service/pull-requests/434",
+        "approvals": 0,
+        "openComments": 0,
+        "commentsTotal": 4,
+        "commentsResolved": 4,
+        "reviewers": [
+          "Rahul Okafor (QA01)",
+          "Marta Lindqvist (DEV02)"
+        ],
+        "repo": "demo-service",
+        "author": "demo.user",
+        "merged": false,
+        "sourceBranch": "feature/DEMO-226_share_link",
+        "updatedAt": "2026-10-06T16:00:00Z",
+        "title": "feature/DEMO-226_share_link → main (declined: needs a security review first)"
+      },
+      "description": "<p>The only pull request was declined, and a declined PR does not count — In Review refuses this until a new one is raised.</p>",
+      "updateLog": [
+        {
+          "when": "2026-10-06",
+          "text": "Work in Progress"
+        },
+        {
+          "when": "2026-09-30",
+          "text": "In Review"
+        },
+        {
+          "when": "2026-09-25",
+          "text": "In Progress"
+        },
+        {
+          "when": "2026-09-24",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-237",
+      "title": "Retry button for failed exports",
+      "status": "Peer Review",
+      "column": "rev",
+      "type": "Story",
+      "priority": "Medium",
+      "storyPoints": 3,
+      "commentCount": 0,
+      "lastUpdate": "2026-10-07T12:00:00Z",
+      "created": "2026-09-26T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-237",
+      "sprint": "Demo Platform Sprint 24 (active · 2026-10-03 → 2026-10-17)",
+      "reporter": "Priya Raman (LEAD1)",
+      "assignee": "Demo User (DEMO)",
+      "labels": [
+        "demo",
+        "ux",
+        "reporting"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "branch": "feature/DEMO-237_retry_button",
+      "pr": {
+        "state": "merged",
+        "id": 435,
+        "url": "https://bitbucket.example.com/projects/DEMO/repos/demo-web/pull-requests/435",
+        "approvals": 2,
+        "openComments": 0,
+        "commentsTotal": 5,
+        "commentsResolved": 5,
+        "reviewers": [
+          "Rahul Okafor (QA01)",
+          "Marta Lindqvist (DEV02)"
+        ],
+        "repo": "demo-web",
+        "author": "demo.user",
+        "merged": true,
+        "sourceBranch": "feature/DEMO-237_retry_button",
+        "mergedAt": "2026-10-07T12:00:00Z",
+        "updatedAt": "2026-10-07T12:00:00Z",
+        "title": "feature/DEMO-237_retry_button → main"
+      },
+      "description": "<p>Its QA ticket is a <b>linked</b> issue, not a sub-task — that still satisfies the Done gate.</p>",
+      "estDays": "1d",
+      "related": [
+        {
+          "key": "SAMPLE-312",
+          "url": "https://jira.example.com/browse/SAMPLE-312",
+          "summary": "QA: retry button regression checks",
+          "status": "To Do",
+          "relation": "is tested by"
+        }
+      ],
+      "aiSummary": "{\"html\": \"<p>A <b>retry</b> control on failed exports. PR <code>#435</code> is merged and the linked QA ticket is raised, so the Done gate is clear.</p><b>Watch out for</b><ul><li>A retry must not double-deliver a schedule that half-succeeded.</li></ul>\"}",
+      "aiSummaryAt": "2026-10-07T13:00:00Z",
+      "updateLog": [
+        {
+          "when": "2026-10-06",
+          "text": "Peer Review"
+        },
+        {
+          "when": "2026-09-29",
+          "text": "In Progress"
+        },
+        {
+          "when": "2026-09-26",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-249",
+      "title": "[QA] Accessibility sweep of the digest email",
+      "status": "On Hold",
+      "column": "hold",
+      "type": "Task",
+      "priority": "Low",
+      "storyPoints": 2,
+      "commentCount": 0,
+      "lastUpdate": "2026-10-05T09:00:00Z",
+      "created": "2026-09-30T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-249",
+      "sprint": "Demo Platform Sprint 24 (active · 2026-10-03 → 2026-10-17)",
+      "reporter": "Rahul Okafor (QA01)",
+      "assignee": "Rahul Okafor (QA01)",
+      "labels": [
+        "demo",
+        "a11y"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "description": "<p>Neither assigned to nor raised by me — it shows because it is linked to my DEMO-261. Its <code>[QA]</code> title makes it a QA ticket.</p>",
+      "related": [
+        {
+          "key": "DEMO-261",
+          "url": "https://jira.example.com/browse/DEMO-261",
+          "summary": "Localise the digest email",
+          "status": "Waiting",
+          "relation": "tests"
+        }
+      ],
+      "updateLog": [
+        {
+          "when": "2026-10-05",
+          "text": "On Hold"
+        },
+        {
+          "when": "2026-09-30",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-262",
+      "title": "Admin guide for scheduled exports",
+      "status": "Paused",
+      "column": "hold",
+      "type": "Documentation",
+      "priority": "Medium",
+      "storyPoints": 2,
+      "commentCount": 0,
+      "lastUpdate": "2026-10-02T09:00:00Z",
+      "created": "2026-09-22T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-262",
+      "sprint": "Demo Platform Sprint 24 (active · 2026-10-03 → 2026-10-17)",
+      "reporter": "Priya Raman (LEAD1)",
+      "assignee": "Demo User (DEMO)",
+      "labels": [
+        "demo",
+        "docs"
+      ],
+      "components": [
+        "demo-docs"
+      ],
+      "description": "<p>Paused until product signs off the final screen copy.</p>",
+      "updateLog": [
+        {
+          "when": "2026-10-02",
+          "text": "Paused"
+        },
+        {
+          "when": "2026-09-28",
+          "text": "In Progress"
+        },
+        {
+          "when": "2026-09-22",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-254",
+      "title": "Remove the deprecated export-format query parameter",
+      "status": "Done",
+      "column": "done",
+      "type": "Task",
+      "priority": "Low",
+      "storyPoints": 1,
+      "commentCount": 0,
+      "lastUpdate": "2026-10-01T09:00:00Z",
+      "created": "2026-09-18T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-254",
+      "sprint": "Demo Platform Sprint 24 (active · 2026-10-03 → 2026-10-17)",
+      "reporter": "Priya Raman (LEAD1)",
+      "assignee": "Demo User (DEMO)",
+      "labels": [
+        "demo",
+        "cleanup"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "done": true,
+      "resolved": "2026-10-01T09:00:00Z",
+      "branch": "chore/DEMO-254_drop_format_param",
+      "pr": {
+        "state": "merged",
+        "id": 403,
+        "url": "https://bitbucket.example.com/projects/DEMO/repos/demo-service/pull-requests/403",
+        "approvals": 2,
+        "openComments": 0,
+        "commentsTotal": 2,
+        "commentsResolved": 2,
+        "reviewers": [
+          "Rahul Okafor (QA01)",
+          "Marta Lindqvist (DEV02)"
+        ],
+        "repo": "demo-service",
+        "author": "demo.user",
+        "merged": true,
+        "sourceBranch": "chore/DEMO-254_drop_format_param",
+        "mergedAt": "2026-10-01T08:00:00Z",
+        "updatedAt": "2026-10-01T08:00:00Z",
+        "title": "chore/DEMO-254_drop_format_param → main"
+      },
+      "description": "<p>Closed seven days ago — past the board's five-day window, so it has already moved to Completed.</p>",
+      "updateLog": [
+        {
+          "when": "2026-10-01",
+          "text": "Done"
+        },
+        {
+          "when": "2026-09-29",
+          "text": "In Review"
+        },
+        {
+          "when": "2026-09-24",
+          "text": "In Progress"
+        },
+        {
+          "when": "2026-09-18",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-255",
+      "title": "Spike: export straight to a spreadsheet service",
+      "status": "Cancelled",
+      "column": "done",
+      "type": "Spike",
+      "priority": "Low",
+      "storyPoints": 2,
+      "commentCount": 0,
+      "lastUpdate": "2026-10-07T01:00:00Z",
+      "created": "2026-09-25T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-255",
+      "sprint": "Demo Platform Sprint 24 (active · 2026-10-03 → 2026-10-17)",
+      "reporter": "Priya Raman (LEAD1)",
+      "assignee": "Demo User (DEMO)",
+      "labels": [
+        "demo",
+        "spike"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "done": true,
+      "resolved": "2026-10-07T01:00:00Z",
+      "description": "<p>Dropped: the spreadsheet API rate limits made it a non-starter. Cancelled still counts as finished work.</p>",
+      "updateLog": [
+        {
+          "when": "2026-10-07",
+          "text": "Cancelled"
+        },
+        {
+          "when": "2026-09-28",
+          "text": "In Progress"
+        },
+        {
+          "when": "2026-09-25",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-273",
+      "title": "Split the export service configuration into per-feature settings",
+      "status": "To Do",
+      "column": "todo",
+      "type": "Tech Debt",
+      "priority": "Medium",
+      "storyPoints": 8,
+      "commentCount": 0,
+      "lastUpdate": "2026-10-04T09:00:00Z",
+      "created": "2026-10-04T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-273",
+      "sprint": "Platform REFINEMENT (future)",
+      "reporter": "Priya Raman (LEAD1)",
+      "assignee": "Demo User (DEMO)",
+      "labels": [
+        "demo",
+        "tech-debt"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "description": "<p>Still being groomed — sits in the REFINEMENT bucket, captioned after the dated sprint and READY.</p>",
+      "updateLog": [
+        {
+          "when": "2026-10-04",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-223-1",
+      "title": "Validate report definitions on write",
+      "status": "In Progress",
+      "column": "prog",
+      "type": "Sub-task",
+      "priority": "Medium",
+      "storyPoints": null,
+      "commentCount": 0,
+      "lastUpdate": "2026-10-07T08:00:00Z",
+      "created": "2026-09-26T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-223-1",
+      "sprint": "Demo Platform Sprint 24 (active · 2026-10-03 → 2026-10-17)",
+      "reporter": "Priya Raman (LEAD1)",
+      "assignee": "Demo User (DEMO)",
+      "labels": [
+        "demo"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "parentKey": "DEMO-223",
+      "parentTitle": "Reporting platform hardening",
+      "branch": "feature/DEMO-223-1_validate_on_write",
+      "pr": {
+        "state": "comments",
+        "id": 428,
+        "url": "https://bitbucket.example.com/projects/DEMO/repos/demo-service/pull-requests/428",
+        "approvals": 1,
+        "openComments": 2,
+        "commentsTotal": 7,
+        "commentsResolved": 4,
+        "reviewers": [
+          "Rahul Okafor (QA01)",
+          "Marta Lindqvist (DEV02)"
+        ],
+        "repo": "demo-service",
+        "author": "demo.user",
+        "merged": false,
+        "sourceBranch": "feature/DEMO-223-1_validate_on_write",
+        "updatedAt": "2026-10-07T08:00:00Z",
+        "title": "feature/DEMO-223-1_validate_on_write → main"
+      },
+      "description": "<p>Reject a report definition that fails the shared schema at write time, instead of at render time.</p>",
+      "aiSummary": "Write-time schema validation for report definitions. PR #428 has two unresolved comments; the parent DEMO-223 has no QA ticket yet, so this cannot close.",
+      "aiSummaryAt": "2026-10-07T09:00:00Z",
+      "updateLog": [
+        {
+          "when": "2026-10-01",
+          "text": "In Progress"
+        },
+        {
+          "when": "2026-09-26",
+          "text": "Opened"
+        }
+      ]
     }
   ],
   "completed": [
@@ -2419,6 +3146,24 @@
           "resolved": "2026-09-26T09:00:00Z",
           "mine": false
         }
+      ],
+      "updateLog": [
+        {
+          "when": "2026-09-26",
+          "text": "Done"
+        },
+        {
+          "when": "2026-09-23",
+          "text": "In Review"
+        },
+        {
+          "when": "2026-09-15",
+          "text": "In Progress"
+        },
+        {
+          "when": "2026-09-12",
+          "text": "Opened"
+        }
       ]
     },
     {
@@ -2460,7 +3205,25 @@
         "merged": true,
         "mergedAt": "2026-09-19T09:00:00Z",
         "title": "feature/demo → main"
-      }
+      },
+      "updateLog": [
+        {
+          "when": "2026-09-19",
+          "text": "Done"
+        },
+        {
+          "when": "2026-09-16",
+          "text": "In Review"
+        },
+        {
+          "when": "2026-09-08",
+          "text": "In Progress"
+        },
+        {
+          "when": "2026-09-05",
+          "text": "Opened"
+        }
+      ]
     },
     {
       "key": "DEMO-187",
@@ -2520,6 +3283,24 @@
           "mergedAt": "2026-09-15T09:00:00Z",
           "title": "feature/demo → main"
         }
+      ],
+      "updateLog": [
+        {
+          "when": "2026-09-15",
+          "text": "Done"
+        },
+        {
+          "when": "2026-09-10",
+          "text": "In Review"
+        },
+        {
+          "when": "2026-09-02",
+          "text": "In Progress"
+        },
+        {
+          "when": "2026-09-01",
+          "text": "Opened"
+        }
       ]
     },
     {
@@ -2561,7 +3342,25 @@
         "merged": true,
         "mergedAt": "2026-09-11T09:00:00Z",
         "title": "feature/demo → main"
-      }
+      },
+      "updateLog": [
+        {
+          "when": "2026-09-11",
+          "text": "Done"
+        },
+        {
+          "when": "2026-09-08",
+          "text": "In Review"
+        },
+        {
+          "when": "2026-09-03",
+          "text": "In Progress"
+        },
+        {
+          "when": "2026-08-28",
+          "text": "Opened"
+        }
+      ]
     },
     {
       "key": "DEMO-184",
@@ -2602,7 +3401,25 @@
         "merged": true,
         "mergedAt": "2026-09-04T09:00:00Z",
         "title": "feature/demo → main"
-      }
+      },
+      "updateLog": [
+        {
+          "when": "2026-09-04",
+          "text": "Done"
+        },
+        {
+          "when": "2026-09-02",
+          "text": "In Review"
+        },
+        {
+          "when": "2026-08-31",
+          "text": "In Progress"
+        },
+        {
+          "when": "2026-08-21",
+          "text": "Opened"
+        }
+      ]
     },
     {
       "key": "DEMO-180",
@@ -2646,6 +3463,24 @@
       },
       "fixVersions": [
         "2026.09"
+      ],
+      "updateLog": [
+        {
+          "when": "2026-08-21",
+          "text": "Done"
+        },
+        {
+          "when": "2026-08-18",
+          "text": "In Review"
+        },
+        {
+          "when": "2026-08-10",
+          "text": "In Progress"
+        },
+        {
+          "when": "2026-08-07",
+          "text": "Opened"
+        }
       ]
     },
     {
@@ -2863,6 +3698,413 @@
       ],
       "mine": false,
       "subtaskCount": 6
+    },
+    {
+      "key": "DEMO-170-4",
+      "title": "Report definition schema",
+      "project": "DEMO",
+      "status": "Done",
+      "type": "Sub-task",
+      "priority": "Medium",
+      "storyPoints": null,
+      "created": "2026-07-17T09:00:00Z",
+      "resolved": "2026-07-28T09:00:00Z",
+      "lastUpdate": "2026-07-28T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-170-4",
+      "assignee": "Demo User (DEMO)",
+      "reporter": "Priya Raman (LEAD1)",
+      "sprint": "Demo Platform Sprint 20 (closed · 2026-07-18 → 2026-08-01)",
+      "labels": [
+        "demo"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "mine": true,
+      "parentKey": "DEMO-170",
+      "parentTitle": "Reporting platform foundations",
+      "branch": "feature/DEMO-170-4_definition_schema",
+      "pr": {
+        "state": "merged",
+        "id": 352,
+        "url": "https://bitbucket.example.com/projects/DEMO/repos/demo-service/pull-requests/352",
+        "approvals": 2,
+        "openComments": 0,
+        "commentsTotal": 2,
+        "commentsResolved": 2,
+        "reviewers": [
+          "Rahul Okafor (QA01)",
+          "Marta Lindqvist (DEV02)"
+        ],
+        "repo": "demo-service",
+        "author": "demo.user",
+        "merged": true,
+        "sourceBranch": "feature/DEMO-170-4_definition_schema",
+        "mergedAt": "2026-07-28T08:00:00Z",
+        "updatedAt": "2026-07-28T08:00:00Z",
+        "title": "feature/DEMO-170-4_definition_schema → main"
+      },
+      "description": "<p>My sub-task under a team-mate's story — archived as its own row, while the parent shows only as context.</p>",
+      "updateLog": [
+        {
+          "when": "2026-07-28",
+          "text": "Done"
+        },
+        {
+          "when": "2026-07-24",
+          "text": "In Review"
+        },
+        {
+          "when": "2026-07-20",
+          "text": "In Progress"
+        },
+        {
+          "when": "2026-07-17",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-160",
+      "title": "Deploy the reporting beta to staging",
+      "project": "DEMO",
+      "status": "Done",
+      "type": "Task",
+      "priority": "High",
+      "storyPoints": 2,
+      "created": "2025-11-10T09:00:00Z",
+      "resolved": "2025-11-14T09:00:00Z",
+      "lastUpdate": "2025-11-14T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-160",
+      "assignee": "Demo User (DEMO)",
+      "reporter": "Priya Raman (LEAD1)",
+      "sprint": "Demo Platform Sprint 4 (closed · 2025-11-08 → 2025-11-22)",
+      "labels": [
+        "demo",
+        "release"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "mine": true,
+      "fixVersions": [
+        "2025.12-beta"
+      ],
+      "updateLog": [
+        {
+          "when": "2025-11-14",
+          "text": "Done"
+        },
+        {
+          "when": "2025-11-13",
+          "text": "In Review"
+        },
+        {
+          "when": "2025-11-11",
+          "text": "In Progress"
+        },
+        {
+          "when": "2025-11-10",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-152",
+      "title": "Release coordination for the 2025.12 production release",
+      "project": "DEMO",
+      "status": "Done",
+      "type": "Task",
+      "priority": "Highest",
+      "storyPoints": 3,
+      "created": "2025-12-01T09:00:00Z",
+      "resolved": "2025-12-12T09:00:00Z",
+      "lastUpdate": "2025-12-12T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-152",
+      "assignee": "Demo User (DEMO)",
+      "reporter": "Priya Raman (LEAD1)",
+      "sprint": "Demo Platform Sprint 5 (closed · 2025-11-29 → 2025-12-13)",
+      "labels": [
+        "demo",
+        "release"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "mine": true,
+      "fixVersions": [
+        "2025.12"
+      ],
+      "prs": [
+        {
+          "state": "merged",
+          "id": 288,
+          "url": "https://bitbucket.example.com/projects/DEMO/repos/demo-release/pull-requests/288",
+          "approvals": 2,
+          "openComments": 0,
+          "commentsTotal": 2,
+          "commentsResolved": 2,
+          "reviewers": [
+            "Rahul Okafor (QA01)",
+            "Marta Lindqvist (DEV02)"
+          ],
+          "repo": "demo-release",
+          "author": "demo.user",
+          "merged": true,
+          "sourceBranch": "release/2025.12",
+          "mergedAt": "2025-12-11T09:00:00Z",
+          "updatedAt": "2025-12-11T09:00:00Z",
+          "title": "release/2025.12 → main"
+        },
+        {
+          "state": "merged",
+          "id": 61,
+          "url": "https://bitbucket.example.com/projects/DEMO/repos/demo-infra/pull-requests/61",
+          "approvals": 2,
+          "openComments": 0,
+          "commentsTotal": 2,
+          "commentsResolved": 2,
+          "reviewers": [
+            "Rahul Okafor (QA01)",
+            "Marta Lindqvist (DEV02)"
+          ],
+          "repo": "demo-infra",
+          "author": "demo.user",
+          "merged": true,
+          "sourceBranch": "release/2025.12-infra",
+          "mergedAt": "2025-12-11T10:00:00Z",
+          "updatedAt": "2025-12-11T10:00:00Z",
+          "title": "release/2025.12-infra → main"
+        }
+      ],
+      "branch": "release/2025.12",
+      "branches": [
+        "release/2025.12",
+        "release/2025.12-infra"
+      ],
+      "updateLog": [
+        {
+          "when": "2025-12-12",
+          "text": "Done"
+        },
+        {
+          "when": "2025-12-10",
+          "text": "In Review"
+        },
+        {
+          "when": "2025-12-03",
+          "text": "In Progress"
+        },
+        {
+          "when": "2025-12-01",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "SAMPLE-60",
+      "title": "Deploy the sandbox refresh to the demo environment",
+      "project": "SAMPLE",
+      "status": "Done",
+      "type": "Task",
+      "priority": "Medium",
+      "storyPoints": 1,
+      "created": "2025-05-05T09:00:00Z",
+      "resolved": "2025-05-07T09:00:00Z",
+      "lastUpdate": "2025-05-07T09:00:00Z",
+      "url": "https://jira.example.com/browse/SAMPLE-60",
+      "assignee": "Demo User (DEMO)",
+      "reporter": "Priya Raman (LEAD1)",
+      "sprint": "Sample Sprint 11 (closed · 2025-04-28 → 2025-05-09)",
+      "labels": [
+        "demo",
+        "release"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "mine": true,
+      "updateLog": [
+        {
+          "when": "2025-05-07",
+          "text": "Done"
+        },
+        {
+          "when": "2025-05-06",
+          "text": "In Review"
+        },
+        {
+          "when": "2025-05-05",
+          "text": "In Progress"
+        },
+        {
+          "when": "2025-05-05",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "SAMPLE-55",
+      "title": "Faster tenant search on the admin console",
+      "project": "SAMPLE",
+      "status": "Done",
+      "type": "Improvement",
+      "priority": "Low",
+      "storyPoints": 3,
+      "created": "2025-02-10T09:00:00Z",
+      "resolved": "2025-03-04T09:00:00Z",
+      "lastUpdate": "2025-03-04T09:00:00Z",
+      "url": "https://jira.example.com/browse/SAMPLE-55",
+      "assignee": "Demo User (DEMO)",
+      "reporter": "Priya Raman (LEAD1)",
+      "sprint": "Sample Sprint 6 (closed · 2025-02-17 → 2025-03-02)",
+      "labels": [
+        "demo"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "mine": true,
+      "sprintOverflow": true,
+      "sprintCount": 2,
+      "branch": "feature/SAMPLE-55_tenant_search_index",
+      "pr": {
+        "state": "merged",
+        "id": 212,
+        "url": "https://bitbucket.example.com/projects/DEMO/repos/sample-admin/pull-requests/212",
+        "approvals": 2,
+        "openComments": 0,
+        "commentsTotal": 2,
+        "commentsResolved": 2,
+        "reviewers": [
+          "Rahul Okafor (QA01)",
+          "Marta Lindqvist (DEV02)"
+        ],
+        "repo": "sample-admin",
+        "author": "demo.user",
+        "merged": true,
+        "sourceBranch": "feature/SAMPLE-55_tenant_search_index",
+        "mergedAt": "2025-03-03T09:00:00Z",
+        "updatedAt": "2025-03-03T09:00:00Z",
+        "title": "feature/SAMPLE-55_tenant_search_index → main"
+      },
+      "updateLog": [
+        {
+          "when": "2025-03-04",
+          "text": "Done"
+        },
+        {
+          "when": "2025-02-27",
+          "text": "In Review"
+        },
+        {
+          "when": "2025-02-17",
+          "text": "In Progress"
+        },
+        {
+          "when": "2025-02-10",
+          "text": "Opened"
+        }
+      ]
+    },
+    {
+      "key": "SAMPLE-41",
+      "title": "Login loop after a password reset on mobile",
+      "project": "SAMPLE",
+      "status": "Done",
+      "type": "Bug",
+      "priority": "Critical",
+      "storyPoints": 5,
+      "created": "2024-09-02T09:00:00Z",
+      "resolved": "2024-09-20T09:00:00Z",
+      "lastUpdate": "2024-09-20T09:00:00Z",
+      "url": "https://jira.example.com/browse/SAMPLE-41",
+      "assignee": "Demo User (DEMO)",
+      "reporter": "Priya Raman (LEAD1)",
+      "sprint": "Sample Sprint 2 (closed · 2024-09-02 → 2024-09-13)",
+      "labels": [
+        "demo",
+        "bug",
+        "mobile"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "mine": true,
+      "sprintOverflow": true,
+      "sprintCount": 2,
+      "branches": [
+        "bugfix/SAMPLE-41_reset_loop",
+        "bugfix/SAMPLE-41_reset_loop_v2"
+      ],
+      "branch": "bugfix/SAMPLE-41_reset_loop_v2",
+      "prs": [
+        {
+          "state": "declined",
+          "id": 140,
+          "url": "https://bitbucket.example.com/projects/DEMO/repos/sample-auth/pull-requests/140",
+          "approvals": 0,
+          "openComments": 0,
+          "commentsTotal": 6,
+          "commentsResolved": 6,
+          "reviewers": [
+            "Rahul Okafor (QA01)",
+            "Marta Lindqvist (DEV02)"
+          ],
+          "repo": "sample-auth",
+          "author": "demo.user",
+          "merged": false,
+          "sourceBranch": "bugfix/SAMPLE-41_reset_loop",
+          "updatedAt": "2024-09-10T09:00:00Z",
+          "title": "First attempt — cleared the wrong cookie"
+        },
+        {
+          "state": "merged",
+          "id": 147,
+          "url": "https://bitbucket.example.com/projects/DEMO/repos/sample-auth/pull-requests/147",
+          "approvals": 2,
+          "openComments": 0,
+          "commentsTotal": 3,
+          "commentsResolved": 3,
+          "reviewers": [
+            "Rahul Okafor (QA01)",
+            "Marta Lindqvist (DEV02)"
+          ],
+          "repo": "sample-auth",
+          "author": "demo.user",
+          "merged": true,
+          "sourceBranch": "bugfix/SAMPLE-41_reset_loop_v2",
+          "mergedAt": "2024-09-19T09:00:00Z",
+          "updatedAt": "2024-09-19T09:00:00Z",
+          "title": "bugfix/SAMPLE-41_reset_loop_v2 → main"
+        }
+      ],
+      "updateLog": [
+        {
+          "when": "2024-09-20",
+          "text": "Done"
+        },
+        {
+          "when": "2024-09-16",
+          "text": "In Progress"
+        },
+        {
+          "when": "2024-09-12",
+          "text": "Changes Requested"
+        },
+        {
+          "when": "2024-09-11",
+          "text": "In Review"
+        },
+        {
+          "when": "2024-09-03",
+          "text": "In Progress"
+        },
+        {
+          "when": "2024-09-02",
+          "text": "Opened"
+        }
+      ]
     }
   ],
   "raised": [
@@ -3042,6 +4284,199 @@
           "when": "2026-09-15T09:00:00Z",
           "from": null,
           "to": "Marta Lindqvist (DEV02)"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-247",
+      "title": "QA: smoke test the nightly export job",
+      "project": "DEMO",
+      "status": "To Do",
+      "column": "todo",
+      "type": "QA Task",
+      "priority": "Medium",
+      "created": "2026-09-17T09:00:00Z",
+      "lastUpdate": "2026-10-07T17:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-247",
+      "reporter": "Demo User (DEMO)",
+      "assignee": "Rahul Okafor (QA01)",
+      "labels": [
+        "demo",
+        "qa"
+      ],
+      "description": "<p>Opened by me while the fix for DEMO-210 is in review — run once it is deployed.</p>",
+      "related": [
+        {
+          "key": "DEMO-210",
+          "url": "https://jira.example.com/browse/DEMO-210",
+          "summary": "Nightly export job times out on the largest tenant",
+          "status": "Blocked",
+          "relation": "tests"
+        }
+      ],
+      "assigneeLog": [
+        {
+          "when": "2026-09-17T09:00:00Z",
+          "from": null,
+          "to": "Rahul Okafor (QA01)"
+        }
+      ]
+    },
+    {
+      "key": "DEMO-248",
+      "title": "Exploratory pass on the scheduled-export settings screen",
+      "project": "DEMO",
+      "status": "Blocked",
+      "column": "blocked",
+      "type": "Task",
+      "priority": "Medium",
+      "created": "2026-10-03T09:00:00Z",
+      "lastUpdate": "2026-10-07T11:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-248",
+      "reporter": "Demo User (DEMO)",
+      "assignee": "Rahul Okafor (QA01)",
+      "labels": [
+        "demo",
+        "qa-ticket"
+      ],
+      "related": [
+        {
+          "key": "DEMO-201",
+          "url": "https://jira.example.com/browse/DEMO-201",
+          "summary": "Design the scheduled-export settings screen",
+          "status": "To Do",
+          "relation": "tests"
+        }
+      ],
+      "assigneeLog": [
+        {
+          "when": "2026-10-03T09:00:00Z",
+          "from": null,
+          "to": "Rahul Okafor (QA01)"
+        }
+      ]
+    },
+    {
+      "key": "SAMPLE-305",
+      "title": "Audit page paginates past the last entry",
+      "project": "SAMPLE",
+      "status": "In Review",
+      "column": "rev",
+      "type": "Bug",
+      "priority": "Medium",
+      "created": "2026-09-24T09:00:00Z",
+      "lastUpdate": "2026-10-07T10:00:00Z",
+      "url": "https://jira.example.com/browse/SAMPLE-305",
+      "reporter": "Demo User (DEMO)",
+      "assignee": "Marta Lindqvist (DEV02)",
+      "labels": [
+        "demo"
+      ],
+      "description": "<p>Clicking <i>Next</i> on the last audit page shows an empty page instead of disabling the button.</p>",
+      "storyPoints": 2,
+      "related": [
+        {
+          "key": "SAMPLE-298",
+          "url": "https://jira.example.com/browse/SAMPLE-298",
+          "summary": "Timezone shown in UTC on the audit page",
+          "status": "To Do",
+          "relation": "relates to"
+        }
+      ],
+      "epic": {
+        "key": "SAMPLE-200",
+        "url": "https://jira.example.com/browse/SAMPLE-200",
+        "title": "Audit trail revamp",
+        "summary": "Audit trail revamp",
+        "relation": "epic"
+      },
+      "aiSummary": "<p>Off-by-one in the audit pager: the last page still enables <b>Next</b>. The fix is in review with one approval.</p>",
+      "aiSummaryAt": "2026-10-07T11:00:00Z",
+      "updateLog": [
+        {
+          "when": "2026-10-06",
+          "text": "In Review"
+        },
+        {
+          "when": "2026-09-30",
+          "text": "In Progress"
+        },
+        {
+          "when": "2026-09-24",
+          "text": "Opened"
+        }
+      ],
+      "assigneeLog": [
+        {
+          "when": "2026-09-24T09:00:00Z",
+          "from": null,
+          "to": "Priya Raman (LEAD1)"
+        },
+        {
+          "when": "2026-09-29T09:00:00Z",
+          "from": "Priya Raman (LEAD1)",
+          "to": "Marta Lindqvist (DEV02)"
+        }
+      ]
+    },
+    {
+      "key": "SAMPLE-296",
+      "title": "Bulk-export button missing for read-only admins",
+      "project": "SAMPLE",
+      "status": "On Hold",
+      "column": "hold",
+      "type": "Story",
+      "priority": "Low",
+      "created": "2025-06-11T09:00:00Z",
+      "lastUpdate": "2026-09-02T09:00:00Z",
+      "url": "https://jira.example.com/browse/SAMPLE-296",
+      "reporter": "Demo User (DEMO)",
+      "assignee": "Priya Raman (LEAD1)",
+      "labels": [
+        "demo"
+      ],
+      "description": "<p>Raised last year; parked until the permissions model is reworked.</p>",
+      "related": [
+        {
+          "key": "SAMPLE-284",
+          "url": "https://jira.example.com/browse/SAMPLE-284",
+          "summary": "Allow exports larger than 1 GB",
+          "status": "Won't Fix",
+          "relation": "relates to"
+        },
+        {
+          "key": "SAMPLE-271",
+          "url": "https://jira.example.com/browse/SAMPLE-271",
+          "summary": "Read-only admins cannot export",
+          "status": "Closed",
+          "relation": "duplicates"
+        }
+      ],
+      "updateLog": [
+        {
+          "when": "2026-09-02",
+          "text": "On Hold"
+        },
+        {
+          "when": "2025-06-11",
+          "text": "Opened"
+        }
+      ],
+      "assigneeLog": [
+        {
+          "when": "2025-06-11T09:00:00Z",
+          "from": null,
+          "to": "Marta Lindqvist (DEV02)"
+        },
+        {
+          "when": "2025-08-04T09:00:00Z",
+          "from": "Marta Lindqvist (DEV02)",
+          "to": "Rahul Okafor (QA01)"
+        },
+        {
+          "when": "2026-09-02T09:00:00Z",
+          "from": "Rahul Okafor (QA01)",
+          "to": "Priya Raman (LEAD1)"
         }
       ]
     }
