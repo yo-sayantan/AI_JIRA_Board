@@ -81,6 +81,7 @@ class RegistryContractTest(unittest.TestCase):
         runner = (INTERN / "local-runner" / "runner-env.sh").read_text()
         exported = re.search(r"load_agent_secrets\(\) \{(.*?)\n\}", runner, re.S).group(1)
         worker = (ROOT / "ai-intern" / "worker.py").read_text()
+        keycheck = (ROOT / "server" / "keycheck.mjs").read_text()
         config = json.loads((ROOT / "config" / "jira-board.config.json").read_text())
         api_key_envs = {c.get("apiKeyEnv") for c in config["connector"].values() if isinstance(c, dict)}
         planned = {k["env"] for s in REGISTRY["services"] for k in s["keys"] if k.get("planned")}
@@ -89,7 +90,7 @@ class RegistryContractTest(unittest.TestCase):
                 continue  # listed so the user can add it now; the integration that reads it comes later
             with self.subTest(name=name):
                 self.assertTrue(
-                    name in exported or f'"{name}"' in worker or name in api_key_envs,
+                    name in exported or f'"{name}"' in worker or name in api_key_envs or f"s.{name}" in keycheck,
                     f"{name} is in setup/api-keys.json but nothing reads it",
                 )
 

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
-  API_SERVICES,
   TEST_TONE_COLOR,
   canSave,
   keyCounts,
@@ -19,19 +18,23 @@ import {
 import { hexToRgba } from '../../lib/format'
 import type { ApiKeySave } from '../../lib/runner'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
-import { CheckIcon, ChevronIcon, EyeIcon, EyeOffIcon, KeyIcon } from '../common/Icons'
+import { CheckIcon, EyeIcon, EyeOffIcon, KeyIcon } from '../common/Icons'
 
 type SaveFn = (name: string, value: string) => Promise<ApiKeySave>
 type TestFn = (service: string) => Promise<KeyTestResult>
 /** One service's Test state: running, and the last answer (cleared when one of its keys is saved). */
 type TestState = { busy: boolean; result?: KeyTestResult }
 const UNSET = { set: false, masked: '' }
+// The registry is static: group and order it once.
+const GROUPS = groupedServices()
+const ORDERED = GROUPS.flatMap((g) => g.services)
 const QUIET = '#8b94a8'
 
 /**
- * The API keys dialog (header key button). One list, one row per service from
- * setup/api-keys.json: lit in the service's colour when its keys are set, greyed when not.
- * A row opens in place to show why the key is needed, what depends on it, and one field per key.
+ * The API keys dialog (header key button), laid out like Settings: a sidebar of groups
+ * (setup/api-keys.json `groups`, services alphabetical inside each) — every service lit in its
+ * colour when its keys are set, greyed when not — and the selected service in a panel: why it is
+ * needed, what depends on it, a Test button, and one field per key.
  */
 export function ApiKeysDialog({
   open,
@@ -53,7 +56,9 @@ export function ApiKeysDialog({
   onTest: TestFn
 }) {
   const panelRef = useRef<HTMLElement>(null)
-  const [expanded, setExpanded] = useState<string | null>(null)
+  const groups = GROUPS
+  const ordered = ORDERED
+  const [selected, setSelected] = useState<string>(ordered[0]?.id ?? '')
   const [tests, setTests] = useState<Record<string, TestState>>({})
   useDialogFocus(open, panelRef)
 
@@ -75,7 +80,7 @@ export function ApiKeysDialog({
     if (open && !wasOpen.current) {
       onRefresh()
       setTests({})
-      setExpanded(API_SERVICES.find((s) => s.required && !serviceReady(s, status))?.id ?? null)
+      setSelected((ordered.find((s) => s.required && !serviceReady(s, status)) ?? ordered[0])?.id ?? '')
     }
     wasOpen.current = open
   }, [open, status, onRefresh])
@@ -93,6 +98,7 @@ export function ApiKeysDialog({
   }, [open, onClose])
 
   const counts = keyCounts(status)
+  const current = ordered.find((s) => s.id === selected) ?? ordered[0]
   // Close on a click that started AND ended on the backdrop: a drag that begins in a key field and
   // is released outside must not throw the dialog (and the half-typed key) away.
   const downOnBackdrop = useRef(false)
@@ -118,30 +124,30 @@ export function ApiKeysDialog({
           <motion.section
             ref={panelRef}
             tabIndex={-1}
-            className="jb-dialog-panel flex max-h-[calc(100dvh-24px)] w-[min(720px,calc(100vw-24px))] flex-col rounded-2xl border border-[var(--line)] bg-[var(--bg)] shadow-2xl"
+            className="jb-dialog-panel flex h-[min(720px,calc(100dvh-24px))] w-[min(980px,calc(100vw-24px))] flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--bg)] shadow-2xl"
             initial={{ y: 20, scale: 0.98 }}
             animate={{ y: 0, scale: 1 }}
             exit={{ y: 12, scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 320, damping: 32 }}
           >
-            <header className="flex shrink-0 items-center gap-2 border-b border-[var(--line)] px-4 py-2.5">
-              <KeyIcon size={14} color="#f59e0b" />
+            <header className="flex shrink-0 items-center gap-2.5 border-b border-[var(--line)] px-5 py-3">
+              <KeyIcon size={15} color="#f59e0b" />
               <h2 className="text-[15px] font-extrabold text-[var(--ink)]">API keys</h2>
-              <span className="text-[11.5px] font-semibold text-[var(--muted)]">
+              <span className="text-[12px] font-semibold tabular-nums text-[var(--muted)]">
                 {status ? `${counts.ready} of ${counts.total} set` : failed ? '' : 'loading…'}
               </span>
               <button
                 type="button"
                 onClick={onClose}
                 aria-label="Close API keys"
-                className="ml-auto grid h-8 w-8 place-items-center rounded-lg text-[18px] leading-none text-[var(--muted)] hover:bg-[var(--surface-solid)] hover:text-[var(--ink)]"
+                className="ml-auto grid h-9 w-9 place-items-center rounded-lg text-[18px] leading-none text-[var(--muted)] hover:bg-[var(--surface-solid)] hover:text-[var(--ink)]"
               >
                 ×
               </button>
             </header>
 
             {failed && (
-              <p className="flex shrink-0 items-center gap-2 border-b border-[var(--line)] px-4 py-2 text-[11.5px] text-[#e11d48]" role="alert">
+              <p className="flex shrink-0 items-center gap-2 border-b border-[var(--line)] px-5 py-2 text-[12px] text-[#e11d48]" role="alert">
                 Could not read the saved keys{status ? ' — showing the last known state' : ''}.
                 <button type="button" onClick={onRefresh} className="font-bold underline">
                   Retry
@@ -149,35 +155,50 @@ export function ApiKeysDialog({
               </p>
             )}
 
-            {/* Clustered by kind of service (setup/api-keys.json groups), alphabetical inside each. */}
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
-              {groupedServices().map(({ group, services }) => (
-                <section key={group.id} aria-labelledby={`api-group-${group.id}`}>
-                  <h3
-                    id={`api-group-${group.id}`}
-                    className="mb-2 px-1 text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]"
-                  >
-                    {group.name}
-                  </h3>
-                  <ul className="space-y-2">
-                    {services.map((s) => (
-                      <ServiceRow
-                        key={s.id}
-                        service={s}
-                        status={status}
-                        open={expanded === s.id}
-                        onToggle={() => setExpanded((cur) => (cur === s.id ? null : s.id))}
-                        onSave={saveFor(s.id)}
-                        test={tests[s.id]}
-                        onTest={() => void runTest(s.id)}
-                      />
-                    ))}
-                  </ul>
-                </section>
-              ))}
+            <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[264px_minmax(0,1fr)]">
+              <nav aria-label="Services" className="min-h-0 overflow-y-auto border-b border-[var(--line)] p-3 md:border-b-0 md:border-r">
+                {groups.map(({ group, services }) => {
+                  const ready = services.filter((s) => serviceReady(s, status)).length
+                  return (
+                    <div key={group.id} className="mb-4 last:mb-0">
+                      <div className="mb-1.5 flex items-center px-2">
+                        <h3 className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">{group.name}</h3>
+                        <span className="ml-auto text-[10.5px] font-semibold tabular-nums text-[var(--muted)]">
+                          {ready}/{services.length}
+                        </span>
+                      </div>
+                      <ul className="space-y-1">
+                        {services.map((s) => (
+                          <ServiceNavItem
+                            key={s.id}
+                            service={s}
+                            status={status}
+                            active={current?.id === s.id}
+                            test={tests[s.id]}
+                            onSelect={() => setSelected(s.id)}
+                          />
+                        ))}
+                      </ul>
+                    </div>
+                  )
+                })}
+              </nav>
+
+              <div className="min-h-0 overflow-y-auto bg-[var(--bg)] p-4 md:p-5">
+                {current && (
+                  <ServicePanel
+                    key={current.id}
+                    service={current}
+                    status={status}
+                    onSave={saveFor(current.id)}
+                    test={tests[current.id]}
+                    onTest={() => void runTest(current.id)}
+                  />
+                )}
+              </div>
             </div>
 
-            <footer className="shrink-0 border-t border-[var(--line)] px-4 py-2 text-[11px] leading-snug text-[var(--muted)]">
+            <footer className="shrink-0 border-t border-[var(--line)] px-5 py-2.5 text-[11.5px] leading-snug text-[var(--muted)]">
               Saved to <code>setup/.env</code> on this machine — git-ignored, never baked into an image. The board only ever
               gets the masked value back.
             </footer>
@@ -188,155 +209,197 @@ export function ApiKeysDialog({
   )
 }
 
-function ServiceRow({
+function statusPill(service: ApiService, status: KeyStatus | null) {
+  if (serviceReady(service, status)) return { text: 'Set', color: service.color }
+  if (service.required) return { text: 'Required', color: '#f59e0b' }
+  return { text: servicePlanned(service) ? 'Not used yet' : 'Not set', color: QUIET }
+}
+
+function ServiceIcon({ service, ready, size = 32 }: { service: ApiService; ready: boolean; size?: number }) {
+  return (
+    <span
+      className="grid shrink-0 place-items-center rounded-[10px]"
+      style={{
+        width: size,
+        height: size,
+        background: ready ? `linear-gradient(135deg, ${service.color}, ${hexToRgba(service.color, 0.65)})` : hexToRgba(QUIET, 0.16),
+      }}
+    >
+      {ready ? <CheckIcon size={size > 32 ? 14 : 11} color="#fff" /> : <KeyIcon size={size > 32 ? 14 : 11} color={QUIET} />}
+    </span>
+  )
+}
+
+/** One service in the sidebar: icon (lit when set), name, its one-line summary, the last test's dot. */
+function ServiceNavItem({
   service,
   status,
-  open,
-  onToggle,
+  active,
+  test,
+  onSelect,
+}: {
+  service: ApiService
+  status: KeyStatus | null
+  active: boolean
+  test: TestState | undefined
+  onSelect: () => void
+}) {
+  const ready = serviceReady(service, status)
+  const pill = statusPill(service, status)
+  const view = test?.result ? testResultView(test.result) : null
+  const dot = view ? TEST_TONE_COLOR[view.tone] : null
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-current={active ? 'true' : undefined}
+        title={service.details}
+        className="flex w-full items-center gap-2.5 rounded-xl border px-2 py-2 text-left transition-[background-color,border-color] duration-150"
+        style={{
+          borderColor: active ? hexToRgba(service.color, 0.45) : 'transparent',
+          background: active ? hexToRgba(service.color, 0.09) : undefined,
+        }}
+      >
+        <ServiceIcon service={service} ready={ready} size={30} />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5">
+            <span className="text-[13px] font-bold" style={{ color: ready || active ? service.color : 'var(--ink-soft)' }}>
+              {service.name}
+            </span>
+            {service.required && !ready && (
+              <span className="text-[10px] font-bold" style={{ color: '#f59e0b' }}>
+                required
+              </span>
+            )}
+          </span>
+          <span className="block text-[11px] leading-snug text-[var(--muted)] [text-wrap:pretty]">{service.why}</span>
+        </span>
+        {dot ? (
+          <span
+            role="img"
+            aria-label={`Last test: ${view!.text}`}
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ background: dot, boxShadow: `0 0 0 3px ${hexToRgba(dot, 0.18)}` }}
+          />
+        ) : (
+          <span className="sr-only">{pill.text}</span>
+        )}
+      </button>
+    </li>
+  )
+}
+
+/** The selected service, as a Settings-style section card: summary, test, usage, then its keys. */
+function ServicePanel({
+  service,
+  status,
   onSave,
   test,
   onTest,
 }: {
   service: ApiService
   status: KeyStatus | null
-  open: boolean
-  onToggle: () => void
   onSave: SaveFn
   test: TestState | undefined
   onTest: () => void
 }) {
   const ready = serviceReady(service, status)
-  const planned = servicePlanned(service)
-  const color = ready ? service.color : QUIET
-  const bodyId = `api-key-${service.id}`
-  const pill = ready
-    ? { text: 'Set', color: service.color }
-    : service.required
-      ? { text: 'Required', color: '#f59e0b' }
-      : { text: planned ? 'Not used yet' : 'Not set', color: QUIET }
+  const pill = statusPill(service, status)
   const blocker = testBlocker(service, status)
   const busy = !!test?.busy
   const view = test?.result ? testResultView(test.result) : null
   const viewColor = view ? TEST_TONE_COLOR[view.tone] : QUIET
+  const testColor = blocker ? QUIET : service.color
 
   return (
-    <li
-      className="overflow-hidden rounded-xl border transition-colors"
-      style={{ borderColor: hexToRgba(color, ready ? 0.45 : 0.3), background: hexToRgba(color, ready ? 0.07 : 0.03) }}
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.16, ease: 'easeOut' }}
+      className="space-y-4"
     >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        aria-controls={open ? bodyId : undefined}
-        className="flex w-full items-center gap-3 px-3.5 py-3 text-left"
+      <section
+        className="rounded-xl border p-4"
+        style={{ borderColor: hexToRgba(ready ? service.color : QUIET, 0.35), background: hexToRgba(ready ? service.color : QUIET, 0.05) }}
       >
-        <span
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px]"
-          style={{ background: ready ? `linear-gradient(135deg, ${service.color}, ${hexToRgba(service.color, 0.65)})` : hexToRgba(QUIET, 0.18) }}
-        >
-          {ready ? <CheckIcon size={12} color="#fff" /> : <KeyIcon size={12} color={QUIET} />}
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2.5">
-          <span className="shrink-0 text-[14px] font-bold" style={{ color: ready ? service.color : 'var(--ink-soft)' }}>
-            {service.name}
-          </span>
-          <span className="min-w-0 text-[12px] leading-snug text-[var(--muted)] [text-wrap:pretty]" title={service.details}>
-            {service.why}
-          </span>
+        <div className="flex flex-wrap items-start gap-3">
+          <ServiceIcon service={service} ready={ready} size={40} />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-[17px] font-extrabold [text-wrap:balance]" style={{ color: ready ? service.color : 'var(--ink)' }}>
+                {service.name}
+              </h3>
+              <span
+                className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
+                style={{ color: pill.color, background: hexToRgba(pill.color, 0.12), border: `1px solid ${hexToRgba(pill.color, 0.4)}` }}
+              >
+                {pill.text}
+              </span>
+            </div>
+            <p className="mt-1 text-[13px] leading-relaxed text-[var(--ink-soft)] [text-wrap:pretty]">{service.details}</p>
+          </div>
+          <motion.button
+            type="button"
+            onClick={onTest}
+            disabled={busy || !!blocker}
+            whileTap={busy || blocker ? undefined : { scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+            aria-label={`Test ${service.name} connection`}
+            aria-busy={busy || undefined}
+            title={blocker ?? `Check the saved ${service.name} key against its host`}
+            className="h-9 shrink-0 rounded-lg border px-4 text-[12.5px] font-bold transition-[background-color] duration-150 disabled:cursor-default disabled:opacity-45"
+            style={{ color: testColor, borderColor: hexToRgba(testColor, 0.45), background: hexToRgba(testColor, 0.08) }}
+          >
+            {busy ? 'Testing…' : 'Test connection'}
+          </motion.button>
+        </div>
+        {/* Always-mounted live region (announces results), plus the visible line when there is one. */}
+        <span className="sr-only" aria-live="polite">
+          {view?.text ?? ''}
         </span>
         {view && (
-          <span
-            role="img"
-            aria-label={`Last test: ${view.text}`}
-            title={view.text}
-            className="h-2 w-2 shrink-0 rounded-full"
-            style={{ background: viewColor, boxShadow: `0 0 0 3px ${hexToRgba(viewColor, 0.18)}` }}
-          />
-        )}
-        <span
-          className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold"
-          style={{ color: pill.color, background: hexToRgba(pill.color, 0.12), border: `1px solid ${hexToRgba(pill.color, 0.4)}` }}
-        >
-          {pill.text}
-        </span>
-        <ChevronIcon size={10} className={`shrink-0 text-[var(--muted)] transition-transform ${open ? 'rotate-90' : ''}`} />
-      </button>
-
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            id={bodyId}
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.18 }}
+          <p
+            aria-hidden="true"
+            className="mt-3 rounded-lg px-3 py-2 text-[12px] font-semibold leading-snug [overflow-wrap:anywhere]"
+            title={view.title}
+            style={{ color: viewColor, background: hexToRgba(viewColor, 0.08), border: `1px solid ${hexToRgba(viewColor, 0.3)}` }}
           >
-            <div className="space-y-4 border-t px-3.5 pb-4 pt-3.5" style={{ borderColor: hexToRgba(color, 0.2) }}>
-              <p className="text-[12.5px] leading-relaxed text-[var(--ink-soft)] [text-wrap:pretty]">{service.details}</p>
-              <div className="space-y-2.5 text-[11.5px] leading-snug text-[var(--muted)]">
-              <p className="flex flex-wrap items-center gap-1.5">
-                <span className="font-semibold">Used by</span>
-                {service.usedBy.map((u) => (
-                  <span
-                    key={u}
-                    className="rounded-md px-2 py-0.5 font-medium"
-                    style={{ color: service.color, background: hexToRgba(service.color, 0.08), border: `1px solid ${hexToRgba(service.color, 0.3)}` }}
-                  >
-                    {u}
-                  </span>
-                ))}
-              </p>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <span className="min-w-0 flex-1 [text-wrap:pretty]">
-                  <span className="font-semibold">Get it:</span> {service.getIt}
-                </span>
-                <motion.button
-                  type="button"
-                  onClick={onTest}
-                  disabled={busy || !!blocker}
-                  whileHover={busy || blocker ? undefined : { scale: 1.05 }}
-                  whileTap={busy || blocker ? undefined : { scale: 0.95 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-                  aria-label={`Test ${service.name} connection`}
-                  aria-busy={busy || undefined}
-                  title={blocker ?? `Check the saved ${service.name} key against its host`}
-                  className="h-8 shrink-0 rounded-lg border px-3.5 text-[12px] font-bold disabled:cursor-default disabled:opacity-45"
-                  style={{
-                    color: blocker ? QUIET : service.color,
-                    borderColor: hexToRgba(blocker ? QUIET : service.color, 0.45),
-                    background: hexToRgba(blocker ? QUIET : service.color, 0.07),
-                  }}
-                >
-                  {busy ? 'Testing…' : 'Test'}
-                </motion.button>
-              </div>
-                {/* The live region is always mounted (so a result is announced) but sr-only — absolutely
-                    positioned, it is no flex item, so an empty one adds no row gap. The visible pill is a
-                    separate, aria-hidden line that exists only when there is a result. */}
-                <span className="sr-only" aria-live="polite">
-                  {view?.text ?? ''}
-                </span>
-                {view && (
-                  <p aria-hidden="true">
-                    <span
-                      className="inline-block max-w-full rounded-md px-2 py-1 align-middle font-semibold [overflow-wrap:anywhere]"
-                      title={view.title}
-                      style={{ color: viewColor, background: hexToRgba(viewColor, 0.08), border: `1px solid ${hexToRgba(viewColor, 0.35)}` }}
-                    >
-                      {view.text}
-                    </span>
-                  </p>
-                )}
-              </div>
-              {service.keys.map((k) => (
-                <KeyField key={k.env} field={k} saved={status?.[k.env] ?? UNSET} color={service.color} onSave={onSave} />
-              ))}
-            </div>
-          </motion.div>
+            {view.text}
+          </p>
         )}
-      </AnimatePresence>
-    </li>
+      </section>
+
+      <section className="rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] p-4">
+        <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-[12px] sm:grid-cols-[6.5rem_minmax(0,1fr)]">
+          <dt className="pt-0.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">Used by</dt>
+          <dd className="flex flex-wrap gap-1.5">
+            {service.usedBy.map((u) => (
+              <span
+                key={u}
+                className="rounded-md px-2 py-0.5 text-[11.5px] font-medium"
+                style={{ color: service.color, background: hexToRgba(service.color, 0.08), border: `1px solid ${hexToRgba(service.color, 0.3)}` }}
+              >
+                {u}
+              </span>
+            ))}
+          </dd>
+          <dt className="pt-0.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">Get it</dt>
+          <dd className="leading-relaxed text-[var(--ink-soft)] [text-wrap:pretty]">{service.getIt}</dd>
+        </dl>
+      </section>
+
+      <section className="rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] p-4">
+        <h4 className="mb-3 text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">
+          {service.keys.length === 1 ? 'Key' : 'Keys'}
+        </h4>
+        <div className="space-y-5">
+          {service.keys.map((k) => (
+            <KeyField key={k.env} field={k} saved={status?.[k.env] ?? UNSET} color={service.color} onSave={onSave} />
+          ))}
+        </div>
+      </section>
+    </motion.div>
   )
 }
 
@@ -394,8 +457,7 @@ function KeyField({
     setDraft(next)
     setShown(next)
     setReveal(false)
-    const cleared = r.cleared.length ? ` — re-enter ${r.cleared.join(', ')} for the new URL` : ''
-    setNote({ text: (value ? 'Saved' : 'Removed') + cleared, error: false })
+    setNote({ text: value ? 'Saved' : 'Removed', error: false })
   }
 
   const hint = field.hint ?? ''

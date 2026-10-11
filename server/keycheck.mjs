@@ -178,16 +178,30 @@ const PLANS = {
     if (!s.ATLASSIAN_EMAIL || !s.ATLASSIAN_SITE_URL) return { notConfigured: 'needs email + site URL' }
     const b = baseUrl(s.ATLASSIAN_SITE_URL)
     if (b.error) return { notConfigured: `site URL ${b.error}` }
+    // The token is checked against YOUR Cloud site; id.atlassian.com (where tokens are made) answers 403.
+    if (!/\.(atlassian\.net|jira\.com)$/i.test(b.host))
+      return { notConfigured: `site URL must be your Cloud site, e.g. https://your-org.atlassian.net (not ${b.host})` }
     return {
       host: b.host,
+      hints: { 403: 'Access denied — check the email is the one the token belongs to, and that the site is your-org.atlassian.net' },
       request: { method: 'GET', url: `${b.url}/rest/api/3/myself`, headers: { Authorization: basic(s.ATLASSIAN_EMAIL, s.ATLASSIAN_TOKEN), Accept: 'application/json' } },
       onOk: (j) => signedIn(str(j?.displayName)),
     }
   },
   jenkins: (s, cfg) => {
     if (!s.JENKINS_USER || !s.JENKINS_API_TOKEN) return { notConfigured: 'needs JENKINS_USER + JENKINS_API_TOKEN' }
+    // JENKINS_URL saved → "who am I" (no job links needed); else read the first configured job.
+    if (s.JENKINS_URL) {
+      const b = baseUrl(s.JENKINS_URL)
+      if (b.error) return { notConfigured: `Jenkins URL ${b.error}` }
+      return {
+        host: b.host,
+        request: { method: 'GET', url: `${b.url}/me/api/json`, headers: { Authorization: basic(s.JENKINS_USER, s.JENKINS_API_TOKEN), Accept: 'application/json' } },
+        onOk: (j) => signedIn(str(j?.fullName) || str(j?.id)),
+      }
+    }
     const job = firstJenkinsJob(cfg)
-    if (!job) return { notConfigured: 'no https job URL in jenkins.jobs (config)' }
+    if (!job) return { notConfigured: 'add the Jenkins URL above (or a job link in jenkins.jobs)' }
     const u = new URL(job)
     const url = `${job.endsWith('/') ? job : job + '/'}api/json?tree=name`
     return {
@@ -388,7 +402,10 @@ export function createKeyChecker({ loadSettings, config, request = httpRequest, 
       const verdict = plan.onOk(parseJson(res))
       return done(typeof verdict === 'string' ? { status: 'ok', httpStatus: code, detail: verdict } : { ...verdict, httpStatus: code })
     }
-    return done({ ...statusFor(code), httpStatus: code })
+    const mapped = statusFor(code)
+    // A probe may explain a refusal better than the generic text (e.g. Atlassian's usual 403 causes).
+    if (plan.hints?.[code]) mapped.detail = plan.hints[code]
+    return done({ ...mapped, httpStatus: code })
   }
 
   async function test(service) {
