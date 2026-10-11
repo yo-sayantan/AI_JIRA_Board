@@ -345,9 +345,6 @@ function KeyField({
           </button>
         )}
       </div>
-      <p id={hintId} className="mt-1 text-[10.5px] text-[var(--muted)]">
-        {field.hint ?? (field.secret && saved.set ? 'Saved. Paste a new key to replace it.' : '')}
-      </p>
       <p className="min-h-[14px] text-[10.5px] font-semibold" aria-live="polite" style={{ color: note?.error ? '#e11d48' : color }}>
         {note?.text ?? ''}
       </p>
