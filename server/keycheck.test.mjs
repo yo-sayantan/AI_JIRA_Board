@@ -45,9 +45,9 @@ function fakeHttp(reply = { status: 200, body: '{}' }) {
   return { calls, request }
 }
 
-function checker({ secrets = SECRETS, config = CONFIG, reply, logs = [] } = {}) {
+function checker({ secrets = SECRETS, config = CONFIG, reply, logs = [], recordHealth } = {}) {
   const http = fakeHttp(reply)
-  const c = createKeyChecker({ loadSettings: async () => ({ ...secrets }), config, request: http.request, log: (l) => logs.push(l), readCa: async () => null })
+  const c = createKeyChecker({ loadSettings: async () => ({ ...secrets }), config, request: http.request, log: (l) => logs.push(l), readCa: async () => null, recordHealth })
   return { c, http, logs }
 }
 
@@ -131,6 +131,14 @@ describe('request shapes, one per service', () => {
     expect(http.calls).toHaveLength(0)
     expect(r.status).toBe('not-configured')
     expect(r.detail).toMatch(/your-org\.atlassian\.net/)
+  })
+
+  it('atlassian: a 401 says the email must be the Atlassian account email, and never echoes it', async () => {
+    const { c } = checker({ reply: { status: 401, body: '{}' } })
+    const r = await c.test('atlassian')
+    expect(r.status).toBe('auth-failed')
+    expect(r.detail).toMatch(/email/i)
+    expect(r.detail).not.toContain(SECRETS.ATLASSIAN_EMAIL)
   })
 
   it('atlassian: a 403 explains the usual causes', async () => {
@@ -396,6 +404,36 @@ describe('concurrency, input and logging', () => {
     const { c, logs } = checker({ reply: { status: 401, body: 'nope' } })
     await c.test('jira')
     expect(logs).toEqual(['[keys] test jira → auth-failed'])
+  })
+})
+
+describe('health recording', () => {
+  it('records every finished test (source added by the server), with a scrubbed detail', async () => {
+    const seen = []
+    const { c } = checker({ recordHealth: async (service, outcome) => seen.push([service, outcome]), reply: { status: 401, body: 'nope' } })
+    await c.test('jira')
+    expect(seen).toHaveLength(1)
+    expect(seen[0][0]).toBe('jira')
+    expect(seen[0][1]).toMatchObject({ ok: false, status: 'auth-failed', httpStatus: 401 })
+    noSecretIn(seen)
+  })
+
+  it('records success too, but never a service that is not configured', async () => {
+    const seen = []
+    const ok = checker({ recordHealth: async (s, o) => seen.push([s, o.ok]), reply: { status: 200, body: '{}' } })
+    await ok.c.test('jira')
+    const none = checker({ secrets: {}, recordHealth: async (s, o) => seen.push([s, o.ok]) })
+    await none.c.test('jira')
+    expect(seen).toEqual([['jira', true]])
+  })
+
+  it('a recorder that throws never breaks the test', async () => {
+    const { c } = checker({
+      recordHealth: async () => {
+        throw new Error('disk full')
+      },
+    })
+    expect((await c.test('jira')).status).toBe('ok')
   })
 })
 

@@ -1,5 +1,5 @@
 {
-  "$comment": "THE list of API keys the board knows about — read by the server (server/secrets.mjs: only these names can be saved), the board's API keys dialog (src/lib/apiKeys.ts) and tests/test_api_keys.py (every key must be read by something). Values are stored beside it in setup/.env (git-ignored, docker-ignored, never served). Each key has a kind: secret (masked; the default), url (shown in full), email or text (shown in full). 'planned: true' marks a key the user can add now that nothing reads yet; tests/test_api_keys.py exempts only those. Services are shown grouped (groups[], in order) and alphabetically by name inside a group; 'why' is the one-line summary (≤ 44 chars, so it never truncates), 'details' the full explanation shown when a row is opened.",
+  "$comment": "THE list of API keys the board knows about — read by the server (server/secrets.mjs: only these names can be saved), the board's API keys dialog (src/lib/apiKeys.ts) and tests/test_api_keys.py (every key must be read by something). Values are stored beside it in setup/.env (git-ignored, docker-ignored, never served). Each key has a kind: secret (masked; the default), url (shown in full), email or text (shown in full). 'planned: true' marks a key the user can add now that nothing reads yet; tests/test_api_keys.py exempts only those. Services are shown grouped (groups[], in order) and alphabetically by name inside a group; 'why' is the one-line summary (≤ 44 chars, so it never truncates), 'details' the full explanation shown when a row is opened. Service colours are soft and never red or red-orange (red means a rejected key; a test enforces it).",
   "services": [
     {
       "id": "jira",
@@ -124,7 +124,7 @@
     {
       "id": "jenkins",
       "name": "Jenkins",
-      "color": "#dc2626",
+      "color": "#5b88a8",
       "required": false,
       "why": "Latest branch build per environment",
       "usedBy": [
@@ -192,7 +192,7 @@
     {
       "id": "claude",
       "name": "Claude",
-      "color": "#d97757",
+      "color": "#c2a15b",
       "required": false,
       "why": "Cloud AI with Claude models",
       "usedBy": [
@@ -234,7 +234,7 @@
     {
       "id": "gemini",
       "name": "Gemini",
-      "color": "#f59e0b",
+      "color": "#d08fbf",
       "required": false,
       "why": "Cloud AI with Gemini models",
       "usedBy": [

@@ -183,7 +183,10 @@ const PLANS = {
       return { notConfigured: `site URL must be your Cloud site, e.g. https://your-org.atlassian.net (not ${b.host})` }
     return {
       host: b.host,
-      hints: { 403: 'Access denied — check the email is the one the token belongs to, and that the site is your-org.atlassian.net' },
+      hints: {
+        401: 'Key rejected — the email must be the one on your Atlassian account (id.atlassian.com → Profile), not a company username or directory address',
+        403: 'Access denied — check the email is the one the token belongs to, and that the site is your-org.atlassian.net',
+      },
       request: { method: 'GET', url: `${b.url}/rest/api/3/myself`, headers: { Authorization: basic(s.ATLASSIAN_EMAIL, s.ATLASSIAN_TOKEN), Accept: 'application/json' } },
       onOk: (j) => signedIn(str(j?.displayName)),
     }
@@ -358,8 +361,10 @@ async function defaultReadCa(path) {
  * `loadSettings()` → merged values (setup/.env + environment); `config` the project config;
  * `request` the HTTP layer (defaults to httpRequest). `test(service)` resolves with the result,
  * `{ busy: true }` while that service's previous test is still running, or `{ unknown: true }`.
+ * `recordHealth(service, { ok, status, httpStatus, detail })` (optional) is told how each finished test
+ * went — except 'not-configured', which made no call — so the dialog's dots follow Test as well as real calls.
  */
-export function createKeyChecker({ loadSettings, config, request = httpRequest, log = console.log, readCa = defaultReadCa, timeoutMs = TIMEOUT_MS, maxBytes = MAX_BYTES }) {
+export function createKeyChecker({ loadSettings, config, request = httpRequest, log = console.log, readCa = defaultReadCa, timeoutMs = TIMEOUT_MS, maxBytes = MAX_BYTES, recordHealth }) {
   const inFlight = new Set()
 
   async function tlsFor(service, s) {
@@ -415,6 +420,13 @@ export function createKeyChecker({ loadSettings, config, request = httpRequest, 
     try {
       const result = await run(service)
       log(`[keys] test ${service} → ${result.status}`)
+      if (recordHealth && result.status !== 'not-configured') {
+        try {
+          await recordHealth(service, { ok: result.ok, status: result.status, httpStatus: result.httpStatus, detail: result.detail })
+        } catch {
+          /* the dots are a convenience; a test result is still returned */
+        }
+      }
       return result
     } finally {
       inFlight.delete(service)

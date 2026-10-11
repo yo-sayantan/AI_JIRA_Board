@@ -134,6 +134,14 @@ read-only, authenticated request to the service the key belongs to — nothing e
   a login, a model count, a host name); every saved secret is scrubbed from it, and the remote error text is never
   echoed. The log line is `[keys] test <service> → <status>`. Same Host/Origin guards and JSON-only rule as every POST.
 
+## Health records record nothing secret
+
+`jira-intern/.health/<service>.json` (the API keys dialog's dots) holds only a state, timestamps, an HTTP status and a
+short `detail` built from fixed texts plus the host name — never a header, a token, a URL path or query. Anything a caller
+passes is scrubbed (auth values, `?query`, long opaque blobs, any saved secret value) and capped at 160 characters; the
+exception's own message is never echoed. The folder is git-ignored, docker-ignored and, being a dot-segment, never served;
+`GET /api/keys/health` carries the same Host guards as every route.
+
 ## Data flow per AI backend
 
 **Settings → AI → None.** No model is called. Reports are deterministic (`pr_report.py`); briefs

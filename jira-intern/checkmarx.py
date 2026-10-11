@@ -49,6 +49,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
+import _health
 import _safe_http
 from _config import load_config, load_secrets
 
@@ -472,9 +473,18 @@ def _call(url, headers, data=None, what=""):
         if _STATE["calls"] >= MAX_CALLS_PER_RUN:
             raise LookupFailed("checkmarx call budget for this run used up")
         _STATE["calls"] += 1
+    host = _health.host_of(url)
     try:
-        return _http(url, headers, data)
+        result = _http(url, headers, data)
+        _health.record_ok("checkmarx")
+        return result
     except urllib.error.HTTPError as e:
+        if what == "token" and e.code == 400:
+            # Keycloak answers a revoked / invalid refresh token (the API key) with 400 invalid_grant.
+            _health.record("checkmarx", False, status="auth-failed", http=400, detail="Key rejected (HTTP 400)")
+        else:
+            # A 404 (no such project / scan) is a lookup answer, not a service failure — skipped.
+            _health.record_exception("checkmarx", e, host=host)
         if e.code == 404:
             return None
         if e.code in (401, 403):
@@ -485,6 +495,7 @@ def _call(url, headers, data=None, what=""):
             sys.stderr.write(f"WARN checkmarx {what}: HTTP {e.code}\n")
         raise LookupFailed(f"HTTP {e.code}") from e
     except (urllib.error.URLError, OSError) as e:
+        _health.record_exception("checkmarx", e, host=host)
         with _LOCK:
             _STATE["down"] = True
         sys.stderr.write(f"WARN checkmarx unreachable ({what}): {getattr(e, 'reason', e)} — vulnerability results carried forward\n")

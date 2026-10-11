@@ -144,6 +144,7 @@ export const Header = memo(function Header({
   onOpenSettings,
   onOpenKeys,
   keysMissing = false,
+  keysBadge = null,
 }: {
   data: JiraData
   now: number
@@ -169,6 +170,8 @@ export const Header = memo(function Header({
   onOpenKeys?: () => void
   /** A required key is missing: the key button carries an amber dot. */
   keysMissing?: boolean
+  /** Services with saved keys whose latest real call failed: red dot (key rejected) beats orange (needs attention) beats the amber "missing" dot. */
+  keysBadge?: { color: string; label: string } | null
 }) {
   const fr = freshness(data.generatedAt, now)
   const name = data.user?.name?.split(',')[1]?.trim() || data.user?.name || 'you'
@@ -317,13 +320,23 @@ export const Header = memo(function Header({
               whileTap={{ scale: 0.9 }}
               transition={{ type: 'spring', stiffness: 400, damping: 18 }}
               onClick={onOpenKeys}
-              aria-label={keysMissing ? 'API keys — a required key is missing' : 'API keys'}
-              title={keysMissing ? 'API keys — add your Jira token so the board can fetch' : 'API keys — Jira, Bitbucket, Cloud AI…'}
+              aria-label={keysBadge ? `API keys — ${keysBadge.label}` : keysMissing ? 'API keys — a required key is missing' : 'API keys'}
+              title={
+                keysBadge
+                  ? `API keys — ${keysBadge.label}`
+                  : keysMissing
+                    ? 'API keys — add your Jira token so the board can fetch'
+                    : 'API keys — Jira, Bitbucket, Cloud AI…'
+              }
               className="relative grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] card-shadow hover:border-[var(--muted)] hover:text-[var(--ink)]"
             >
               <KeyIcon size={16} />
-              {keysMissing && (
-                <span aria-hidden className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--bg)] bg-[#f59e0b]" />
+              {(keysBadge || keysMissing) && (
+                <span
+                  aria-hidden
+                  className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--bg)]"
+                  style={{ background: keysBadge?.color ?? '#f59e0b' }}
+                />
               )}
             </motion.button>
           )}
