@@ -19,7 +19,8 @@ document is the complete inventory: who writes what, when, and the invariants th
 | `jira-intern/logs/`, `_STATUS.md` | every runner | humans | Newest-first audit log (`prepend_status`). |
 | Locks: `.intern.lock` `.completed.lock` `.refresh.lock` `.raised.lock` | each runner (`<pid> <iso>`) | `refuse_if_locked`, `server/locks.mjs` | Dead-PID/stale locks are auto-cleared. |
 | `setup/.env` | the board's API keys dialog → `server/secrets.mjs` (one write queue, temp + rename, mode 0600; keeps comments and unknown lines) | `_config.py::secrets_path`/`load_secrets`, runners (`runner-env.sh` `APP_SECRETS` → `load_agent_secrets`), `docker-entrypoint.sh` (Jira-token check), worker (re-read per cloud call), server (`GET /api/keys`, masked) | Tokens only — the ONLY secrets file. Git-ignored, docker-ignored, never served. Key names: `setup/api-keys.json`. `JB_SECRETS_FILE` moves it. Mounted read-write into JIRA-Board, read-only into AI-Intern. |
-| `jira-intern/.health/<serviceId>.json` | EVERY outside client after a real call, success and failure: `_health.record*` from `_jira.get_json` / `jira_post` (jira, bitbucket), `jenkins._get`, `checkmarx._call`, `ai-intern/worker.py` (`http_json`, `_cloud_json`, `mcp_get`: claude, cursor, gemini, openai, and Jira/Bitbucket reads); the server from the Test button (`server/health.mjs`, source `test`) | `server/health.mjs` → `GET /api/keys/health` → the API keys dialog's permanent dots and the header key button's badge | One small file per service (a writer touches only its own; temp + rename, so Python and Node never corrupt each other). `{ service, state: ok\|attention, checkedAt, lastOkAt?, failingSince?, status?, httpStatus?, detail, source }` — `detail` is built from fixed texts + the host, never a secret, header or URL query. Throttled: an unchanged outcome is not rewritten within 60 s. A 404 on a per-ticket / per-branch lookup is not a service failure and is never recorded. Git-ignored, docker-ignored, never served (dot-segment); lives in the bind-mounted `jira-intern/`, so the JIRA-Board and AI-Intern containers share it. `JB_HEALTH_DIR` moves it. |
+| `jira-intern/.jenkins-discovery.json` | `jenkins_discovery.discover` (atomic temp + rename; only a COMPLETE walk is stored) | `jenkins_discovery.discover` (daily fetch, single-ticket refresh, the `discover` CLI) | Per root + repo slug + discovery-config signature: the application folders and pipelines (name, url, env, kind, via, param) found under `JENKINS_ROOT_URL`. TTL `jenkins.discovery.cacheMinutes`; a failed walk serves the stale entry. No credentials. Git- and docker-ignored runtime state. |
+| `jira-intern/.health/<serviceId>.json` | EVERY outside client after a real call, success and failure: `_health.record*` from `_jira.get_json` / `jira_post` (jira, bitbucket), `jenkins._get` (and the console read), `checkmarx._call`, `dynatrace._request`, `ai-intern/worker.py` (`http_json`, `_cloud_json`, `mcp_get`: claude, cursor, gemini, openai, and Jira/Bitbucket reads); the server from the Test button (`server/health.mjs`, source `test`) | `server/health.mjs` → `GET /api/keys/health` → the API keys dialog's permanent dots and the header key button's badge | One small file per service (a writer touches only its own; temp + rename, so Python and Node never corrupt each other). `{ service, state: ok\|attention, checkedAt, lastOkAt?, failingSince?, status?, httpStatus?, detail, source }` — `detail` is built from fixed texts + the host, never a secret, header or URL query. Throttled: an unchanged outcome is not rewritten within 60 s. A 404 on a per-ticket / per-branch lookup is not a service failure and is never recorded. Git-ignored, docker-ignored, never served (dot-segment); lives in the bind-mounted `jira-intern/`, so the JIRA-Board and AI-Intern containers share it. `JB_HEALTH_DIR` moves it. |
 | `setup/api-keys.json` | developers (tracked) | `server/secrets.mjs` (which names may be saved), `src/lib/apiKeys.ts` (the dialog), `tests/test_api_keys.py` | The list of services and keys: `kind` (secret · url · email · text) and `planned`. No values. |
 | `~/.ai/config.json` | **you** (outside repo) | `config.mjs` merge | Identity + company URLs. |
 | localStorage (`jb-settings`, `jb-archived`, `jb-completed-show-context`, `jb-guide-os`) | the app | the app | Preferences only; no cookies exist. |
@@ -51,15 +52,26 @@ search: assignee = currentUser() AND (not Done OR resolved >= -10d)   [expand=ch
   → ONE parallel dev-status batch (devinfo.fetch_many) for parents + subtasks
   → build tickets in a ThreadPoolExecutor (REFRESH_WORKERS)
        unchanged fast path: (status, updated) match .state.json → deep-copy prior,
-       BUT still re-apply sprint + re-check PRs + re-read Jenkins builds + Checkmarx scans (all mutate without touching `updated`)
+       BUT still re-apply sprint + re-check PRs + re-read Jenkins builds + Checkmarx scans + Dynatrace links (all mutate without touching
+       `updated`; Dynatrace re-asks only what is older than its TTL — 24 h read, 1 h an open problem, 6 h an empty answer)
        every full ticket: apply_builds → jenkins.py → ticket.builds (latest build per env of its own branches;
          lookup failed → prior builds carried, each marked `stale: true`; Jenkins not configured → prior
          builds kept unchanged, nothing asked)
        every full ticket: apply_vuln_fixes → checkmarx.py → ticket.vulnFixes (vulnerability-fix tickets with a
          named target and a PR only: branch scan vs base scan per target; lookup failed or Checkmarx not
          configured → prior vulnFixes kept; not a vulnerability fix / nothing named / no PR → field removed)
+         and `ticket.proofNotes.checkmarx` (why a candidate has no fresh answer: not configured / failed), and
+         every ticket is reported to `_sources.py` (skipped / looked up / waiting)
+       every full ticket: apply_builds also puts the scrubbed console tail on the latest failed build of a ticket about
+         a failing build / pipeline (`builds[].consoleTail`, jenkins.py)
+       every full ticket: apply_dynatrace → dynatrace.py → ticket.dynatrace (the Dynatrace links in its text, read-only,
+         listed tenants only; a failed lookup keeps each link's previous answer marked `stale`; not configured → prior kept;
+         no link → field removed) and `ticket.proofNotes.dynatrace`; reported to `_sources.py` like Checkmarx
   → fetch_raised() rides along (one parallel-paged JQL; see below)
-  → write_outputs({tickets, completed: PRESERVED, raised, raisedAt, notes, user, generatedAt})
+  → proof_sources_status(): `_sources.finish` → one state + one line per source ("Checkmarx: 3 vulnerability-fix
+    tickets looked up …", "Dynatrace: 3 tickets with Dynatrace links looked up (5 links: 4 read · 1 empty) …") appended to
+    `notes` and stored as `proofSources` (other sources' records kept)
+  → write_outputs({tickets, completed: PRESERVED, raised, raisedAt, proofSources, notes, user, generatedAt})
   → atomic_dump(.state.json)
 ```
 The 10-day Done window is wider than the board's 3-day display window **on purpose**: a ticket
@@ -73,7 +85,9 @@ never a team-mate's basic sub-task). Every other writer carries it untouched: th
 freshly built one. A build carried forward because Jenkins could not be read (whole lookup, or just that
 environment) gets `builds[].stale = true`: the chip tooltip says "Stale — Jenkins could not be re-read; this is
 the last build seen", and `pr_report.jenkins_ci` makes the CI gate **Not verified** (never Pass) with the
-build's age. Readers: the card's build chips, the drawer's Proof section, `pr_report.py` (CI gate,
+build's age. With a Jenkins root, `apply_builds` first asks `jenkins.discovery_for` which pipelines exist for the
+ticket's repos (cache → walk → stale cache); a repo that could not be discovered keeps its prior builds (stale).
+A discovered build also carries `pipeline` / `kind` / `via`; one environment may hold several. Readers: the card's build chips, the drawer's Proof section, `pr_report.py` (CI gate,
 evidence rows, fingerprint) and `ai-intern/worker.py` (via `pr_report.jenkins_ci`).
 
 **`Ticket.vulnFixes`** (Checkmarx One, `src/types.ts::VulnFixes`) follows the same rules — written ONLY by
@@ -84,6 +98,37 @@ untouched by `write_briefs`, the raised refresh and `_merge_ticket`. The archive
 drawer's Proof section, `pr_report.py` (security gate, evidence rows, fingerprint) and `ai-intern/worker.py`
 (via `pr_report.vuln_gate` / `vuln_proof_rows`; it looks Checkmarx up live with the same `checkmarx.py` only
 for a vulnerability ticket the dump has no results for, and never writes `data.json`).
+`vulnFixes.read` (what each scan returned) and the package items' `foundOnBase` / `foundOnBranch` ride inside
+it. **`Ticket.proofNotes`** and the top-level **`proofSources`** (`SourceStatus`: state, one line, `at`, counts,
+the keys of tickets waiting) are written ONLY by the daily fetch (`proofNotes` also by the single-ticket
+refresh); every other writer passes them through, the archive does not keep `proofNotes`. They are the
+visible account of a skip — not part of the report fingerprint.
+
+**`Ticket.dynatrace`** (Dynatrace, `src/types.ts::DynatraceEvidence`) is the third proof-source field and follows the
+same rules: written ONLY by `daily_fetch.apply_dynatrace` (full path, fast path `refresh_prs_only`, single-ticket
+refresh — nothing else asks Dynatrace), carried untouched by `write_briefs`, the raised refresh and `_merge_ticket`.
+`{ fetchedAt, items[≤5], moreLinks? }`; an item is one Dynatrace link of the ticket's text with `status` (`read` ·
+`empty` · `unreachable` · `auth-failed` · `unconfigured-tenant`), short `findings`, a small `summary` and its own
+`fetchedAt` — ≤ 3 KB, scrubbed, never a raw response. A ticket with no Dynatrace link has no field; a failed lookup keeps
+the item's previous answer with `stale: true`; an answer still inside its TTL is reused without a call. The archive does
+not keep it (`COMPLETED_KEYS` has `vulnFixes` only), `raised[]` rows do not carry it. Readers: the drawer's Proof →
+Linked traces & problems group, `evidence.py` (→ `pr_report.py`: Issue insight, evidence rows, Sources links, fingerprint
+only when present; → `ai-intern/worker.py` + `brief.py`: the brief's Evidence section, the worker's Proof rows).
+`proofNotes.dynatrace` (why a ticket with links has no fresh answer) and `proofSources.dynatrace` (the run's state + line;
+the key window's "Last fetch") are written by the daily fetch like Checkmarx's.
+
+**`builds[].consoleTail`** (a scrubbed string, ≤ 4 KB / ~40 lines) is part of `Ticket.builds` and written only by
+`jenkins.add_console_tails` inside `apply_builds`: the latest failed, non-stale build of a ticket that is about a build /
+pipeline failure carries one; it is kept while the build number is unchanged (no re-read), dropped when the build moves on,
+and `""` means "tried, nothing to excerpt" (kept so it is not re-read; no view shows it). The report fingerprint includes
+it only when present.
+
+**`Ticket.aiSummaryEvidence`** (a 16-hex fingerprint, also on `raised[]` rows) is written by `write_briefs` together with
+`aiSummary` / `aiSummaryAt` and says which evidence (Dynatrace / Checkmarx / Jenkins, `evidence.fingerprint`) the brief
+was written from; it is removed when the new brief had none. Dynatrace, Checkmarx and Jenkins never bump Jira's `updated`,
+so `brief.needs_brief` compares it with the fingerprint of what the dump says now and the brief is regenerated when they
+differ. It travels with the brief wherever `aiSummary` is carried forward (`build_ticket`'s fast path,
+`carry-aisummary.mjs`, `raised.fetch_raised`).
 
 ### 2. Archive rebuild — `completed_archive.py` (Archive menu; scopes all/year/since/key)
 
@@ -119,7 +164,8 @@ is raised-only and not assigned to me, it does NOT get appended to `tickets[]` �
 
 Reads the CURRENT data.json (inference takes minutes; the start-of-job copy may be stale), waits
 out data-writer locks, applies each brief only if the ticket's `lastUpdate` still matches, stamps
-both `tickets[]` and `raised[]` copies, writes via `write_outputs`.
+both `tickets[]` and `raised[]` copies (`aiSummary`, `aiSummaryAt` and the `aiSummaryEvidence` fingerprint), writes via
+`write_outputs`.
 
 ## Concurrency model
 

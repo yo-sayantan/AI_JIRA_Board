@@ -255,5 +255,8 @@ def host_of(url):
 
 
 def service_for_url(url):
-    """The service id a request URL belongs to (cloud AI hosts), else None."""
-    return CLOUD_HOSTS.get((host_of(url) or "").lower())
+    """The service id a request URL belongs to (cloud AI hosts, a Dynatrace tenant's query host), else None."""
+    host = (host_of(url) or "").lower()
+    if re.fullmatch(r"[a-z0-9][a-z0-9-]{1,62}\.apps\.dynatrace\.com", host):
+        return "dynatrace"
+    return CLOUD_HOSTS.get(host)

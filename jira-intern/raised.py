@@ -158,6 +158,8 @@ def fetch_raised(prior_rows):
         if prior and prior.get("aiSummary"):
             row["aiSummary"] = prior["aiSummary"]
             row["aiSummaryAt"] = prior.get("aiSummaryAt")
+            if prior.get("aiSummaryEvidence"):
+                row["aiSummaryEvidence"] = prior["aiSummaryEvidence"]
         rows.append(row)
     # Parallel pages can interleave if Jira's result set shifts mid-fetch — re-sort so the
     # list is always strictly newest-raised first.

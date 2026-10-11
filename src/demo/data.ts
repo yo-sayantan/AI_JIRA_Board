@@ -16,7 +16,9 @@ const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z')
 const dayOf = (ms: number) => iso(ms).slice(0, 10)
 
 // Full timestamps shift by the exact gap; bare YYYY-MM-DD values (update logs, the dates inside a
-// sprint label) shift by whole days, so a day label never lands mid-day.
+// sprint label) shift by whole days, so a day label never lands mid-day. That covers every Dynatrace stamp too
+// (`dynatrace.fetchedAt`, each item's `fetchedAt` and `window`, a problem's start / end, `proofNotes.dynatrace.at`,
+// `proofSources.dynatrace.at`); the times written INSIDE a Dynatrace link's URL are text and stay as they are.
 const STAMP = /"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)"/g
 const DATE = /\d{4}-\d{2}-\d{2}(?!T)/g
 

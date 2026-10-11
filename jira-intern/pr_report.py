@@ -31,6 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _config import endpoints, load_config, now_iso as configured_now_iso, time_zone  # noqa: E402
 from datafile import atomic_write  # noqa: E402
 import checkmarx  # noqa: E402  (classification + targets only — the report never calls Checkmarx)
+import evidence  # noqa: E402  (what Dynatrace / Checkmarx / Jenkins say about the ticket, already stored — the report never calls them)
 
 INTERN = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(INTERN, "data.json")
@@ -132,12 +133,22 @@ def fingerprint(t):
     # without them keeps the fingerprint it had before builds existed (no mass re-generation).
     builds = builds_of(t)
     if builds:
-        sig["builds"] = sorted([[b.get("env"), b.get("repo"), b.get("branch"), b.get("number"), b.get("result")] for b in builds], key=str)
+        sig["builds"] = sorted([[b.get("env"), b.get("repo"), b.get("branch"), b.get("number"), b.get("result")] + ([b["pipeline"]] if b.get("pipeline") else [])
+                                for b in builds], key=str)
     # Same rule for Checkmarx: a status change or a newer scan makes the report stale; no results, no key.
     vf = vuln_fixes_of(t)
     if vf:
         sig["vulnFixes"] = [vf.get("branchScanAt"), vf.get("baseScanAt"),
                             sorted([[i.get("target"), i.get("kind"), i.get("status")] for i in vf["items"]], key=str)]
+    # Same rule for what Dynatrace read (a changed finding makes the report stale; the read time does not) and for the
+    # console excerpt of a failed build: only added when present, so no existing report goes stale.
+    dt = evidence.dynatrace_items(t)
+    if dt:
+        sig["dynatrace"] = sorted([[i.get("url"), i.get("status"), bool(i.get("stale")), hashlib.sha1(json.dumps(i.get("findings") or [], sort_keys=True).encode("utf-8")).hexdigest()[:8]]
+                                   for i in dt], key=str)
+    tails = sorted([[b.get("env"), b.get("number"), hashlib.sha1(str(b["consoleTail"]).encode("utf-8")).hexdigest()[:8]] for b in builds_of(t) if b.get("consoleTail")], key=str)
+    if tails:
+        sig["consoleTail"] = tails
     return hashlib.sha1(json.dumps(sig, sort_keys=True).encode("utf-8")).hexdigest()[:16]
 
 
@@ -193,13 +204,17 @@ def fmt_duration(ms):
 
 
 def build_label(b):
-    return f"{b.get('env') or '?'} #{b.get('number') if b.get('number') is not None else '?'} {b.get('result')}"
+    """"qa #412 SUCCESS" — or "qa · deploy-service #412 SUCCESS" for a discovered pipeline, so a green
+    build next to a failed deploy of the same environment reads as two rows."""
+    env = (b.get("env") or "?") + (f" · {b['pipeline']}" if b.get("pipeline") else "")
+    return f"{env} #{b.get('number') if b.get('number') is not None else '?'} {b.get('result')}"
 
 
 def jenkins_ci(t):
     """The "CI green" gate from Jenkins, or None when the ticket has no builds (then Bitbucket's
     build status stays the source). Shared with ai-intern/worker.py so the two never disagree.
-    Pass = the latest build of every environment that built the branch is SUCCESS; Fail = any
+    Pass = the latest build of every environment AND pipeline (a build pipeline and a deploy pipeline
+    of one environment are two builds) that ran the branch is SUCCESS; Fail = any
     FAILURE / UNSTABLE; In progress = one is still building; Not verified otherwise (aborted, not built,
     or a `stale` build — carried forward because Jenkins could not be read; its age is shown)."""
     builds = ci_builds(t)
@@ -252,7 +267,8 @@ def build_evidence(b, now):
         "BUILDING": "Build running — CI not settled yet.",
         "ABORTED": "Aborted — CI not verified.",
     }.get(result, "Not built — CI not verified.")
-    return {"cells": [f"Jenkins · {esc(b.get('env') or '?')}", " · ".join(bits), conclusion], "tone": BUILD_TONE.get(result, "neutral")}
+    row_name = esc(b.get("env") or "?") + (f" · {esc(b['pipeline'])}" if b.get("pipeline") else "")
+    return {"cells": [f"Jenkins · {row_name}", " · ".join(bits), conclusion], "tone": BUILD_TONE.get(result, "neutral")}
 
 
 # ── Checkmarx (ticket.vulnFixes — written by daily_fetch via checkmarx.py) ──────
@@ -285,6 +301,10 @@ def vuln_gate(t):
     if not vf:
         if not checkmarx.extract_targets(t):
             return "Not verified", "The ticket names no CVE, Checkmarx query / CWE, result link or package to check", "neutral"
+        # The fetch says why it has nothing ("Checkmarx not configured — add the URL and key in API keys", "… could not be reached").
+        note = (t.get("proofNotes") or {}).get("checkmarx") if isinstance(t.get("proofNotes"), dict) else None
+        if isinstance(note, dict) and note.get("detail"):
+            return "Not verified", _cap(str(note["detail"])), "neutral"
         return "Not verified", "Checkmarx not read yet — needs CHECKMARX_API_KEY + base URL and a refresh", "neutral"
     items = vf["items"]
     count = {k: sum(1 for i in items if i["status"] == k) for k in VULN_STATUS}
@@ -332,8 +352,10 @@ def vuln_proof_rows(t):
     return rows
 
 
-def _enrich_warning(builds, vf):
-    missing = [name for name, have in (("CI", builds), ("Checkmarx", vf), ("Dynatrace", False)) if not have]
+def _enrich_warning(builds, vf, dt=False):
+    missing = [name for name, have in (("CI", builds), ("Checkmarx", vf), ("Dynatrace", dt)) if not have]
+    if not missing:
+        return None  # every outside system already answered: nothing is waiting for the AI pass
     joined = missing[0] if len(missing) == 1 else (" or ".join(missing) if len(missing) == 2 else ", ".join(missing[:-1]) + ", or " + missing[-1])
     return f"{joined} is added for the matching ticket type when the report is enriched."
 
@@ -565,6 +587,8 @@ def build_base(t, src, cfg):
     # ── gates (fixed order = verdict-rule order) ───────────────────────────
     ci = jenkins_ci(t)
     sec_state, sec_evidence, sec_tone = vuln_gate(t)
+    tz = time_zone(INTERN)
+    ev_all = evidence.build(t, tz=tz)  # Dynatrace links, Checkmarx scan, Jenkins failures — {} of sections when there is none
 
     def gate(name, state, evidence, blocks, tone_override=None):
         tone = tone_override or ("success" if state == "Pass" else ("danger" if state == "Fail" and blocks == "Yes" else ("warning" if state == "Fail" else "neutral")))
@@ -622,6 +646,14 @@ def build_base(t, src, cfg):
          "headers": ["Gate", "State", "Evidence", "Blocks closure?"], "rows": gates,
          "note": "Rows are in verdict-rule order: the first Fail is the reason for the verdict. 'Not verified' is grey, never green."},
     ]}
+    if ev_all["sections"]:
+        # "What was the issue?", in plain words, for whoever reads the report without opening Dynatrace, Checkmarx or Jenkins.
+        # Templated from stored facts, so it exists with the AI off; the AI pass may reword it (same facts, checked) — see preserved_errors.
+        worst_sev = "problem" if any(x["severity"] == "problem" for x in ev_all["sections"]) else "info"
+        names = " · ".join(evidence.LABEL[x["source"]] for x in ev_all["sections"])
+        verdict_tab["blocks"].insert(1, {"kind": "callout", "title": "Issue insight", "tone": "warning" if worst_sev == "problem" else "info", "provenance": "derived",
+                                         "body": f"<p>{esc(ev_all['insight'])}</p>",
+                                         "note": f"From what {names} say about this ticket (last fetch). The AI pass may reword this, never add to it."})
     if release_gate:
         verdict_tab["blocks"].append({"kind": "callout", "title": "Release gate", "tone": release_gate[0], "provenance": "derived", "body": release_gate[1]})
 
@@ -656,6 +688,8 @@ def build_base(t, src, cfg):
     ev += [build_evidence(b, now) for b in builds]
     vf = vuln_fixes_of(t) if checkmarx.is_vuln_fix(t) else None
     ev += [vuln_evidence(i) for i in (vf or {}).get("items") or []]
+    dt_items = evidence.dynatrace_items(t)
+    ev += evidence.report_rows(t, tz=tz)  # Dynatrace links read, and the deciding lines of a failed build's console
 
     pr_items = []
     for p in a["prs"]:
@@ -761,6 +795,8 @@ def build_base(t, src, cfg):
     links += [{"label": f"Confluence: {c.get('title') or 'page'}", "href": c["url"]} for c in (t.get("confluence") or [])[:5] if isinstance(c, dict) and c.get("url")]
     links += [{"label": f"Jenkins {b.get('env')} #{b.get('number')}", "href": b["url"]} for b in builds
               if isinstance(b.get("url"), str) and _SAFE_URL.match(b["url"])]
+    links += [{"label": f"Dynatrace {i.get('kind') or 'link'} ({i.get('tenant') or '?'})", "href": i["url"]} for i in dt_items[:5]
+              if isinstance(i.get("url"), str) and i["url"].lower().startswith("https://")]
     sources_tab = {"id": "sources", "title": "Sources", "tone": "neutral", "blocks": [
         {"kind": "links", "title": "Links", "tone": "neutral", "provenance": "derived", "items": links},
         {"kind": "kv", "title": "Run metadata", "tone": "neutral", "provenance": "derived", "items": [
@@ -776,8 +812,8 @@ def build_base(t, src, cfg):
         "fingerprint": fingerprint(t), "enriched": False, "enrichedAt": None, "generator": GENERATOR,
         "verdict": verdict, "stats": stats, "tabs": [verdict_tab, evidence_tab, scope_tab, sources_tab], "links": links,
         "sources": "Jira (last fetch) · Bitbucket via Jira dev-status" + (" · Jenkins builds (last fetch)" if builds else "")
-                   + (" · Checkmarx (last fetch)" if vf else "") + ". Deterministic — no AI, no live calls.",
-        "warnings": [_enrich_warning(builds, vf)],
+                   + (" · Checkmarx (last fetch)" if vf else "") + (" · Dynatrace (last fetch)" if dt_items else "") + ". Deterministic — no AI, no live calls.",
+        "warnings": [w for w in [_enrich_warning(builds, vf, bool(dt_items))] if w],
     }
 
 
@@ -877,9 +913,10 @@ def preserved_errors(r, base):
                     if bb.get("title") == "Gate checklist" and br["cells"][0] in AI_MAY_EDIT_GATES and rr.get("cells", [None])[0] == br["cells"][0]:
                         continue
                     errs.append(f"tab {tb['id']} block {j} row {i} ('{br['cells'][0]}') changed by enrichment")
-            elif bb.get("kind") == "callout" and bb.get("title") == "Decision":
-                if rb.get("kind") != "callout" or rb.get("tone") != bb.get("tone") or rb.get("title") != "Decision":
-                    errs.append("Decision callout tone/title changed")
+            elif bb.get("kind") == "callout" and bb.get("title") in ("Decision", "Issue insight"):
+                # The body may be reworded (business line / insight sentences); kind, tone and title may not.
+                if rb.get("kind") != "callout" or rb.get("tone") != bb.get("tone") or rb.get("title") != bb.get("title"):
+                    errs.append(f"{bb.get('title')} callout tone/title changed")
             else:
                 bbc, rbc = dict(bb), dict(rb)
                 bbc.pop("note", None)

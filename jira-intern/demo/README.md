@@ -65,7 +65,23 @@ the whole set.
   in To Do (and under Raised by me); `DEMO-248` I raised too; `DEMO-249` is QA's own, shown because it is
   linked to my `DEMO-261`.
 - **Jenkins builds** — every build state, on cards and in the drawer's Proof section: `DEMO-220` green QA with
+  tests, a running UAT build, and in Stage a build pipeline next to a deploy pipeline (the failed deploy wins
+  the chip); `DEMO-231` a red QA build with its failing tests and a collapsed **Console (last lines)** box — the
+  scrubbed tail the fetch keeps for a failed build (`builds[].consoleTail`, an `Authorization: •••` line
+  included); `DEMO-244` unstable, `DEMO-221` aborted, `DEMO-210` not built.
 - **Checkmarx vulnerability fixes** — every status and every kind of target, on the card's shield chip, in the
+  drawer's Proof section with what each scan returned (`DEMO-230`, `DEMO-232`, `DEMO-243`).
+- **Dynatrace evidence** — the drawer's *Linked traces & problems* group (`Ticket.dynatrace`), every link status
+  across three tickets: `DEMO-210` a trace with failed spans (the link shape Dynatrace produces: `#trace;gtf=…;traceId=…`)
+  and a closed Davis problem, both read; `DEMO-247` a service with nothing found and a link to a tenant that is not in
+  `DYNATRACE_TENANTS` (listed muted, never read, with the reason); `DEMO-213` a read trace, a log query that timed out
+  (its earlier answer shown, marked stale, with the ticket's *unreachable* note above it) and a tenant whose token was
+  rejected (the one red). Every host is an invented tenant (`abc12345`, `def67890`, `zzz99999`). The API keys
+  window's *Last fetch* line for Dynatrace and its green health dot come from `proofSources.dynatrace` and
+  `src/demo/health.ts`; `DEMO-210`'s canned PR report carries an **Issue insight** callout right after its decision.
+- **AI briefs with evidence** — `DEMO-210` (Dynatrace), `DEMO-230` (Checkmarx) and `DEMO-231` (Jenkins console) end
+  with an *Evidence from linked systems* section and a *What this means* line, stamped `<div data-brief="2">` with an
+  `aiSummaryEvidence` fingerprint, as the AI worker writes them.
 - **Every priority and type** — Critical / Blocker, Highest, High, Medium, Low / Minor, Lowest and an
   unprioritised ticket; Story, Task, Bug, Security, Requirement, Dev Task, QA Task, Incident, Spike,
   Improvement, Tech Debt, Epic, Sub-task, Documentation (the default glyph), and the title-derived Release

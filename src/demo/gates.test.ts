@@ -112,7 +112,9 @@ describe('demo dump', () => {
 
   it('never points at a real host', () => {
     const json = JSON.stringify(d)
-    for (const url of json.match(/https?:\/\/[^"\\\s]+/g) ?? []) expect(url).toMatch(/\/\/[a-z.]*example\.com(\/|$)/)
+    // example.com, or the invented Dynatrace tenants (a Dynatrace link can only be on a *.dynatrace.com host)
+    for (const url of json.match(/https?:\/\/[^"\\\s]+/g) ?? [])
+      expect(url).toMatch(/\/\/(?:[a-z.]*example\.com|(?:abc12345|def67890|zzz99999)\.(?:live|apps)\.dynatrace\.com)(\/|$)/)
   })
 })
 

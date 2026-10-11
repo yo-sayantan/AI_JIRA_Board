@@ -149,8 +149,31 @@ Settings, or `docker exec JIRA-AI-Ollama ollama pull qwen2.5-coder:7b`.
 | "no JIRA_PERSONAL_TOKEN found — skipping fetch" / "no API keys yet" | No Jira token saved yet. Add it with the key button in the board header (stored in `setup/.env`), then Refresh. Check `./setup` is mounted (`docker inspect JIRA-Board`). |
 | Saving a key fails ("could not write setup/.env") | `./setup` is not writable by the container's uid 1000 (Linux hosts): `sudo chown -R 1000 setup`. |
 | No build chips / "Jenkins unreachable — builds carried forward" | Jenkins keys saved? `jenkins.jobs` set in `~/.ai/config.json`? The container must reach the Jenkins host (VPN, DNS, a private CA in `~/.ai/ca-bundle.pem`). See [`INTEGRATIONS.md`](INTEGRATIONS.md#jenkins-multibranch-pipelines-json-api). |
-| "Checkmarx unreachable — vulnerability results carried forward" | Check `CHECKMARX_API_KEY` + `CHECKMARX_BASE_URL` (https), and `CHECKMARX_AUTH_URL` when the IAM host differs. Only vulnerability-fix tickets with a PR are asked. |
+| The run notes / key window say "Checkmarx: … carried forward — …" (`unreachable`, `auth-failed`, `budget-exhausted`) or "Checkmarx not configured — missing …" | Check `CHECKMARX_API_KEY` + `CHECKMARX_BASE_URL` (https), and `CHECKMARX_AUTH_URL` when the IAM host differs. Only vulnerability-fix tickets with a PR are asked. Targets all "Not found"? `python3 jira-intern/checkmarx.py diagnose <KEY>` shows what Checkmarx returned. |
+| The run notes / key window say "Dynatrace: … carried forward — …" (`unreachable`, `auth-failed`, `budget-exhausted`) or "Dynatrace not configured — missing …"; a drawer link says *Tenant not listed* | `DYNATRACE_PAT` (a platform token with `storage:spans:read`, `storage:events:read`, `storage:logs:read`, `storage:buckets:read`) and a listed tenant (`DYNATRACE_TENANTS=prod=abc12345`) in the key dialog; the container must reach `<tenant>.apps.dynatrace.com` (VPN, DNS, a private CA in `~/.ai/ca-bundle.pem`). A link to a tenant that is not in the list is never fetched — add it. Only tickets with a Dynatrace link are asked. `python3 jira-intern/dynatrace.py inspect "<link>"` shows what the board makes of a link and what the tenant returns ([`INTEGRATIONS.md`](INTEGRATIONS.md#dynatrace-links-in-a-ticket-read-only-dql)). |
 | Port 4321 in use | `scripts/start-jira-board.sh` frees it automatically; otherwise `docker compose down` or stop the process on that port. |
-| `Name or service not known` for your Jira host | Docker DNS (common on VPN). Uncomment the `dns:` block in `docker-compose.yml` and recreate. |
+| `Name or service not known` for your Jira host | Docker DNS (common on VPN). Uncomment the `dns:` block in `docker-compose.yml` and recreate. See [DNS](#dns). |
+| A report's CI row says "`<host>` could not be resolved from the AI-Intern container" (formerly `<urlopen error [Errno -3] Temporary failure in name resolution>`) | Docker's DNS flapped inside **AI-Intern** — the container that builds the AI-enriched report. Retry once; if it repeats, pin the DNS server your VPN uses: see [DNS](#dns). |
 | Container exits immediately | `docker logs JIRA-Board` — usually a bad token or unreachable host. |
 | Changed `src/` but UI looks old | Rebuild the image: `docker compose up -d --build`. |
+
+### DNS
+
+The containers resolve host names through Docker Desktop's DNS proxy, which can drop answers for a few
+seconds (VPN connects, laptop wake, Wi-Fi changes). The symptoms:
+
+- the board's fetch log: `Name or service not known` for the Jira or Bitbucket host;
+- a PR report's **CI** row: "`<host>` could not be resolved from the AI-Intern container" (the AI-Intern
+  worker asks Bitbucket for the build status of each PR on every enriched report; the message was a raw
+  `[Errno -3] Temporary failure in name resolution` before).
+
+A retry usually works. If it keeps happening, tell the container which DNS server to use — the one your
+laptop uses on the VPN, **not** a public resolver (internal hosts do not resolve there):
+
+1. Find it: macOS `scutil --dns | grep nameserver` · Linux `resolvectl status` · Windows `ipconfig /all`.
+2. In `docker-compose.yml`, uncomment the `dns:` lines under **jira-ai** (and under **jira-board** when its
+   fetch log shows the same error), put the server(s) in, and recreate:
+   `docker compose up -d --force-recreate jira-ai` (add `jira-board` if you edited it).
+3. Check from inside: `docker exec AI-Intern python3 -c "import socket; print(socket.gethostbyname('<your bitbucket host>'))"`.
+
+The `dns:` blocks ship commented out on purpose: a hard-coded server breaks the moment you leave the VPN.

@@ -27,9 +27,11 @@ EVIDENCE TO GATHER (read-only; respect the caps — this must finish in minutes,
   • Jira: the ticket's description, acceptance criteria, latest comments, sub-tasks (esp. QA), linked issues,
     fix version. Use the context file first; only call Jira for what it lacks.
   • Confluence (≤5 pages): only pages the ticket/PR links to — runbooks, designs, release notes.
-  • Dynatrace (≤1 query, ONLY if the ticket describes a production incident/error): confirm whether the
-    reported symptom is still observable (e.g. failed spans / problems for the endpoint or service named in
-    the ticket). If Dynatrace is not available or the ticket is not an incident, skip it and say so.
+  • Dynatrace: the Dynatrace LINKS on the ticket were already read by the fetch (read-only, only tenants the user listed) —
+    their facts are in the EVIDENCE block and in the base's Evidence chain / Issue insight; do not re-query them. Only for
+    an incident ticket WITHOUT such links (≤1 query): confirm whether the reported symptom is still observable (e.g.
+    failed spans / problems for the endpoint or service named in the ticket). If Dynatrace is not available or the ticket
+    is not an incident, skip it and say so.
   Do not browse beyond the ticket's own links. Do not open other people's tickets except linked ones.
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -71,6 +73,11 @@ may do — nothing else:
   4. APPEND rows to the Open scope table with "Blocks closure?" = "No" (e.g. "Acceptance criterion X not evidenced").
   5. REPLACE the last <p><i>…</i></p> line of the Decision callout body with a ≤25-word business-impact sentence
      (who is affected, what changes when it ships) citing an evidence row. Keep the callout's title and tone.
+     5b. When the base has an "Issue insight" callout (it exists when Dynatrace links, a Checkmarx scan or a failed Jenkins
+     build say something about the ticket), you MAY reword its body in 2–4 plain sentences for management — nothing else
+     about it. Use ONLY the facts, numbers, names and ids in the EVIDENCE block of the packs (and in that callout): never add
+     a number, a cause, a service, a time or an id. A rewording that adds anything is discarded and the template stays.
+     Keep its title and tone.
   6. SET verdict.summary (one sentence, optional) — never verdict.id / label / tone / score.
   7. SET the Sources → "Run metadata" kv item "AI enrichment" value to "run · <model> · <tools used>".
   8. REMOVE from `warnings` only the items you actually resolved.

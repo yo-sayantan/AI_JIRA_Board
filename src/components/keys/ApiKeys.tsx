@@ -23,6 +23,8 @@ import {
   type KeyTestResult,
 } from '../../lib/apiKeys'
 import { hexToRgba } from '../../lib/format'
+import { PROOF_SOURCES, lastFetchView } from '../../lib/proofStatus'
+import type { SourceStatus } from '../../types'
 import type { ApiKeySave } from '../../lib/runner'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { CheckIcon, EyeIcon, EyeOffIcon, KeyIcon } from '../common/Icons'
@@ -51,6 +53,7 @@ export function ApiKeysDialog({
   open,
   status,
   health,
+  lastFetch,
   failed,
   onClose,
   onRefresh,
@@ -63,6 +66,8 @@ export function ApiKeysDialog({
   failed: boolean
   /** The latest real outcome per service (any call, anywhere), already limited to services with saved keys. */
   health: HealthMap
+  /** What each proof source (Checkmarx …) did in the last fetch — data.json → proofSources — for the panel's "Last fetch" line. */
+  lastFetch?: Record<string, SourceStatus>
   onClose: () => void
   onRefresh: () => void
   onSave: SaveFn
@@ -225,6 +230,7 @@ export function ApiKeysDialog({
                     onSave={saveFor(current.id)}
                     test={tests[current.id]}
                     record={healthOf(current.id)}
+                    lastFetch={lastFetch?.[current.id]}
                     onTest={() => void runTest(current.id)}
                   />
                 )}
@@ -333,6 +339,7 @@ function ServicePanel({
   onSave,
   test,
   record,
+  lastFetch,
   onTest,
 }: {
   service: ApiService
@@ -340,9 +347,12 @@ function ServicePanel({
   onSave: SaveFn
   test: TestState | undefined
   record: HealthRecord | undefined
+  lastFetch: SourceStatus | undefined
   onTest: () => void
 }) {
   const health = healthView(record)
+  const proofSource = PROOF_SOURCES.includes(service.id)
+  const fetched = lastFetchView(lastFetch)
   const ready = serviceReady(service, status)
   const pill = statusPill(service, status)
   const blocker = testBlocker(service, status)
@@ -418,6 +428,16 @@ function ServicePanel({
           <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">Live status</span>
           <span className="min-w-0 truncate">{health.tone === 'none' ? 'Not called yet' : health.detail}</span>
         </p>
+        {/* What the last fetch did with this source (looked up N tickets / not configured / carried forward) — a fixed one-line row too. */}
+        {proofSource && (
+          <p data-last-fetch className="flex h-7 items-center gap-2 px-1 text-[11.5px] font-semibold" title={fetched.text} style={{ color: fetched.color ?? 'var(--muted)' }}>
+            <span className="grid h-3 w-3 shrink-0 place-items-center" aria-hidden="true">
+              {fetched.color && <span className="h-2 w-2 rounded-full" style={{ background: fetched.color, boxShadow: `0 0 0 3px ${hexToRgba(fetched.color, 0.18)}` }} />}
+            </span>
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">Last fetch</span>
+            <span className="min-w-0 truncate">{fetched.text}</span>
+          </p>
+        )}
       </section>
 
       <section className="rounded-2xl border border-[var(--line)] bg-[var(--surface-solid)] p-5">

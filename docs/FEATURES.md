@@ -133,8 +133,8 @@ Drag targets are ONE list, `jira-intern/move_targets.json`, read by the board
 
 Click any card/row anywhere → a right-side drawer with the full ticket: AI brief, description,
 acceptance criteria, code (branches + PRs with reviewers/approvals/comment-resolution), Proof (which
-vulnerabilities a fix ticket fixed per Checkmarx, latest Jenkins build per environment — shown only when
-there is something), comments,
+vulnerabilities a fix ticket fixed per Checkmarx, latest Jenkins build per environment, what the Dynatrace
+links in the ticket say — shown only when there is something), comments,
 links (related/Confluence/external), update log, sub-tickets (each openable — drawers **stack**,
 with breadcrumb depth and Esc closing only the top layer).
 `src/components/ticket/TicketDetail.tsx`, stack in `hooks/useDrawerStack.ts`; archive/raised rows
@@ -142,20 +142,31 @@ are adapted via `completedToTicket` / `raisedToTicket` so one component renders 
 
 ## Jenkins builds (cards, drawer, CI gate)
 
-For every branch of my tickets, the **latest build in each environment's Jenkins multibranch job**
-(config → `jenkins.jobs`, credentials `JENKINS_USER` / `JENKINS_API_TOKEN`). Fetched by
+For every branch of my tickets, the **latest build in each environment's Jenkins pipelines** — the
+multibranch jobs in config → `jenkins.jobs` plus the build / deploy pipelines **discovered** under the
+Jenkins projects folder (`JENKINS_ROOT_URL`; credentials `JENKINS_USER` / `JENKINS_API_TOKEN`). A deploy job that takes
+the branch as a build parameter counts too (the newest build for that branch is its latest deployment). Fetched by
 `jira-intern/jenkins.py` inside the daily fetch (fast path included) and the single-ticket refresh,
 stored as `Ticket.builds`, carried forward when Jenkins is unreachable — each carried build marked
 `stale: true`. Job URLs must be https (an http one is skipped).
 - **Card**: one flat chip per environment on one row — `QA ✓ #412` green, `✗` red for a failure, amber
   for unstable, a turning blue ring while building, grey for aborted / not built. The primary branch's
-  build stands for the environment; the tooltip has branch, age, duration, tests and the failed stage —
+  build stands for the environment. With several pipelines in one environment (a build and a deploy pipeline) the
+  chip is the failed one if any failed (amber for unstable), else the deploy result, else the newest build — the
+  tooltip says how many more sit behind it; the tooltip has pipeline, branch, age, duration, tests and the failed stage —
   and, for a stale build, "· stale" plus "Stale — Jenkins could not be re-read; this is the last build seen".
   `components/common/Builds.tsx::BuildChip`, picked by `lib/format.ts::cardBuilds`.
-- **Drawer → Proof → Builds**: per build a result pill, environment, `#number ↗` (opens Jenkins), repo,
+- **Drawer → Proof → Builds**: per build a result pill, environment, pipeline name, a Build / Deploy / Build + deploy pill, `#number ↗` (opens Jenkins), repo,
   age · duration, deploy target, branch, tests (passed / failed / skipped + up to 5 failing names) and the
   failed stage. Hidden when the ticket has no builds. `components/ticket/Proof.tsx` is the Proof section —
-  one group per outside source (Builds, Vulnerabilities).
+  one group per outside source (Builds, Vulnerabilities, Linked traces & problems).
+- **Console excerpt** — under the build row of a *failed or unstable* build, a collapsed **Console (last lines)** box
+  ("38 lines · scrubbed of secrets": a capped, scrollable, keyboard-reachable monospace region). The fetch keeps it only for
+  the latest failed build of a ticket that is **about** a failing build / pipeline / deployment (its title, type, labels,
+  description or acceptance criteria say so — comments do not count), the last ~40 lines (≤ 4 KB) with tokens, passwords,
+  credentials in URLs, e-mail addresses and IPs replaced (`•••`, `[email]`, `[ip]`); nothing is drawn for a build without
+  one. It also feeds the report's evidence chain and the brief's Evidence section. `jenkins.py::add_console_tails` →
+  `builds[].consoleTail`, `common/Builds.tsx::ConsoleTail`, `lib/format.ts::consoleTailLines`.
 - **PR readiness report**: the "CI green" gate and one evidence row per build come from these builds in
   the deterministic base report (Bitbucket's commit build status is the fallback) — see `docs/AI-PIPELINE.md`.
   A stale build never passes the gate: it is **Not verified** with the build's age (a fresh failure still fails it).
@@ -169,24 +180,77 @@ PR's source branch and of its base branch: **fixed** (in the base, gone from —
 branch), **open** (still on the branch), **not found** (in neither), **unknown** (branch not scanned yet, nothing
 to compare, no project). Fetched by `jira-intern/checkmarx.py` inside the daily fetch (fast path included) and
 the single-ticket refresh, stored as `Ticket.vulnFixes`, carried forward when Checkmarx cannot be read. Needs
-`CHECKMARX_API_KEY` + the tenant URL (key button → Checkmarx One); without them nothing is asked.
+`CHECKMARX_API_KEY` + the tenant URL (key button → Checkmarx One); without them nothing is asked — and the board
+says so instead of staying silent (see **Visible status** below).
 - **Card**: one flat shield chip, `2/3 fixed` — green when all are fixed, red when any is still open, amber when
   one is not found or not known yet; the tooltip lists every target with its status and the two scans compared.
   `components/common/VulnFixes.tsx::VulnChip`, numbers from `lib/format.ts::vulnSummary`.
 - **Drawer → Proof → Vulnerabilities · Checkmarx**: the two scans compared (branch and base, with dates), then
   per target a status pill, kind (CVE / SAST / Result / Package), the target as the ticket names it, severity,
-  `file:line` or package version, and the evidence line. `VulnRow`.
+  `file:line` or package version, and the evidence line. `VulnRow`. Under the comparison a line says **what
+  each scan returned** ("Read 412 results on the branch scan (SCA 380 · SAST 18); 398 on the base scan …"), a
+  package row lists the versions that carry a finding on each side, and a "Not found" detail repeats the
+  read counts — "already at 6.5.9 on develop: the upgrade predates the base scan" when the base already runs
+  the target version.
+- **Visible status** — every daily fetch says what Checkmarx did: a run note ("Checkmarx: 3 vulnerability-fix
+  tickets looked up (7 targets: 4 fixed · 2 open · 1 not found) — 2 with open findings", or "not configured —
+  missing CHECKMARX_API_KEY", "no vulnerability-fix ticket to look up — 2 skipped (…)", "carried forward — the API
+  key was rejected"); a vulnerability-fix ticket with no fresh answer shows the reason at the top of its
+  Vulnerabilities group ("Checkmarx not configured — add the URL and key in API keys"); and the key
+  window's Checkmarx panel has a **Last fetch** line (grey when not configured / nothing to do — never red or
+  orange for that — green after a read, orange for unreachable / budget, red for a rejected key).
+  `jira-intern/_sources.py`, `ticket.proofNotes`, `data.json → proofSources`, `lib/proofStatus.ts`.
 - **PR readiness report**: the "Security scan (Checkmarx) clean" gate — Pass when every named target is fixed,
   Fail when any is open, Not verified otherwise (with the reason) — and one "Checkmarx · <kind>" evidence row per
   target, in the deterministic base report (AI level None included). `pr_report.vuln_gate`, shared with the
   AI worker's "Proof · vulnerability fix" table.
+
+## Linked traces & problems (Dynatrace: drawer, brief evidence, report insight)
+
+QA and support tickets carry Dynatrace links — the trace of the failing request, the Davis problem, the service, the logs.
+For every ticket whose text (description, comments, links) has one, the daily fetch reads **what each link points at**,
+read-only, and keeps short facts: how many spans, the services in call order, the failed spans and where the failure
+**originates**, the error messages (grouped, counted), the slowest span, the Davis problem and its root cause, the share of
+failed root requests of a service, the most frequent error lines. Only tenants the user **listed** (`DYNATRACE_TENANTS`)
+are ever contacted. Fetched by `jira-intern/dynatrace.py` inside the daily fetch (fast path included) and the
+single-ticket refresh, stored as `Ticket.dynatrace`, carried forward — marked stale — when Dynatrace cannot be reached.
+Needs `DYNATRACE_PAT` + a tenant (key button → Dynatrace, group **Observability**); without them nothing is asked and
+the board says so. The mechanics, the exact queries and the limits are in [INTEGRATIONS.md](INTEGRATIONS.md#dynatrace-links-in-a-ticket-read-only-dql).
+- **Drawer → Proof → Linked traces & problems · Dynatrace** (a calm violet group; the note under the title counts the
+  results: "2 read · 1 nothing found · 1 tenant not listed · 4 failed spans"). One row per link, at most 5 (a line says
+  how many more the ticket has): a status pill — **Read** (blue), **Nothing found** (grey), **Unreachable** (orange),
+  **Token rejected** (red — the only red: you have to act), **Tenant not listed** (muted grey, dashed border — a fact, not
+  a fault, never fetched) — the kind (Trace / Problem / Logs / Service / Link), the tenant, the time window that was read
+  (in the configured zone), the plain-language findings, the reason when nothing was read, and **Open in Dynatrace ↗** (the
+  ticket's own link, new tab). A link carried forward from an earlier run says "Last read 3h ago; Dynatrace could not be
+  re-read". A ticket whose links could not be answered at all keeps the group with the reason on top ("Dynatrace not
+  configured — add DYNATRACE_PAT and DYNATRACE_TENANTS in API keys"). `common/Dynatrace.tsx::DynatraceRow`,
+  `ticket/Proof.tsx`, helpers `lib/format.ts::dynatraceOf` / `dynatraceSummary` / `dynatraceStatusMeta`.
+- **AI brief → Evidence from linked systems**: the brief ends with one separate section, a bullet per source that has
+  evidence (Dynatrace, Checkmarx, Jenkins) with its numbers and names, and a one-line *What this means*. Only the evidence's
+  facts appear in it; the brief is regenerated when the evidence changes, not when only a read time does. See **AI briefs**.
+- **PR readiness report → Issue insight**: a callout right after the Decision — 2–4 plain sentences on what the issue was
+  ("A timeout in payments caused 3 failed requests between 13:45 and 14:00 IST on 2026-02-26 …") for whoever will not
+  open Dynatrace, Checkmarx or Jenkins — plus evidence-chain rows for each Dynatrace link and the deciding lines of a
+  failed build's console, and the Dynatrace links under Sources. It is **templated from the stored facts**, so it is there
+  with the AI off; the AI pass may reword it but never add a fact. It is part of the PDF export too. `evidence.py`,
+  `pr_report.py`, [AI-PIPELINE.md](AI-PIPELINE.md).
+- **Visible status** — like Checkmarx: a run note ("Dynatrace: 3 tickets with Dynatrace links looked up (5 links: 4 read ·
+  1 empty) — 2 with failed requests or problems", "not configured — missing DYNATRACE_PAT, DYNATRACE_TENANTS", "carried
+  forward — the token was rejected"), the reason on a ticket without a fresh answer, and a **Last fetch** line on the key
+  window's Dynatrace panel (`data.json → proofSources.dynatrace`, `lib/proofStatus.ts::PROOF_SOURCES`).
+- **Terminal**: `python3 jira-intern/dynatrace.py inspect <link | TICKET-KEY> [--no-read]` prints what the board makes of a
+  link — tenant, ids, window, the exact queries, and what they return.
+- Demo mode shows every status across three tickets (`DEMO-210`, `DEMO-247`, `DEMO-213`; see `jira-intern/demo/README.md`).
 
 ## PR Readiness Reports
 
 Ship/no-ship verdict per ticket-with-PR. Deterministic base in seconds
 (`jira-intern/pr_report.py` → `reports/<KEY>.json`), optional AI enrichment on top. Rendered from
 a fixed block vocabulary (callout/stats/table/cards/list/timeline/links/kv) with per-block
-provenance (derived/ai). Bulk generation from the header menu; staleness by PR fingerprint.
+provenance (derived/ai). Bulk generation from the header menu; staleness by PR fingerprint. When Dynatrace links, a
+Checkmarx scan or a failed Jenkins build say something about the ticket, the Verdict tab also carries an **Issue insight**
+callout (see above).
 `src/components/reports/PrReport.tsx`, `header/ReportsMenu.tsx`, `hooks/useReports.ts`,
 `server/reports.mjs`. Details in `docs/AI-PIPELINE.md`.
 
@@ -207,6 +271,12 @@ Per-ticket summary at the top of the drawer (and in Raised row peeks). Written b
 intern's `summarize-active` pass; staleness = `aiSummaryAt` vs `lastUpdate`; ≤8 per pass;
 raised rows queue after active tickets. Render path heals JSON-wrapped model output
 (`unwrapBrief`). Toggle: Settings → AI briefs; level None disables generation entirely.
+A ticket with **evidence** (Dynatrace links read, a vulnerability-fix scan, a failed Jenkins build) gets a separate final
+section — **Evidence from linked systems**: one bullet per source (`Dynatrace:` / `Checkmarx:` / `Jenkins:`) with the
+specific numbers, names and messages, then *What this means: …*. The evidence reaches the model only as untrusted data, a
+section that adds a number or an id the evidence does not hold is replaced by the deterministic one, and the brief is
+rewritten when the evidence changes even though Jira's `updated` did not (`aiSummaryEvidence`). `evidence.py`,
+`ai-intern/brief.py`; [AI-PIPELINE.md](AI-PIPELINE.md).
 
 ## Header
 
@@ -222,8 +292,8 @@ raised rows queue after active tickets. Render path heals JSON-wrapped model out
 
 ## API keys
 
-The one place to add tokens and keys — no file to edit by hand. One list, clustered by kind of service (`groups` in `setup/api-keys.json`: Atlassian · Code hosting · CI/CD & security · AI models) and alphabetical inside each cluster; the dialog is a Settings-style split — a sidebar of the groups (set/total per group; each service shows a one-line `why`, ≤ 44 characters, and a **permanent health dot**, below) and a panel for the selected service with section cards: the full explanation (`details`) and **Test connection**, **Used by** / **Get it**, then one field per key. A service from
-`setup/api-keys.json` (Jira — required, Atlassian Cloud, Bitbucket, Confluence, Jenkins, Checkmarx One, Claude, Cursor, Gemini, OpenAI, GitHub): lit in the service's
+The one place to add tokens and keys — no file to edit by hand. One list, clustered by kind of service (`groups` in `setup/api-keys.json`: Atlassian · Code hosting · CI/CD & security · Observability · AI models) and alphabetical inside each cluster; the dialog is a Settings-style split — a sidebar of the groups (set/total per group; each service shows a one-line `why`, ≤ 44 characters, and a **permanent health dot**, below) and a panel for the selected service with section cards: the full explanation (`details`) and **Test connection**, **Used by** / **Get it**, then one field per key. A service from
+`setup/api-keys.json` (Jira — required, Atlassian Cloud, Bitbucket, Confluence, Jenkins, Checkmarx One, Dynatrace, Claude, Cursor, Gemini, OpenAI, GitHub): lit in the service's
 colour when its non-optional keys are set, greyed when not. Each key has a kind — `secret` (masked), `url`, `email` or
 `text` (shown in full) — and keys marked `planned` say **not used yet**: they can be saved before the integration that reads
 them lands. Each key is one compact row (label · box · Save), with its hint underneath only when it has one; the browser's own
@@ -237,6 +307,11 @@ once the service's non-URL keys are saved) checks the SAVED key and URL with one
 (`POST /api/keys/test`, `server/keycheck.mjs`) and shows the answer inline — green **✓ Connected · Signed in as … · 240 ms**,
 red **✗ Key rejected (401)** / **Access denied (403)** / **Not found (404)**, amber **Can't reach host** / **Certificate not trusted**,
 grey **Not configured: …** — plus a coloured dot on the collapsed row; saving one of the service's keys clears the stale answer.
+**Dynatrace** (group *Observability*: a Platform token and the *Tenants* text field, `prod=abc12345,uat=def67890` — the first
+part of your Dynatrace address; only those tenants are ever read) tests with the token alone when the tenants come from the
+config: one tiny read-only query per listed tenant, answered **✓ Connected · 2 tenants**, or the worst failure with each tenant
+named. The Checkmarx and Dynatrace panels also carry a fixed **Last fetch** line — what the latest fetch did with that source
+(from `data.json → proofSources`).
 **Health dots** — every service in the sidebar carries a dot that follows its latest REAL calls, made anywhere (the fetch, the AI worker, Test) without pressing Test again: green **working** · orange **needs attention** (wrong or unreachable URL, network, certificate, server error) · red **key rejected / access denied** · no dot = never called. A service turns orange or red the moment a real call fails and green again the moment one succeeds (a 404 on a single ticket or branch lookup is not a failure). The dot's space is always reserved, so rows never shift; hover for *Working · last OK 2h ago* or *Key rejected (401) since 09:14*. Only services whose keys are saved show a dot; a group header shows a count when something in it needs attention; the panel has a fixed-height *Live status* line under the Test result. The records come from `jira-intern/.health/` via `GET /api/keys/health` (polled every 20 s while the dialog is open, 60 s otherwise, paused while the tab is hidden, re-read right after a Test); a Test run here refines the dot at once. Demo mode shows a constant sample (a few green, one orange, one red), never your real health. A key that is saved but never used stays dot-less until something calls it.
 GitHub (planned) is testable once its token is saved. The empty-state screen of a new install
 (no `data.json` yet) has an **Add API keys first** button. Values are written to `setup/.env` by the server

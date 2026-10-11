@@ -109,20 +109,35 @@ A) ACTIVE + RECENT — `tickets[]` (rich objects). All issues where assignee = c
      [label|url] (those render as corrupted text). type, priority, status, story points,
      labels, components, fix versions, sprint, sprintOverflow (true when the issue has been in
      more than one distinct sprint — Jira's carry-over signal), sprintCount, reporter, assignee, created date, last update.
-   - builds — Jenkins builds (latest build of each of the ticket's branches per environment:
-     [{env, repo, branch, number, result, url, at, durationMs, tests?, failedStage?, deployTarget?, stale?}]; `stale: true`
-     marks a build carried forward because Jenkins could not be re-read). Only the
+   - builds — Jenkins builds (latest build of each of the ticket's branches per environment and pipeline:
+     [{env, repo, branch, number, result, url, at, durationMs, tests?, failedStage?, deployTarget?, stale?,
+     pipeline?, kind?: build|deploy|both, via?: branch-job|parameter, consoleTail?}]; `stale: true`
+     marks a build carried forward because Jenkins could not be re-read; `pipeline`/`kind`/`via` are present for
+     pipelines the fetch discovered, and one environment can have several rows; `consoleTail` is the scrubbed last
+     ~40 lines of the console of the latest failed build of a ticket about a build / pipeline failure). Only the
      scripted fetch (daily_fetch.py → jenkins.py) writes them — do NOT look them up here. If a ticket already has
      `builds`, PRESERVE the array unchanged; otherwise omit the field.
    - vulnFixes — Checkmarx One results for a VULNERABILITY-FIX ticket: which of the vulnerabilities the ticket
      names (CVE ids, SAST query names / CWE ids, Checkmarx result ids, package versions) are fixed on its PR
      branch, compared with the base branch's scan ({scannedAt, project, branch, baseBranch, branchScanAt,
-     baseScanAt, note?, items: [{target, kind: cve|sast|result|package, status: fixed|open|not-found|unknown,
-     severity?, location?, detail?}]}). Only the scripted fetch (daily_fetch.py → checkmarx.py) writes it — do
-     NOT look it up here. If a ticket already has `vulnFixes`, PRESERVE the object unchanged; otherwise omit it.
+     baseScanAt, note?, read?: {branch?, base?: {total, sca, sast, other, truncated, reported?}} (how many
+     results each scan returned), items: [{target, kind: cve|sast|result|package, status:
+     fixed|open|not-found|unknown, severity?, location?, detail?, foundOnBase?, foundOnBranch?}]}). Only the
+     scripted fetch (daily_fetch.py → checkmarx.py) writes it — do NOT look it up here. If a ticket already has
+     `vulnFixes`, PRESERVE the object unchanged; otherwise omit it.
+   - dynatrace — what Dynatrace says about the Dynatrace links (traces, problems, logs, services) in the ticket's text:
+     {fetchedAt, moreLinks?, items: [{url, kind: trace|problem|logs|service|other, host: classic|platform, tenant,
+     window?: {from, to}, status: read|empty|unreachable|auth-failed|unconfigured-tenant, findings: [short strings],
+     summary?, note?, fetchedAt?, stale?}]} (at most 5 items). Only the scripted fetch (daily_fetch.py → dynatrace.py,
+     read-only, only tenants the user listed) writes it — do NOT look links up here and NEVER open a Dynatrace URL.
+     If a ticket already has `dynatrace`, PRESERVE the object unchanged; otherwise omit it.
+   - proofNotes — why a vulnerability-fix ticket has no FRESH Checkmarx answer, or a ticket with Dynatrace links no fresh
+     Dynatrace answer: {checkmarx?, dynatrace?: {state: not-configured|unreachable|auth-failed|budget-exhausted, detail,
+     at}}. Written ONLY by daily_fetch.py; if a ticket already has `proofNotes`, PRESERVE it unchanged; otherwise omit it.
    - aiSummary — do NOT generate this here (the AI intern's summarize-active job owns it: deep
      source-enriched briefs for todo/prog tickets, quick summaries for the rest). If a ticket already
-     has `aiSummary` and/or `aiSummaryAt`, PRESERVE BOTH unchanged; otherwise just omit the fields.
+     has `aiSummary`, `aiSummaryAt` and/or `aiSummaryEvidence` (a fingerprint of the evidence the brief was written
+     from), PRESERVE ALL unchanged; otherwise just omit the fields.
    - acceptanceCriteria as a string array (split the AC section into items).
    - comments: include EVERY comment on the ticket (latest first) — not just the most recent few. Each:
      author, when (ISO), body (light HTML). Set commentCount to the TOTAL number of comments + latestComment (ISO).
@@ -192,6 +207,9 @@ B) COMPLETED ARCHIVE — NOT fetched in this daily run. *** PRESERVE IT, DON'T R
    The same preservation rule applies to `raised[]` (tickets I reported, for the board's "Raised by me" view):
    READ it from the current data.json and WRITE IT BACK UNCHANGED — the scripted fetch (daily_fetch.py) rebuilds
    it. If there is no existing data.json, write `"raised": []`.
+   `proofSources` (what each outside proof source — Checkmarx, Jenkins — did in the last daily fetch:
+   {"<source>": {state, detail, at, looked?, counts?, waiting?}}) follows the same rule: READ it from the current
+   data.json and WRITE IT BACK UNCHANGED; the scripted fetch writes it.
 
 INCREMENTAL BEHAVIOR (use .state.json memory)
 - New active assignment with no state entry -> full brief; updateLog "Assigned — initial brief".
@@ -263,16 +281,29 @@ data.json SCHEMA (match git/jira-board/src/types.ts EXACTLY — same keys, same 
           "result": "SUCCESS",                     // SUCCESS|FAILURE|UNSTABLE|ABORTED|NOT_BUILT|BUILDING
           "url": "https://jenkins.example.com/job/…/412/", "at": "<ISO>", "durationMs": 252000,
           "tests": { "total": 312, "failed": 0, "skipped": 4, "failing": [] },
-          "failedStage": null, "deployTarget": "qa" }
+          "failedStage": null, "deployTarget": "qa",
+          "pipeline": "deploy-service", "kind": "deploy", "via": "parameter",    // pipeline/kind/via: discovered pipelines only
+          "consoleTail": null }                                                  // OPTIONAL — scrubbed last ~40 console lines of a failed build; PRESERVE
       ],
+      "dynatrace": {                               // OPTIONAL — Dynatrace links in the ticket text, written ONLY by daily_fetch.py; PRESERVE unchanged
+        "fetchedAt": "<ISO>",
+        "items": [ { "url": "https://abc12345.live.dynatrace.com/#trace;traceId=…", "kind": "trace", "host": "classic", "tenant": "prod",
+                     "window": { "from": "<ISO>", "to": "<ISO>" }, "status": "read",
+                     "findings": ["5 spans across 3 services (frontend → gateway → payments)", "3 failed spans"],
+                     "fetchedAt": "<ISO>" } ]
+      },
       "vulnFixes": {                               // OPTIONAL — Checkmarx, vulnerability-fix tickets only, written ONLY by daily_fetch.py; PRESERVE unchanged
         "scannedAt": "<ISO>", "project": "my-service", "branch": "feature/PROJ-123_…", "baseBranch": "develop",
         "branchScanAt": "<ISO or null>", "baseScanAt": "<ISO or null>",
         "items": [ { "target": "CVE-2021-44228", "kind": "cve",          // cve|sast|result|package
                      "status": "fixed",                                   // fixed|open|not-found|unknown
                      "severity": "CRITICAL", "location": "log4j-core 2.14.1",
-                     "detail": "Fixed — gone on feature/PROJ-123_… (scan 2026-10-09) · was CRITICAL on develop (scan 2026-10-01)." } ]
-      }
+                     "detail": "Fixed — gone on feature/PROJ-123_… (scan 2026-10-09) · was CRITICAL on develop (scan 2026-10-01)." } ],
+        "read": { "branch": { "total": 412, "sca": 380, "sast": 18, "other": 14, "truncated": false, "reported": 412 },
+                  "base":   { "total": 398, "sca": 380, "sast": 18, "other": 0,  "truncated": false } }   // OPTIONAL — what each scan returned
+      },
+      "proofNotes": { "checkmarx": { "state": "not-configured", "detail": "Checkmarx not configured — add the URL and key in API keys", "at": "<ISO>" } },   // OPTIONAL (checkmarx? / dynatrace?) — written ONLY by daily_fetch.py; PRESERVE unchanged
+      "aiSummaryEvidence": "<16 hex>"             // OPTIONAL — written by the AI intern with aiSummary; PRESERVE unchanged
     }
   ],
   "completed": [                                // FULL HISTORY of Done tickets (lighter)

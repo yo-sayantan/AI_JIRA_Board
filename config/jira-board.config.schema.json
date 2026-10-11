@@ -45,11 +45,36 @@
     },
     "jenkins": {
       "type": "object",
-      "description": "Jenkins multibranch pipelines per repository and environment: jobs.<repo slug>.<env> = https job URL (an http URL is skipped). Builds are read with JENKINS_USER + JENKINS_API_TOKEN from setup/.env.",
+      "description": "Jenkins pipelines. jobs.<repo slug>.<env> = https multibranch job URL (explicit; an http URL is skipped). root = the folder that holds your projects — discovery walks it to find each repository's pipelines (JENKINS_ROOT_URL in setup/.env wins; keep the real value in your personal config or setup/.env, never in the tracked file). Builds are read with JENKINS_USER + JENKINS_API_TOKEN from setup/.env.",
       "properties": {
         "jobs": {
           "type": "object",
           "additionalProperties": { "type": "object", "additionalProperties": { "type": "string" } },
+          "default": {}
+        },
+        "root": { "type": "string", "default": "" },
+        "discovery": {
+          "type": "object",
+          "description": "How discovery maps a repository to its pipelines. Every key is optional; the defaults are in jira-intern/jenkins.py.",
+          "properties": {
+            "appFolderRegex": { "type": "string", "description": "Template for the application folder name, {slug} = the repository slug, e.g. \"^{slug}(-.*)?$\". Empty = the default rule (case and punctuation ignored, slug equals the name or a run of whole words of it)." },
+            "envPatterns": {
+              "type": "object",
+              "description": "environment label -> words (regex fragments, matched between non-alphanumerics, case-insensitive) found in a folder or pipeline name. A label given here replaces its default list; new labels are added.",
+              "additionalProperties": { "type": "array", "items": { "type": "string" } }
+            },
+            "kindPatterns": {
+              "type": "object",
+              "description": "build / deploy -> words in a pipeline name that mark it as a build or a deploy pipeline.",
+              "properties": { "build": { "type": "array", "items": { "type": "string" } }, "deploy": { "type": "array", "items": { "type": "string" } } },
+              "additionalProperties": false
+            },
+            "maxDepth": { "type": "integer", "minimum": 1, "maximum": 8, "default": 4 },
+            "cacheMinutes": { "type": "integer", "minimum": 0, "maximum": 10080, "default": 60 },
+            "buildScan": { "type": "integer", "minimum": 1, "maximum": 100, "default": 25, "description": "How many recent builds of a parameterised job are scanned for the branch." },
+            "maxCalls": { "type": "integer", "minimum": 5, "maximum": 500, "default": 150, "description": "Folder reads one discovery walk may spend." }
+          },
+          "additionalProperties": false,
           "default": {}
         }
       },

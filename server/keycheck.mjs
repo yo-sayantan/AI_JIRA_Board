@@ -10,7 +10,11 @@
 //   • 10 s timeout, response body capped, one test per service at a time
 //   • TLS always verified; JIRA_CA_BUNDLE (else ~/.ai/ca-bundle.pem) is ADDED to the system roots;
 //     JIRA_INSECURE_TLS=1 relaxes verification for the Jira / Confluence / Bitbucket hosts only;
-//     JENKINS_INSECURE_TLS=1 for Jenkins only (the same switches the fetch honours)
+//     JENKINS_INSECURE_TLS=1 for Jenkins only; DYNATRACE_INSECURE_TLS=1 for Dynatrace only
+//     (the same switches the fetch honours — one never relaxes another)
+//   • Dynatrace sends one probe per configured tenant, and only to https://<tenant id>.apps.dynatrace.com:
+//     the host is built from a validated id (lowercase letters, digits, -), never from a string the
+//     user typed whole or anything a response says; a poll URL is rebuilt from that id too
 //   • the result's detail is built from safe identity fields only (display name, login, a count),
 //     and any saved secret is scrubbed from it; logs carry the service and the status, nothing else
 // The HTTP layer is injected (`request`) so tests never touch the network.
@@ -21,7 +25,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { rootCertificates } from 'node:tls'
 
-export const KEY_TEST_SERVICES = ['jira', 'confluence', 'bitbucket', 'atlassian', 'jenkins', 'checkmarx', 'claude', 'cursor', 'gemini', 'openai', 'github']
+export const KEY_TEST_SERVICES = ['jira', 'confluence', 'bitbucket', 'atlassian', 'jenkins', 'checkmarx', 'dynatrace', 'claude', 'cursor', 'gemini', 'openai', 'github']
 
 const TIMEOUT_MS = 10_000
 const MAX_BYTES = 256 * 1024
@@ -31,6 +35,15 @@ const ON_PREM = new Set(['jira', 'confluence', 'bitbucket'])
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]'])
 /** Same client id jira-intern/checkmarx.py uses for the refresh-token exchange. */
 const CHECKMARX_CLIENT_ID = 'ast-app'
+/** A Dynatrace tenant id: the first label of <id>.apps.dynatrace.com — no dots, slashes, ports or userinfo. */
+const TENANT_ID_RE = /^[a-z0-9][a-z0-9-]{1,62}$/
+/** The label a user gives a tenant ("prod", "uat"): it is only ever shown, never put in a URL. */
+const TENANT_LABEL_RE = /^[a-z0-9][a-z0-9_.-]{0,31}$/
+const MAX_TENANTS = 8
+/** Dynatrace's query API answers 202 while a query runs; poll at most this many times. */
+const DYNATRACE_MAX_POLLS = 3
+const DYNATRACE_QUERY_MS = 8000
+const DYNATRACE_WINDOW_MS = 7 * 24 * 3600 * 1000
 
 /** setup/.env values with the environment on top: a non-blank environment variable wins. */
 export function mergeSettings(fileValues, env = process.env) {
@@ -195,7 +208,23 @@ const PLANS = {
   },
   jenkins: (s, cfg) => {
     if (!s.JENKINS_USER || !s.JENKINS_API_TOKEN) return { notConfigured: 'needs JENKINS_USER + JENKINS_API_TOKEN' }
-    // JENKINS_URL saved → "who am I" (no job links needed); else read the first configured job.
+    // Projects folder saved (JENKINS_ROOT_URL, else config jenkins.root) → read it and count the folders in it —
+    // the walk discovery does starts there. Else JENKINS_URL → "who am I"; else the first configured job.
+    const root = str(s.JENKINS_ROOT_URL) || str(cfg?.jenkins?.root)
+    if (root) {
+      const b = baseUrl(root)
+      if (b.error) return { notConfigured: `Projects folder ${b.error}` }
+      return {
+        host: b.host,
+        request: { method: 'GET', url: `${b.url}/api/json?tree=name,jobs[name,_class]`, headers: { Authorization: basic(s.JENKINS_USER, s.JENKINS_API_TOKEN), Accept: 'application/json' } },
+        onOk: (j) => {
+          const jobs = Array.isArray(j?.jobs) ? j.jobs : []
+          const folders = jobs.filter((x) => /folder/i.test(String(x?._class || ''))).length
+          if (folders) return `Root readable · ${folders} folder${folders === 1 ? '' : 's'}`
+          return jobs.length ? `Root readable · ${jobs.length} item${jobs.length === 1 ? '' : 's'}` : 'Root readable'
+        },
+      }
+    }
     if (s.JENKINS_URL) {
       const b = baseUrl(s.JENKINS_URL)
       if (b.error) return { notConfigured: `Jenkins URL ${b.error}` }
@@ -206,7 +235,7 @@ const PLANS = {
       }
     }
     const job = firstJenkinsJob(cfg)
-    if (!job) return { notConfigured: 'add the Jenkins URL above (or a job link in jenkins.jobs)' }
+    if (!job) return { notConfigured: 'add the projects folder or Jenkins URL above (or a job link in jenkins.jobs)' }
     const u = new URL(job)
     const url = `${job.endsWith('/') ? job : job + '/'}api/json?tree=name`
     return {
@@ -231,6 +260,13 @@ const PLANS = {
         return err === 'invalid_grant' || err === 'invalid_client' || err === 'unauthorized_client' ? { status: 'auth-failed', detail: 'Key rejected' } : null
       },
     }
+  },
+  // One read-only query per configured tenant; the verdicts are merged in run() (runDynatrace).
+  dynatrace: (s, cfg) => {
+    if (!s.DYNATRACE_PAT) return { notConfigured: 'needs DYNATRACE_PAT' }
+    const parsed = dynatraceTenants(s, cfg)
+    if (parsed.error) return { notConfigured: parsed.error }
+    return { probes: parsed.tenants.map(({ env, id }) => dynatraceProbe(env, id, s.DYNATRACE_PAT)) }
   },
   claude: (s) =>
     s.ANTHROPIC_API_KEY
@@ -278,6 +314,113 @@ const PLANS = {
         }
       : { notConfigured: 'needs GITHUB_TOKEN' },
 }
+
+/**
+ * The tenants to probe: DYNATRACE_TENANTS (setup/.env or the environment) — a JSON object
+ * {"prod":"abc12345"} or the shorthand "prod=abc12345,uat=def67890" — else the config's
+ * endpoints.dynatraceTenants ({env: id}, blank ids ignored). → { tenants: [{ env, id }] } or { error }.
+ * Every id must be a bare tenant id (see TENANT_ID_RE); one that is not is refused, naming its label.
+ */
+function dynatraceTenants(s, cfg) {
+  const hint = 'needs DYNATRACE_TENANTS (e.g. prod=abc12345) or endpoints.dynatraceTenants'
+  const raw = str(s.DYNATRACE_TENANTS)
+  let entries = []
+  if (raw) {
+    if (raw.startsWith('{')) {
+      let obj
+      try {
+        obj = JSON.parse(raw)
+      } catch {
+        return { error: 'DYNATRACE_TENANTS is not valid JSON — use prod=abc12345,uat=def67890' }
+      }
+      if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return { error: 'DYNATRACE_TENANTS must map environment names to tenant ids' }
+      entries = Object.entries(obj)
+    } else {
+      for (const part of raw.split(',')) {
+        if (!part.trim()) continue
+        const at = part.indexOf('=')
+        if (at < 1) return { error: 'DYNATRACE_TENANTS needs env=tenantid pairs, e.g. prod=abc12345,uat=def67890' }
+        entries.push([part.slice(0, at), part.slice(at + 1)])
+      }
+    }
+  } else {
+    const fromConfig = cfg?.endpoints?.dynatraceTenants
+    if (fromConfig && typeof fromConfig === 'object' && !Array.isArray(fromConfig)) entries = Object.entries(fromConfig)
+    // The tracked config ships empty placeholders ({"prod": "", ...}): blank means not set.
+    entries = entries.filter(([, id]) => str(id) !== '')
+  }
+  const tenants = new Map()
+  for (const [rawLabel, rawId] of entries) {
+    const env = String(rawLabel).trim().toLowerCase()
+    if (!TENANT_LABEL_RE.test(env)) return { error: `environment name #${tenants.size + 1} must be letters, digits, - _ . (e.g. prod)` }
+    const id = typeof rawId === 'string' ? rawId.trim().toLowerCase() : ''
+    if (!TENANT_ID_RE.test(id)) return { error: `tenant id for ${env} must be just the id from your Dynatrace address (letters, digits, -) — no dots or slashes` }
+    tenants.set(env, id)
+  }
+  if (!tenants.size) return { error: hint }
+  if (tenants.size > MAX_TENANTS) return { error: `at most ${MAX_TENANTS} Dynatrace tenants` }
+  return { tenants: [...tenants].map(([env, id]) => ({ env, id })) }
+}
+
+/** The two requests one tenant's probe may send. Every URL is built from the validated id and nothing else. */
+function dynatraceProbe(env, id, pat) {
+  const host = `${id}.apps.dynatrace.com`
+  const base = `https://${host}/platform/storage/query/v1`
+  const headers = { Authorization: `Bearer ${pat}`, Accept: 'application/json' }
+  return {
+    env,
+    host,
+    execute: (nowMs) => ({
+      method: 'POST',
+      url: `${base}/query:execute`,
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: 'fetch dt.davis.problems | limit 1',
+        defaultTimeframeStart: isoSeconds(nowMs - DYNATRACE_WINDOW_MS),
+        defaultTimeframeEnd: isoSeconds(nowMs),
+        maxResultRecords: 1,
+        requestTimeoutMilliseconds: DYNATRACE_QUERY_MS,
+      }),
+    }),
+    poll: (requestToken) => ({
+      method: 'GET',
+      url: `${base}/query:poll?request-token=${encodeURIComponent(requestToken)}&request-timeout-milliseconds=${DYNATRACE_QUERY_MS}`,
+      headers,
+    }),
+  }
+}
+
+const isoSeconds = (ms) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z')
+
+/**
+ * One Dynatrace response → { running, token } while the query runs, { ok: true } when it finished, else
+ * { status, httpStatus?, detail } for a failure. Detail is fixed text — nothing the server said is echoed.
+ */
+function dynatraceVerdict(res) {
+  const code = Number(res.status)
+  if (code >= 300 && code < 400) {
+    const host = redirectHost(res.headers)
+    return { status: 'error', httpStatus: code, detail: host ? `redirected to ${host}` : 'redirected — not followed' }
+  }
+  if (code >= 200 && code < 300) {
+    const json = parseJson(res)
+    const state = str(json?.state).toUpperCase()
+    if (state === 'FAILED' || state === 'CANCELLED' || state === 'RESULT_GONE') return { status: 'error', detail: 'query failed' }
+    if (code === 202 || state === 'RUNNING' || state === 'NOT_STARTED') {
+      const token = str(json?.requestToken)
+      return { running: true, token: token.length <= 4096 ? token : '' }
+    }
+    return { ok: true }
+  }
+  if (code === 401) return { status: 'auth-failed', httpStatus: 401, detail: 'token rejected' }
+  if (code === 403) return { status: 'forbidden', httpStatus: 403, detail: 'token accepted but lacks a scope (storage:events:read)' }
+  if (code === 404) return { status: 'not-found', httpStatus: 404, detail: 'not found — check the tenant id' }
+  if (code === 429) return { status: 'error', httpStatus: 429, detail: 'rate limited — try again in a minute' }
+  return { status: 'error', httpStatus: code, detail: `unexpected HTTP ${code}` }
+}
+
+/** Which failure to report when tenants disagree: a rejected key first, then the network, then the rest. */
+const WORST_FIRST = ['auth-failed', 'forbidden', 'tls', 'unreachable', 'not-found', 'error']
 
 function onPrem(s, cfg, { token, tokenLabel, urlKey, endpoint, path, ok }) {
   if (!s[token]) return { notConfigured: `needs ${tokenLabel || token}` }
@@ -366,12 +509,15 @@ async function defaultReadCa(path) {
  * `recordHealth(service, { ok, status, httpStatus, detail })` (optional) is told how each finished test
  * went — except 'not-configured', which made no call — so the dialog's dots follow Test as well as real calls.
  */
-export function createKeyChecker({ loadSettings, config, request = httpRequest, log = console.log, readCa = defaultReadCa, timeoutMs = TIMEOUT_MS, maxBytes = MAX_BYTES, recordHealth }) {
+export function createKeyChecker({ loadSettings, config, request = httpRequest, log = console.log, readCa = defaultReadCa, timeoutMs = TIMEOUT_MS, maxBytes = MAX_BYTES, recordHealth, now = Date.now }) {
   const inFlight = new Set()
 
   async function tlsFor(service, s) {
-    // Same opt-outs as the fetch: JIRA_INSECURE_TLS for the on-prem trio, JENKINS_INSECURE_TLS for Jenkins only.
-    const insecure = (ON_PREM.has(service) && s.JIRA_INSECURE_TLS === '1') || (service === 'jenkins' && s.JENKINS_INSECURE_TLS === '1')
+    // Same opt-outs as the fetch: JIRA_INSECURE_TLS for the on-prem trio, and one of its own for Jenkins and for Dynatrace.
+    const insecure =
+      (ON_PREM.has(service) && s.JIRA_INSECURE_TLS === '1') ||
+      (service === 'jenkins' && s.JENKINS_INSECURE_TLS === '1') ||
+      (service === 'dynatrace' && s.DYNATRACE_INSECURE_TLS === '1')
     const tls = { rejectUnauthorized: !insecure }
     const explicit = str(s.JIRA_CA_BUNDLE)
     const pem = await readCa(explicit || DEFAULT_CA_BUNDLE).catch(() => null)
@@ -394,6 +540,46 @@ export function createKeyChecker({ loadSettings, config, request = httpRequest, 
     }
   }
 
+  /** One tenant: execute, then poll while Dynatrace says RUNNING. → { env, ok, running?, status?, httpStatus?, detail? }. */
+  async function probeTenant(probe, tls, startedMs) {
+    const send = async (req) => {
+      try {
+        return { res: await request({ ...req, timeoutMs, maxBytes, tls }) }
+      } catch (e) {
+        return { failure: classifyError(e, probe.host) }
+      }
+    }
+    let sent = await send(probe.execute(startedMs))
+    for (let polls = 0; ; polls++) {
+      if (sent.failure) return { env: probe.env, ...sent.failure }
+      const verdict = dynatraceVerdict(sent.res)
+      if (verdict.ok) return { env: probe.env, ok: true }
+      if (!verdict.running) return { env: probe.env, ...verdict }
+      // Still running: ask again, up to DYNATRACE_MAX_POLLS times. Without a token there is nothing to poll with.
+      if (!verdict.token || polls >= DYNATRACE_MAX_POLLS) return { env: probe.env, ok: true, running: true }
+      sent = await send(probe.poll(verdict.token))
+    }
+  }
+
+  /** Every tenant at once → one result: all fine, or the worst failure with each failing tenant named. */
+  async function runDynatrace(plan, tls) {
+    const startedMs = Number(now())
+    const results = await Promise.all(plan.probes.map((probe) => probeTenant(probe, tls, startedMs)))
+    const failed = results.filter((r) => !r.ok)
+    if (!failed.length) {
+      const n = results.length
+      const note = results.some((r) => r.running) ? ' · token accepted — query still running' : ''
+      return { status: 'ok', httpStatus: 200, detail: `${n} tenant${n === 1 ? '' : 's'}${note}` }
+    }
+    const rank = (r) => {
+      const i = WORST_FIRST.indexOf(r.status)
+      return i < 0 ? WORST_FIRST.length : i
+    }
+    const worst = failed.reduce((a, b) => (rank(b) < rank(a) ? b : a))
+    const detail = results.map((r) => `${r.env}: ${r.ok ? (r.running ? 'OK, query still running' : 'OK') : r.detail}`).join(' · ')
+    return { status: worst.status, ...(worst.httpStatus ? { httpStatus: worst.httpStatus } : {}), detail }
+  }
+
   async function run(service) {
     const s = await loadSettings()
     const started = Date.now()
@@ -406,6 +592,7 @@ export function createKeyChecker({ loadSettings, config, request = httpRequest, 
     if (plan.notConfigured) return done({ status: 'not-configured', detail: plan.notConfigured })
     const tls = await tlsFor(service, s)
     if (tls.error) return done({ status: 'tls', detail: tls.error })
+    if (plan.probes) return done(await runDynatrace(plan, tls))
     let res
     try {
       res = await request({ ...plan.request, timeoutMs, maxBytes, tls })

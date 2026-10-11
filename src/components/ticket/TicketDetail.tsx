@@ -408,7 +408,7 @@ export function TicketDetail({
             </Section>
           )}
 
-          {/* 6b. Proof — measured outside Jira: Checkmarx vulnerability fixes, latest Jenkins build per environment (more sources join in Proof.tsx) */}
+          {/* 6b. Proof — measured outside Jira: Checkmarx vulnerability fixes, latest Jenkins build per environment, what Dynatrace says about the ticket's links (more sources join in Proof.tsx) */}
           {proofCount(ticket) > 0 && (
             <Section title="Proof" icon={<FlaskIcon color={accent} size={14} />} accent={accent} count={proofCount(ticket)}>
               <ProofPanel ticket={ticket} now={now} timeZone={APP_CONFIG.timeZone} />

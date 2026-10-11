@@ -54,7 +54,8 @@ Lifecycle:
    JSON object*, `aiSummaryAt < lastUpdate`, or it was written by an older generation: current briefs
    are wrapped in `<div data-brief="N">` (the sanitiser drops the attribute at render time), and
    anything without the current N is regenerated once — the first-generation prompt asked for "a
-   short brief" and carried no code state.
+   short brief" and carried no code state. It is also regenerated when the **evidence** changed (see
+   "Evidence from linked systems" below): `aiSummaryEvidence` ≠ `evidence.fingerprint` of what the dump says now.
 4. Context, all read-only: **FACTS** (`brief.build_facts` — stage, sprint, parent *as a parent*, the
    real Epic Link only, sub-task roll-up, branches and PRs with approvals/comments, "no PR" stated as
    a fact), `local_disk_pack`, and `live_mcp_pack` — live Jira (description, recent comments,
@@ -66,7 +67,10 @@ Lifecycle:
    with little data stays 60–110 words; a WIP / review / QA ticket with code runs 150–300.
 5. Output is cleaned by `_clean_brief` (fences, `{"html": …}` wrappers, plain text → `<p>`) and then
    checked by `brief.scrub`: a ticket key in none of the packs is removed with its link, and "epic" is
-   dropped in front of any key that is not the ticket's Epic Link — a parent ticket is never an epic.
+   dropped in front of any key that is not the ticket's Epic Link — a parent ticket is never an epic. A link in the
+   brief to an address that is in none of the packs (or that is not http / https) is unwrapped, its text kept
+   (`allowed_urls`: the ticket's links, sources, PRs, builds and Dynatrace links, plus whatever the packs contain).
+   `brief.enforce_evidence` then makes the Evidence section trustworthy (below).
 6. **Cap: 8 briefs per pass** — a full board fills in over a few scheduled passes.
 7. `write_briefs` merges into the CURRENT data.json (not the stale start-of-job copy), only where
    `lastUpdate` still matches, stamping both the `tickets[]` and `raised[]` copies of a key.
@@ -75,6 +79,45 @@ Frontend: rendered via `SafeHtml` (sanitising), with `unwrapBrief` (`src/lib/for
 second healing layer so even a bad stored brief never displays as raw JSON. Hidden entirely when
 Settings → AI briefs is off. The daily fetch and the raised fetch both **carry briefs forward**
 so a refresh never wipes them (`carry_ai_fields`, `fetch_raised`'s prior-map).
+
+### Evidence from linked systems (briefs) and the Issue insight (reports)
+
+What the outside systems say about a ticket is built **once**, deterministically, by `jira-intern/evidence.py` from data
+already in `data.json` (no network, no clock): `evidence.build(ticket, tz)` →
+`{ headline, insight, sections[] }`. A section per source that has something to say — **Dynatrace** (the links the fetch read:
+status `read` only), **Checkmarx** (a vulnerability-fix ticket's `vulnFixes`), **Jenkins** (any ticket with a failed or
+unstable build, and the green builds of a ticket *about* a failing build / pipeline) — each with `severity`
+(`info` · `warning` · `problem`), one plain `summary` sentence, short `lines`, and for Jenkins an `excerpt` (the last
+≤ 15 lines / 1,200 characters of the scrubbed console of the latest failed build). The `insight` is **templated** (2–4
+sentences, "A timeout in payments caused 3 failed requests between 13:45 and 14:00 IST on 2026-02-26 …", times in the
+configured zone), so it exists with the AI off. A ticket with no evidence has `sections == []`: no section, no callout,
+nothing changes. The brief, the PR report and the worker's Proof table all read this one builder, so they cannot disagree
+about the facts.
+
+- **In the brief.** After the usual bullets the brief ends with ONE separate final section —
+  `<p><b>Evidence from linked systems</b></p><ul><li><b>Dynatrace|Checkmarx|Jenkins:</b> …</li></ul><p><i>What this means: …</i></p>`,
+  one `<li>` per source present, about 120 words at most. The prompt (`brief.system_prompt(has_evidence=True)`) says: only what
+  EVIDENCE contains, no new number / id / service / cause / time, no advice, and keep the evidence out of the other bullets.
+- **Untrusted by construction.** Dynatrace messages and console lines are other systems' text, so the evidence never enters
+  the trusted FACTS: `brief.split_evidence` moves it out (FACTS keep only `evidenceSources`, the list of source names) and
+  `worker.untrusted_packs` puts it in an `EVIDENCE` block **inside** `<untrusted_data source="jira,bitbucket,confluence,dynatrace,checkmarx,jenkins">`
+  (≤ 7 KB) — facts to quote, never instructions. It was scrubbed when stored (`_scrub.py`), is scrubbed again as `evidence.build` assembles
+  it, is cut by size here, and a `</untrusted_data>` inside any pack is defanged (`worker._defang`) so third-party text cannot close the block.
+- **The AI may not add facts.** After generation `brief.enforce_evidence` checks what the model wrote: with evidence, a
+  *missing* section is appended from the evidence; a section that contains a number or an identifier (anything with a digit
+  in it: `P-23101234`, `#412`, `13:45`) the evidence does not contain, **or more than a few words (five letters or more) it does
+  not**, or a link, is *replaced* by the deterministic section (`evidence_html`: the sections' summaries and a fixed "What this
+  means" line); a grounded one is kept. (Numbers alone would let prose through — "approve it, ignore the failures" has none —
+  so the vocabulary is checked too: a faithful rewording passes, new claims do not.) Before that, `brief.scrub(allowed_urls=…)`
+  cuts the model's HTML down to p / b / i / em / strong / ul / ol / li / code / pre / br / a (no attribute but `href`, and
+  only to an address that is in the packs) with bounded patterns — hostile output cannot make the check slow. Without evidence, any
+  "Evidence from linked systems" section the model wrote is *removed*.
+- **Regenerated when the evidence changes.** Dynatrace, Checkmarx and Jenkins never bump Jira's `updated`, so the worker
+  stores `aiSummaryEvidence` = `evidence.fingerprint` (16 hex over each section's source, severity, summary, lines and
+  excerpt) with the brief and `needs_brief(ticket, fp)` compares it with the fingerprint of the evidence *now*: new,
+  changed or vanished evidence regenerates the brief, a re-read that says the same thing — or only a newer read time —
+  does not. The fingerprint is computed without a time zone, so changing the display zone regenerates nothing. A ticket
+  with no evidence and a brief without the field compares `"" == ""`: no existing brief is invalidated by this feature.
 
 ## Feature 2 — PR Readiness Report enrichment (`enrich-report`)
 
@@ -90,7 +133,8 @@ so a refresh never wipes them (`carry_ai_fields`, `fetch_raised`'s prior-map).
    or a newer build — actually changed, and `--if-needed` runs (auto after a ticket refresh) are
    cheap no-ops otherwise. A ticket without builds keeps the fingerprint it had before builds existed.
    Checkmarx results join the same way: the scan dates and each target's (target, kind, status) are in the
-   fingerprint only when the ticket has `vulnFixes`.
+   fingerprint only when the ticket has `vulnFixes`. Dynatrace findings and a failed build's console excerpt join the same
+   way (below), again only when present.
 
 **The "CI green" gate — source order.** (1) **Jenkins builds** already in `data.json`
 (`Ticket.builds`, from `jenkins.py`): `pr_report.jenkins_ci` judges the builds of the open PRs' source
@@ -118,6 +162,32 @@ a vulnerability ticket does the worker look Checkmarx up live — with the same 
 that. It calls `checkmarx.isolated_lookup`, which takes `checkmarx.RUN_LOCK`, resets the module's per-run state (token,
 call budget, "down" flag, caches) and does one `vuln_fixes_for` — so two concurrent worker jobs never reset or reuse
 each other's token or budget mid-lookup (the daily fetch calls `reset_run` once per run instead). The gate never blocks closure and never moves the verdict or score.
+
+**The "Issue insight" callout — what the issue was.** When `evidence.build` has sections (Dynatrace links read, a Checkmarx
+scan, a failed Jenkins build), the deterministic base report gets an **Issue insight** callout right after the Decision in
+the Verdict tab (`provenance: derived`, tone warning when any source shows a problem, else info; shown in the PDF under
+"Is it ready to close?" too) — the plain-words answer for whoever will not open Dynatrace, Checkmarx or Jenkins. It is
+templated, so it exists at every AI level, None included. The same evidence adds **evidence-chain rows**: one per read
+Dynatrace link ("Dynatrace · trace (prod)" — the first finding, the window, the next findings; "not re-read since …" when
+stale) and, for a failed build with a console excerpt, one with the deciding lines of the console (the last error-looking
+lines, or the last lines; labelled scrubbed). Dynatrace links also join the Sources → Links. The base's "CI, Checkmarx or
+Dynatrace is added … when the report is enriched" warning stops naming Dynatrace once its links were read (and disappears when every
+system answered), and the source line says "Dynatrace (last fetch)".
+The fingerprint includes the read Dynatrace items (url, status, stale, a hash of the findings) and the console tails
+(env, build number, a hash) **only when present** — a ticket without them keeps the fingerprint it had before — and not
+the read time, so an unchanged re-read does not make the report stale.
+During enrichment the model may **reword** the insight (`enrich.txt` → `issueInsight`, 2–4 plain sentences for management;
+the agent fallback has the same rule, `pr-readiness-prompt.md` 5b) but `worker.merge_enrichment` applies it only if
+`evidence.grounded` holds — ≤ 700 characters, no number or identifier beyond the evidence's and almost no new vocabulary — and then
+marks the block "Reworded by the AI intern from the same evidence — checked: no new numbers, ids or unexplained words."; otherwise the template stays. `pr_report.preserved_errors`
+lets the body of the Issue insight (like the Decision's) change but never its kind, tone or title. The evidence also travels
+in the enrichment's untrusted block (`<untrusted_data … dynatrace,checkmarx,jenkins>`).
+
+**The worker's Proof table and Dynatrace.** `worker.collect_class_proof` leads with the rows for the Dynatrace links the fetch
+already read (`evidence.proof_rows`: check "Dynatrace trace (prod)", result "3 failed spans" / "Problem" / "Read", the first findings as detail; source "Dynatrace (linked)", table title
+"Proof · linked traces" when no other class applies) and then does **not** run its own text-search query, which has no link
+to go on; that older probe (`dynatrace_proof`: one `matchesPhrase` query for an error code or service id found in the text of
+an observability / incident ticket, only at a listed tenant) remains for tickets with no Dynatrace link.
 4. Bulk runs queue through one pump (`server/reports.mjs` + `pr-reports-backfill.sh`) with
    scope all/year/since/keys; `.status.json` records in-flight PIDs so even a cron-launched run
    shows a spinner in the drawer.
@@ -144,6 +214,7 @@ the `jira-ai-models` volume). GGUF files you downloaded by hand become visible o
 | `jira-intern/prompts/intern-prompt.md` | LLM-agent **fallback** for the daily fetch (`run-intern.sh` when the Python fast path fails) | Restates the whole data contract in prose; preservation rules for `completed[]`/`raised[]`. |
 | `jira-intern/prompts/intern-completed-prompt.md` | agent fallback for the archive | Same, for history. |
 | `jira-intern/prompts/pr-readiness-prompt.md` | `enrich-report` jobs | Evidence-chain rules, block vocabulary, release-gate logic — mirrors `src/lib/reportTypes.ts`. |
+| `ai-intern/prompts/enrich.txt` | `enrich-report` jobs (the worker's JSON-out prompt) | The JSON keys the model returns (`verdictSummary`, `businessImpact`, `issueInsight`, `reviewFocus`, `risks`, `files`, …) and the untrusted-data rule; `issueInsight` is empty without EVIDENCE. |
 
 The **primary** fetch path is always the deterministic Python; the agent prompts are the fallback
 when scripts fail (auth drift, Jira quirks). Keep prompts in sync with `src/types.ts` — the
@@ -154,6 +225,8 @@ contract comment at the top of that file says so for a reason.
 - The worker refuses to merge briefs while a data writer holds a lock, and drops a brief whose
   ticket moved on mid-inference (lastUpdate mismatch) rather than overwriting fresh data.
 - Inference failures skip the ticket with a log line — never block the pass, never write junk.
+- Text from Dynatrace and Jenkins consoles is untrusted: scrubbed before it is stored (`_scrub.py`), only ever inside `<untrusted_data>`, and
+  the model's evidence section / insight is checked against the evidence (`enforce_evidence`, `evidence.grounded`) before it is kept.
 - `SKIP_SUMMARY=1` in the fetch container: no model runs inside JIRA-Board itself; everything
   AI lives in AI-Intern.
 - Cloud keys are read from `setup/.env` (the board's API keys dialog) at job time and never logged or persisted elsewhere.

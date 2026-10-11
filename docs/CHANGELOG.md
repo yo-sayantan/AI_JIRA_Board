@@ -5,6 +5,30 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Proof: Dynatrace evidence, the Evidence section of the AI brief, the report's Issue insight, a Jenkins console excerpt.**
+  QA and support tickets carry Dynatrace links; `jira-intern/dynatrace.py` now reads **only what those links point at**
+  (classic `#trace;…`, `#problems/problemdetails;pid=`, `#serviceOverview;id=SERVICE-…`, `#logs;…` and platform
+  `…apps.dynatrace.com/ui/apps/…` links; a Managed host is not a Dynatrace link) through the platform query API, with
+  read-only DQL bounded by the link's own time window (padded 5 minutes, at most 2 hours), result and scan caps, 200 calls
+  per run, 15 minutes of wall-clock and a 24 h / 1 h / 6 h cache. **Only tenants listed in `DYNATRACE_TENANTS`** (else `endpoints.dynatraceTenants`, which the
+  fetch now reads too) are ever contacted; ids are regex-validated before they reach a query; the token (`DYNATRACE_PAT`, a
+  platform token with `storage:spans|events|logs|buckets:read`) lives only in the `Authorization` header; TLS is verified
+  (`DYNATRACE_INSECURE_TLS` is its own opt-out). Stored as `Ticket.dynatrace` (≤ 5 links, short scrubbed findings, a failed
+  lookup carries the previous answer forward as `stale`) by `daily_fetch.apply_dynatrace`; shown in the drawer's **Proof →
+  Linked traces & problems** group, with `proofNotes.dynatrace`, `proofSources.dynatrace` (the key window's *Last fetch*) and
+  `python3 jira-intern/dynatrace.py inspect <link | KEY> [--no-read]` to see what a link maps to. `_sources.finish` takes
+  its own status vocabulary (`statuses`, `unit`, `flag`).
+  New **Observability** group and **Dynatrace** service in the API keys dialog (`DYNATRACE_PAT`, `DYNATRACE_TENANTS`; Test sends
+  `fetch dt.davis.problems | limit 1` to each listed tenant).
+  `jira-intern/evidence.py` builds, once and without network, what Dynatrace / Checkmarx / Jenkins say about a ticket; the
+  AI brief ends with a separate **Evidence from linked systems** section (the evidence goes in the untrusted block,
+  `brief.enforce_evidence` adds, replaces or removes the section so only the evidence's facts appear, and the brief is
+  regenerated when its `aiSummaryEvidence` fingerprint changes), and the PR readiness report gets an **Issue insight**
+  callout, evidence-chain rows and Sources links (templated, so present at AI level None; the AI may reword it only if
+  `evidence.grounded`). `jira-intern/_scrub.py` cleans every Dynatrace message and console line first. For the latest failed
+  build of a ticket about a failing build / pipeline, `jenkins.add_console_tails` keeps the scrubbed last ~40 lines (≤ 4 KB)
+  of its console as `builds[].consoleTail`, shown in a collapsed **Console (last lines)** box. Docs: INTEGRATIONS.md
+  (Dynatrace, Jenkins console), SECURITY.md, AI-PIPELINE.md, DATA-FLOW.md, SETUP.md, the help page 11.
 - **Proof: Jenkins builds on every card.** `jira-intern/jenkins.py` reads the latest build of each of a ticket's own
   branches per environment from the multibranch jobs in `jenkins.jobs.<repo>.<env>` (new, empty by default) with
   `JENKINS_USER` / `JENKINS_API_TOKEN`: result, number, tests, up to five failing test names, failed stage, deploy target.

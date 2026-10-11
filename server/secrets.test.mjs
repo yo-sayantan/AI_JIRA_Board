@@ -99,6 +99,18 @@ describe('validateValue', () => {
     expect(validateValue(text, 'build-bot')).toEqual({ value: 'build-bot' })
     expect(validateValue(text, 'build bot').error).toBeTruthy()
   })
+  it('a text field refuses quotes, backticks and shell substitutions anywhere in the value', () => {
+    for (const bad of ['a"b', "a'b", 'a`b`', 'a$(id)', 'a${HOME}', 'prod=abc12345,uat="x"', '{"prod":"abc12345"}'])
+      expect(validateValue(text, bad).error, bad).toBeTruthy()
+  })
+  it('the Dynatrace tenants field takes env=id pairs on one line', () => {
+    const tenants = registryKeys(registry).find((k) => k.env === 'DYNATRACE_TENANTS')
+    expect(tenants).toMatchObject({ kind: 'text' })
+    expect(validateValue(tenants, 'prod=abc12345,uat=def67890')).toEqual({ value: 'prod=abc12345,uat=def67890' })
+    expect(validateValue(tenants, ' prod=abc12345 ')).toEqual({ value: 'prod=abc12345' })
+    for (const bad of ['prod=abc12345\nOTHER=evil', 'prod=abc12345$(id)', 'prod="abc12345"', "prod='abc12345'", 'prod=abc12345, uat=def67890'])
+      expect(validateValue(tenants, bad).error, JSON.stringify(bad)).toBeTruthy()
+  })
   it('an empty value means remove', () => {
     expect(validateValue(secret, '   ')).toEqual({ value: '' })
   })

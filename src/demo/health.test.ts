@@ -11,4 +11,10 @@ describe('demoKeyHealth', () => {
     expect(tones.filter((t) => t === 'key')).toHaveLength(1)
     expect(demoKeyHealth(Date.now() + 1e9)).toBe(h)
   })
+
+  it('has Dynatrace green, so its dot shows a service the fetch reads fine', () => {
+    const h = demoKeyHealth(Date.parse('2026-01-01T12:00:00Z'))
+    expect(healthTone(h.dynatrace)).toBe('ok')
+    expect(h.dynatrace).toMatchObject({ service: 'dynatrace', state: 'ok', source: 'fetch' })
+  })
 })

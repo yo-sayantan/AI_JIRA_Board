@@ -43,7 +43,9 @@ React 19 · Vite 6 · Tailwind v4 · Motion · a Python fetch pipeline · one se
   deterministic base from the fetch, AI-enriched via your Cursor MCP skills. One button in the ticket drawer.
 - **Proof** — optional outside evidence per ticket: the latest Jenkins build per environment (chips on the
   card) and, for vulnerability-fix tickets, which named CVEs / Checkmarx findings are fixed on the branch
-  (shield chip). Both appear in the drawer's Proof section and gate the PR report.
+  (shield chip). Both appear in the drawer's Proof section and gate the PR report. The **Dynatrace links** in a ticket
+  (a trace, a Davis problem, a service, logs) are read too — only at tenants you list — and show as *Linked traces &
+  problems*; with the failing builds and scans they feed the AI brief's **Evidence** section and the report's **Issue insight**.
 - **API keys dialog** — the key button in the header: one row per service, keys saved to `setup/.env`.
 - **Completed** — the full historical archive of every Done ticket, with inline peek + detail.
 - **Ticket detail** — a slide-in drawer: status pipeline, PR card, description, an interactive
@@ -78,7 +80,7 @@ AI-JIRA-Board/
 ├── help/                    ← 🆘 the help guide — plain HTML, opens straight from disk (no server)
 │   ├── 00-start-here.html   ←   start page: what this is, the journey, every page
 │   ├── 01-requirements.html … 10-developer-documentation.html  ← numbered in the order you need them
-│   ├── 11-api-keys-and-integrations.html   ← the key dialog, Jenkins, Checkmarx One, what shows where
+│   ├── 11-api-keys-and-integrations.html   ← the key dialog, Jenkins, Checkmarx One, Dynatrace, what shows where
 │   ├── developer-doc-viewer.html            ← reads any docs/*.md, offline too
 │   ├── legal-privacy-and-accessibility.html ← privacy, data, cookies, terms, accessibility, contact
 │   └── help.css · help.js · help-data.js    ← the one stylesheet, the one script, the bundled data (generated)
@@ -87,7 +89,7 @@ AI-JIRA-Board/
 │   ├── FEATURES.md          ←   every feature + where its code lives
 │   ├── DATA-FLOW.md         ←   every file, writer, lock and lifecycle
 │   ├── AI-PIPELINE.md       ←   briefs, report enrichment, models, queues
-│   ├── INTEGRATIONS.md      ←   Jira/Bitbucket/Jenkins/Checkmarx, the HTTP API, config chain
+│   ├── INTEGRATIONS.md      ←   Jira/Bitbucket/Jenkins/Checkmarx/Dynatrace, the HTTP API, config chain
 │   ├── RUNTIME.md           ←   containers, agents, queues, schedulers, runbook
 │   ├── ARCHITECTURE.md      ←   how the fetch, data file, and app fit together
 │   ├── DEPLOYMENT.md        ←   deploy & run: Docker / static file / live server

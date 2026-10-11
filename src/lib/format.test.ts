@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { cardBranches, dtf, isAssignedToMe, primaryPrOf, releaseEnvOf, compareFutureSprints, parseSprint, sprintWhen, buildMeta, buildsOf, cardBuilds, fmtDuration, envLabel, buildTestsText, buildTooltip, vulnFixesOf, vulnStatusMeta, vulnKindLabel, vulnSummary, vulnTooltip, vulnScanLine } from './format'
-import type { JenkinsBuild, VulnFixes, VulnFixItem } from '../types'
+import { cardBranches, dtf, isAssignedToMe, primaryPrOf, releaseEnvOf, compareFutureSprints, parseSprint, sprintWhen, buildMeta, buildsOf, cardBuilds, fmtDuration, envLabel, buildTestsText, buildTooltip, pipelineKindMeta, envBuildCount, vulnFixesOf, vulnStatusMeta, vulnKindLabel, vulnSummary, vulnTooltip, vulnScanLine, consoleTailLines, unwrapBrief, dynatraceOf, dynatraceKindLabel, dynatraceStatusMeta, dynatraceWindowLabel, dynatraceSummary, dynatraceFailedSpans, dynatraceStaleLine, DYNATRACE_MAX_ITEMS } from './format'
+import type { DynatraceEvidence, DynatraceItem, JenkinsBuild, VulnFixes, VulnFixItem } from '../types'
 
 describe('dtf', () => {
   it('does not throw for an invalid zone and still formats', () => {
@@ -161,6 +161,57 @@ describe('Jenkins builds', () => {
     expect(cardBuilds({ branch: 'zzz', builds: [older, newer] }).map((x) => x.number)).toEqual([5])
   })
 
+  it('shows ONE chip per environment when a build and a deploy pipeline both ran: the deploy result stands for it', () => {
+    const build = b('dev', 10, 'SUCCESS', { pipeline: 'app-build', kind: 'build', at: '2026-10-11T09:00:00Z' })
+    const deploy = b('dev', 4, 'BUILDING', { pipeline: 'deploy-dev', kind: 'deploy', at: '2026-10-11T08:00:00Z' })
+    const got = cardBuilds({ branch: 'feature/PAY-1', builds: [build, deploy] })
+    expect(got).toHaveLength(1)
+    expect(got[0].pipeline).toBe('deploy-dev') // deploy outranks a newer build
+    expect(cardBuilds({ branch: 'feature/PAY-1', builds: [deploy, build] })[0].pipeline).toBe('deploy-dev')
+  })
+
+  it('a pipeline that failed is the chip, however green the other one is — red beats amber beats the rest', () => {
+    const ok = b('stage', 5, 'SUCCESS', { pipeline: 'deploy-stage', kind: 'deploy' })
+    const failedBuild = b('stage', 6, 'FAILURE', { pipeline: 'app-build', kind: 'build', at: '2026-10-11T07:00:00Z' })
+    const unstable = b('stage', 7, 'UNSTABLE', { pipeline: 'smoke', kind: 'both' })
+    expect(cardBuilds({ branch: 'feature/PAY-1', builds: [ok, failedBuild] })[0].result).toBe('FAILURE')
+    expect(cardBuilds({ branch: 'feature/PAY-1', builds: [ok, unstable] })[0].result).toBe('UNSTABLE')
+    expect(cardBuilds({ branch: 'feature/PAY-1', builds: [unstable, failedBuild, ok] })[0].result).toBe('FAILURE')
+  })
+
+  it('with only build pipelines (or no pipeline info) the newest build stands, and each environment keeps its place', () => {
+    const early = b('qa', 1, 'SUCCESS', { pipeline: 'a', kind: 'build', at: '2026-10-11T06:00:00Z' })
+    const late = b('qa', 2, 'SUCCESS', { pipeline: 'b', kind: 'build', at: '2026-10-11T07:00:00Z' })
+    const prod = b('prod', 3, 'SUCCESS')
+    expect(cardBuilds({ branch: 'feature/PAY-1', builds: [early, prod, late] }).map((x) => [x.env, x.number])).toEqual([
+      ['qa', 2],
+      ['prod', 3],
+    ])
+  })
+
+  it('the primary branch is still preferred over a failing build of another branch', () => {
+    const mine = b('qa', 4, 'SUCCESS', { pipeline: 'deploy', kind: 'deploy' })
+    const old = b('qa', 9, 'FAILURE', { pipeline: 'deploy', kind: 'deploy', branch: 'feature/old' })
+    expect(cardBuilds({ branch: 'feature/PAY-1', builds: [old, mine] })[0].number).toBe(4)
+  })
+
+  it('knows how many builds sit behind an environment chip, and names the pipeline kinds', () => {
+    const t = { builds: [b('dev', 1, 'SUCCESS'), b('dev', 2, 'SUCCESS', { pipeline: 'x' }), b('qa', 3, 'SUCCESS')] }
+    expect(envBuildCount(t, 'dev')).toBe(2)
+    expect(envBuildCount(t, 'nope')).toBe(0)
+    expect(pipelineKindMeta('build')?.label).toBe('Build')
+    expect(pipelineKindMeta('deploy')?.label).toBe('Deploy')
+    expect(pipelineKindMeta('both')?.label).toBe('Build + deploy')
+    expect(pipelineKindMeta(null)).toBeNull()
+    expect(pipelineKindMeta(undefined)).toBeNull()
+  })
+
+  it('the tooltip names the pipeline and its kind', () => {
+    const tip = buildTooltip(b('stage', 31, 'FAILURE', { pipeline: 'deploy-stage', kind: 'deploy', via: 'parameter' }), Date.parse('2026-10-11T10:00:00Z'))
+    expect(tip).toContain('Pipeline: deploy-stage (deploy)')
+    expect(buildTooltip(b('qa', 1, 'SUCCESS'), Date.now())).not.toContain('Pipeline:')
+  })
+
   it('formats durations, environments and test totals', () => {
     expect(fmtDuration(38_000)).toBe('38s')
     expect(fmtDuration(252_000)).toBe('4m 12s')
@@ -248,5 +299,159 @@ describe('Checkmarx vulnerability fixes', () => {
   it('names the two scans compared', () => {
     expect(vulnScanLine(vf())).toBe('feature/PAY-7 (scan 2026-10-09) vs develop (scan 2026-10-01)')
     expect(vulnScanLine({ ...vf(), baseBranch: null, branchScanAt: null, baseScanAt: null })).toBe('feature/PAY-7 (not scanned yet) vs the base branch')
+  })
+})
+
+describe('Jenkins console tail', () => {
+  it('splits into lines, without colour codes, carriage returns or blank lines at either end', () => {
+    expect(consoleTailLines('\n\n> Task :test FAILED\r\n\u001b[31mFAILED\u001b[0m: lastPageIsPartial\nBUILD FAILED in 4m 12s\n\n')).toEqual([
+      '> Task :test FAILED',
+      'FAILED: lastPageIsPartial',
+      'BUILD FAILED in 4m 12s',
+    ])
+  })
+
+  it('keeps blank lines in the middle and indentation', () => {
+    expect(consoleTailLines('a\n\n    at Foo.bar(Foo.java:12)')).toEqual(['a', '', '    at Foo.bar(Foo.java:12)'])
+  })
+
+  it('is empty when there is nothing', () => {
+    expect(consoleTailLines(undefined)).toEqual([])
+    expect(consoleTailLines(null)).toEqual([])
+    expect(consoleTailLines('')).toEqual([])
+    expect(consoleTailLines('  \n \n')).toEqual([])
+    expect(consoleTailLines(42 as unknown as string)).toEqual([])
+  })
+
+  it('never returns more than the last 200 lines', () => {
+    const many = Array.from({ length: 500 }, (_, i) => `line ${i}`).join('\n')
+    const out = consoleTailLines(many)
+    expect(out).toHaveLength(200)
+    expect(out[out.length - 1]).toBe('line 499')
+  })
+})
+
+describe('Dynatrace evidence', () => {
+  const item = (over: Partial<DynatraceItem> = {}): DynatraceItem => ({
+    url: 'https://abc12345.live.dynatrace.com/#trace;traceId=9f3c1d5e7a2b4c6d8e0f1a2b3c4d5e6f',
+    kind: 'trace',
+    host: 'classic',
+    tenant: 'prod',
+    window: { from: '2026-02-26T08:10:00Z', to: '2026-02-26T08:35:00Z' },
+    status: 'read',
+    findings: ['4 failed spans; the failure originates in payments: POST /charge'],
+    fetchedAt: '2026-10-11T09:00:00Z',
+    ...over,
+  })
+  const ev = (...items: DynatraceItem[]): DynatraceEvidence => ({ fetchedAt: '2026-10-11T09:00:00Z', items })
+
+  it('reads only well-formed items and tolerates absence and garbage', () => {
+    expect(dynatraceOf({})).toBeNull()
+    expect(dynatraceOf({ dynatrace: null })).toBeNull()
+    expect(dynatraceOf({ dynatrace: 'nope' as unknown as DynatraceEvidence })).toBeNull()
+    expect(dynatraceOf({ dynatrace: { fetchedAt: 'x', items: 'nope' as unknown as DynatraceItem[] } })).toBeNull()
+    expect(dynatraceOf({ dynatrace: ev() })).toBeNull()
+    const good = item()
+    const got = dynatraceOf({
+      dynatrace: ev(
+        good,
+        null as unknown as DynatraceItem,
+        { ...item(), url: '' },
+        { ...item(), url: 5 as unknown as string },
+        { ...item(), status: 'weird' as never },
+      ),
+    })
+    expect(got?.items).toEqual([good])
+  })
+
+  it('mends what it can: an unknown kind is a plain link, missing findings are none, a missing tenant is empty', () => {
+    const got = dynatraceOf({ dynatrace: ev({ ...item(), kind: 'weird' as never, findings: undefined as never, tenant: undefined as never }) })!
+    expect(got.items[0]).toMatchObject({ kind: 'other', findings: [], tenant: '' })
+    const mixed = dynatraceOf({ dynatrace: ev(item({ findings: ['ok', 7 as unknown as string, '  ', 'also ok'] })) })!
+    expect(mixed.items[0].findings).toEqual(['ok', 'also ok'])
+  })
+
+  it('lists at most five links and keeps moreLinks', () => {
+    const many = Array.from({ length: 8 }, (_, i) => item({ url: `https://abc12345.live.dynatrace.com/#trace;traceId=${i}` }))
+    const got = dynatraceOf({ dynatrace: { ...ev(...many), moreLinks: 3 } })!
+    expect(got.items).toHaveLength(DYNATRACE_MAX_ITEMS)
+    expect(got.moreLinks).toBe(3)
+  })
+
+  it('gives every status its own colour, label and glyph — red only for a rejected token', () => {
+    expect(dynatraceStatusMeta('read')).toMatchObject({ label: 'Read', color: '#4f8df5' })
+    expect(dynatraceStatusMeta('empty')).toMatchObject({ label: 'Nothing found', color: '#94a3b8' })
+    expect(dynatraceStatusMeta('unreachable')).toMatchObject({ label: 'Unreachable', color: '#ff8a1f' })
+    expect(dynatraceStatusMeta('auth-failed')).toMatchObject({ label: 'Token rejected', color: '#e11d48' })
+    expect(dynatraceStatusMeta('unconfigured-tenant')).toMatchObject({ label: 'Tenant not listed', color: '#8b94a8' })
+    expect(dynatraceStatusMeta(undefined)).toMatchObject({ label: 'Unknown', color: '#94a3b8' })
+    const reds = (['read', 'empty', 'unreachable', 'auth-failed', 'unconfigured-tenant'] as const).filter((s) => dynatraceStatusMeta(s).color === '#e11d48')
+    expect(reds).toEqual(['auth-failed'])
+  })
+
+  it('labels every kind', () => {
+    expect(dynatraceKindLabel('trace')).toBe('Trace')
+    expect(dynatraceKindLabel('problem')).toBe('Problem')
+    expect(dynatraceKindLabel('logs')).toBe('Logs')
+    expect(dynatraceKindLabel('service')).toBe('Service')
+    expect(dynatraceKindLabel('other')).toBe('Link')
+    expect(dynatraceKindLabel(undefined)).toBe('Link')
+  })
+
+  it('writes the window in the configured zone, one day or across midnight', () => {
+    expect(dynatraceWindowLabel({ from: '2026-02-26T08:15:00Z', to: '2026-02-26T08:30:00Z' }, 'UTC')).toBe('2026-02-26 08:15–08:30')
+    expect(dynatraceWindowLabel({ from: '2026-02-26T08:15:00Z', to: '2026-02-26T08:30:00Z' }, 'Asia/Kolkata')).toBe('2026-02-26 13:45–14:00')
+    expect(dynatraceWindowLabel({ from: '2026-02-26T23:50:00Z', to: '2026-02-27T00:20:00Z' }, 'UTC')).toBe('2026-02-26 23:50 → 2026-02-27 00:20')
+    // midnight is 00:xx, never 24:xx
+    expect(dynatraceWindowLabel({ from: '2026-02-26T23:45:00Z', to: '2026-02-27T00:00:00Z' }, 'UTC')).toBe('2026-02-26 23:45 → 2026-02-27 00:00')
+  })
+
+  it('has no window label without a usable window', () => {
+    expect(dynatraceWindowLabel(undefined)).toBe('')
+    expect(dynatraceWindowLabel(null)).toBe('')
+    expect(dynatraceWindowLabel({ from: '2026-02-26T08:15:00Z' })).toBe('')
+    expect(dynatraceWindowLabel({ from: 'x', to: 'y' })).toBe('')
+  })
+
+  it('sums the failed spans of what was read, and not what was carried forward or never read', () => {
+    const read = item({ summary: { spans: 12, failedSpans: 4 } })
+    const readToo = item({ summary: { failedSpans: 1 } })
+    const stale = item({ status: 'unreachable', stale: true, summary: { failedSpans: 9 } })
+    const empty = item({ status: 'empty', findings: [] })
+    expect(dynatraceFailedSpans(ev(read, readToo, stale, empty))).toBe(5)
+    expect(dynatraceFailedSpans(ev(empty))).toBe(0)
+  })
+
+  it('summarises in one line, statuses in a fixed order and failed spans last', () => {
+    const all = ev(
+      item({ summary: { failedSpans: 4 } }),
+      item({ kind: 'problem', summary: { problems: [{ title: 'Response time degradation' }] } }),
+      item({ status: 'empty', findings: [] }),
+      item({ status: 'unreachable', stale: true }),
+      item({ status: 'unconfigured-tenant', findings: [] }),
+      item({ status: 'auth-failed', findings: [] }),
+    )
+    expect(dynatraceSummary(all)).toBe('2 read · 1 nothing found · 1 unreachable · 1 token rejected · 1 tenant not listed · 4 failed spans')
+    expect(dynatraceSummary(ev(item({ summary: { failedSpans: 1 } })))).toBe('1 read · 1 failed span')
+    expect(dynatraceSummary(ev(item({ status: 'unconfigured-tenant', findings: [] })))).toBe('1 tenant not listed')
+  })
+
+  it('says when an item is an earlier answer carried forward', () => {
+    const now = Date.parse('2026-10-11T12:00:00Z')
+    expect(dynatraceStaleLine(item(), now)).toBe('')
+    expect(dynatraceStaleLine(item({ status: 'unreachable', stale: true }), now)).toBe('Last read 3h ago; Dynatrace could not be re-read')
+    expect(dynatraceStaleLine(item({ status: 'unreachable', stale: true, fetchedAt: null }), now)).toBe('Read earlier; Dynatrace could not be re-read')
+  })
+})
+
+describe('unwrapBrief · evidence section', () => {
+  const html = '<div data-brief="2"><p>Retry control.</p><p><b>Evidence from linked systems</b></p><ul><li><b>Dynatrace:</b> 4 failed spans</li></ul><p><i>What this means: the timeouts are upstream.</i></p></div>'
+
+  it('leaves a stamped brief alone, evidence section included', () => {
+    expect(unwrapBrief(html)).toBe(html)
+  })
+
+  it('peels the {"html": …} wrapper some models add and keeps the section', () => {
+    expect(unwrapBrief(JSON.stringify({ html }))).toBe(html)
   })
 })

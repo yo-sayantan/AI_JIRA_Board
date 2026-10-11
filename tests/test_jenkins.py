@@ -127,7 +127,8 @@ class Config(unittest.TestCase):
             self.assertEqual(json.load(f)["jenkins"], {"jobs": {}})
 
     def test_enabled_needs_jobs_and_both_secrets(self):
-        with mock.patch.dict(os.environ, {"JENKINS_USER": "u", "JENKINS_API_TOKEN": "t"}):
+        with mock.patch.dict(os.environ, {"JENKINS_USER": "u", "JENKINS_API_TOKEN": "t", "JENKINS_ROOT_URL": ""}), \
+                mock.patch.object(jenkins, "root_url", lambda cfg=None: ""):
             self.assertTrue(jenkins.enabled(JOBS))
             self.assertFalse(jenkins.enabled({}))
         with mock.patch.dict(os.environ, {"JENKINS_USER": "u", "JENKINS_API_TOKEN": ""}):
