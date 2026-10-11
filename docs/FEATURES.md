@@ -222,7 +222,7 @@ raised rows queue after active tickets. Render path heals JSON-wrapped model out
 
 ## API keys
 
-The one place to add tokens and keys — no file to edit by hand. One list, clustered by kind of service (`groups` in `setup/api-keys.json`: Atlassian · Code hosting · CI/CD & security · AI models) and alphabetical inside each cluster; each row shows a one-line summary (`why`, ≤ 44 characters so it never truncates) and opens to the full explanation (`details`). A row per service from
+The one place to add tokens and keys — no file to edit by hand. One list, clustered by kind of service (`groups` in `setup/api-keys.json`: Atlassian · Code hosting · CI/CD & security · AI models) and alphabetical inside each cluster; the dialog is a Settings-style split — a sidebar of the groups (set/total per group; each service shows a one-line `why`, ≤ 44 characters, and a dot for its last Test) and a panel for the selected service with section cards: the full explanation (`details`) and **Test connection**, **Used by** / **Get it**, then one field per key. A service from
 `setup/api-keys.json` (Jira — required, Atlassian Cloud, Bitbucket, Confluence, Jenkins, Checkmarx One, Claude, Cursor, Gemini, OpenAI, GitHub): lit in the service's
 colour when its non-optional keys are set, greyed when not. Each key has a kind — `secret` (masked), `url`, `email` or
 `text` (shown in full) — and keys marked `planned` say **not used yet**: they can be saved before the integration that reads
@@ -231,7 +231,7 @@ password-reveal button is hidden so there is a single eye. A row expands in plac
 chips, where to get it, and one field per key (the optional base-URL fields override `endpoints.*` from the config).
 An unsaved key shows an empty box and a greyed Save; a saved key shows its **masked** value in the box (first 4 + bullets + last 4;
 keys under 16 characters show bullets only, and the length is never revealed) with Save greyed until you type a new one.
-Saving a new base URL clears that service's token, so it is never sent to a host it was not entered for. A new secret is typed
+Saving a key never removes another — a token goes only when you press Remove. A new secret is typed
 as a password with an eye toggle; **Remove** (asks twice) clears a key. **Test** (a small chip on the expanded row, offered
 once the service's non-URL keys are saved) checks the SAVED key and URL with one read-only call through the server
 (`POST /api/keys/test`, `server/keycheck.mjs`) and shows the answer inline — green **✓ Connected · Signed in as … · 240 ms**,

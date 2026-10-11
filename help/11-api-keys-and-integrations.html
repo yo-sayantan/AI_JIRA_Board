@@ -62,12 +62,12 @@
       <h2 id="key-dialog">1 · The API keys dialog</h2>
       <p>Every token the board uses is added in the board itself — no file to edit. Click the <b>key button</b> in the
         header, beside Settings (it shows an amber dot while the Jira token is missing; a new install shows
-        <b>Add API keys first</b> instead). You get one row per service; a row is lit in its colour once its keys are saved.</p>
+        <b>Add API keys first</b> instead). The window works like Settings: a sidebar groups the services (Atlassian · Code hosting · CI/CD &amp; security · AI models, A–Z inside each); a service is lit in its colour once its keys are saved, and the selected one fills the panel beside it.</p>
       <ul>
-        <li>Click a row to see <b>why</b> it is needed, what <b>uses</b> it, and <b>where to get</b> the key.</li>
+        <li>Pick a service to see <b>why</b> it is needed, what <b>uses</b> it, and <b>where to get</b> the key.</li>
         <li>Paste the value and <b>Save</b>. A secret comes back masked (first and last few characters only); URLs, e-mail
           addresses and user names are shown in full.</li>
-        <li>Saving a new <b>base URL</b> clears that service's token, so a token is never sent to a host it was not entered for.</li>
+        <li>Saving a key never removes another one — a token goes only when you press <b>Remove</b>.</li>
         <li>Keys marked <b>Not used yet</b> can be saved now for an integration that is coming.</li>
         <li><b>Test</b> (in an open row, once its keys are saved) checks the saved key against its host with one read-only
           call and shows the answer inline: <b>✓ Connected</b> with who you are signed in as, <b>Key rejected (401)</b>,

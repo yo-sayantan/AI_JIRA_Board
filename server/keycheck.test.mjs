@@ -125,6 +125,33 @@ describe('request shapes, one per service', () => {
     expect(r.status).toBe('not-configured')
   })
 
+  it('atlassian: a site that is not an Atlassian Cloud site is refused before any call, with a clear hint', async () => {
+    const { c, http } = checker({ secrets: { ...SECRETS, ATLASSIAN_SITE_URL: 'https://id.atlassian.com/' } })
+    const r = await c.test('atlassian')
+    expect(http.calls).toHaveLength(0)
+    expect(r.status).toBe('not-configured')
+    expect(r.detail).toMatch(/your-org\.atlassian\.net/)
+  })
+
+  it('atlassian: a 403 explains the usual causes', async () => {
+    const { c } = checker({ reply: { status: 403, body: '{}' } })
+    const r = await c.test('atlassian')
+    expect(r.status).toBe('forbidden')
+    expect(r.detail).toMatch(/email/i)
+  })
+
+  it('jenkins: with JENKINS_URL saved, checks /me/api/json — no job links needed', async () => {
+    const { c, http } = checker({
+      secrets: { ...SECRETS, JENKINS_URL: 'https://ci.corp.test/' },
+      config: { ...CONFIG, jenkins: { jobs: {} } },
+      reply: { status: 200, body: JSON.stringify({ fullName: 'Build Bot' }) },
+    })
+    const r = await c.test('jenkins')
+    expect(http.calls[0].url).toBe('https://ci.corp.test/me/api/json')
+    expect(r.status).toBe('ok')
+    expect(r.detail).toBe('Signed in as Build Bot')
+  })
+
   it('checkmarx: refresh-token exchange at the derived realm URL, key only in the POST body', async () => {
     const { c, http } = checker({ reply: { status: 200, body: JSON.stringify({ access_token: 'ACCESS-SHOULD-NOT-LEAK', expires_in: 1800 }) } })
     const r = await c.test('checkmarx')

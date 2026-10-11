@@ -1,5 +1,5 @@
 {
-  "$comment": "THE list of API keys the board knows about — read by the server (server/secrets.mjs: only these names can be saved), the board's API keys dialog (src/lib/apiKeys.ts) and tests/test_api_keys.py (every key must be read by something). Values are stored beside it in setup/.env (git-ignored, docker-ignored, never served). Each key has a kind: secret (masked; the default), url (shown in full; a new URL clears its service's secrets), email or text (shown in full). 'planned: true' marks a key the user can add now that nothing reads yet; tests/test_api_keys.py exempts only those. Services are shown grouped (groups[], in order) and alphabetically by name inside a group; 'why' is the one-line summary (≤ 44 chars, so it never truncates), 'details' the full explanation shown when a row is opened.",
+  "$comment": "THE list of API keys the board knows about — read by the server (server/secrets.mjs: only these names can be saved), the board's API keys dialog (src/lib/apiKeys.ts) and tests/test_api_keys.py (every key must be read by something). Values are stored beside it in setup/.env (git-ignored, docker-ignored, never served). Each key has a kind: secret (masked; the default), url (shown in full), email or text (shown in full). 'planned: true' marks a key the user can add now that nothing reads yet; tests/test_api_keys.py exempts only those. Services are shown grouped (groups[], in order) and alphabetically by name inside a group; 'why' is the one-line summary (≤ 44 chars, so it never truncates), 'details' the full explanation shown when a row is opened.",
   "services": [
     {
       "id": "jira",
@@ -61,7 +61,7 @@
           "kind": "url",
           "planned": true,
           "optional": true,
-          "hint": "Your Cloud site, e.g. https://your-org.atlassian.net."
+          "hint": "Your Cloud site, e.g. https://your-org.atlassian.net — not id.atlassian.com (that is where tokens are made)."
         }
       ],
       "details": "One API token for Jira, Confluence and Bitbucket on Atlassian Cloud, as they move off on-prem.",
@@ -134,6 +134,13 @@
       ],
       "getIt": "Jenkins → your name → Configure → API Token → Add new token",
       "keys": [
+        {
+          "env": "JENKINS_URL",
+          "label": "Jenkins URL",
+          "kind": "url",
+          "optional": true,
+          "hint": "e.g. https://jenkins.example.com — lets Test check your user and token. Builds still come from the job links in jenkins.jobs."
+        },
         {
           "env": "JENKINS_USER",
           "label": "User name",

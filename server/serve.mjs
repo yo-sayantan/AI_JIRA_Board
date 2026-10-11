@@ -56,8 +56,7 @@
 // AI intern (proxied to AI_INTERN_URL; 503 { ok:false, down:true } when it is unreachable)
 //   GET  /api/keys                         200 { ok, keys:{ ENV:{ set, masked } } } — masked, never a full secret
 //   POST /api/keys       body: { name, value } ≤ 8 KB; name from setup/api-keys.json, '' removes it
-//                                          200 { ok, keys, cleared:[ENV] } · 400 { error } · 413 · 415
-//                                          (a new *_URL clears its service's tokens → listed in cleared)
+//                                          200 { ok, keys } · 400 { error } · 413 · 415 (only the named key changes)
 //   POST /api/keys/test  body: { service } ≤ 1 KB; service = a setup/api-keys.json id
 //                                          200 { ok, service, status:'ok'|'auth-failed'|'forbidden'|'not-found'|
 //                                                'unreachable'|'tls'|'not-configured'|'error', httpStatus?, ms, detail }
@@ -301,11 +300,11 @@ const routes = {
       return json(res, 400, { ok: false, error: 'bad json' })
     }
     try {
-      const { status, error, cleared } = await secrets.save(parsed?.name, parsed?.value)
+      const { status, error } = await secrets.save(parsed?.name, parsed?.value)
       if (error) return json(res, 400, { ok: false, error })
       // Names only — never a value — so the log shows what changed.
-      console.log(`[keys] ${parsed.value?.trim() ? 'saved' : 'removed'} ${parsed.name}${cleared.length ? ` (cleared ${cleared.join(', ')})` : ''}`)
-      json(res, 200, { ok: true, keys: status, cleared })
+      console.log(`[keys] ${parsed.value?.trim() ? 'saved' : 'removed'} ${parsed.name}`)
+      json(res, 200, { ok: true, keys: status })
     } catch (e) {
       console.error('[keys] save failed', e.code || e.message)
       json(res, 500, { ok: false, error: 'could not write setup/.env' })

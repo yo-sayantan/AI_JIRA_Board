@@ -95,9 +95,10 @@ The board's key button writes `setup/.env` through `GET`/`POST /api/keys` (`serv
   also refuses a mask sent back as a key); URL fields must be `https://` (`http://` only for localhost)
   with no user name, password, `?` or `#`. A save can never inject a second `KEY=` line. Body ≤ 8 KB,
   `Content-Type: application/json`.
-- **A token stays with its host.** Saving a new base URL (`JIRA_URL`, `BITBUCKET_URL`, `CONFLUENCE_URL`)
-  clears that service's tokens in the same write (`cleared` in the reply), so a stored token is never
-  sent to a host it was not entered for — re-pointing a service needs the token re-entered.
+- **Saving one key never touches another.** A token is removed only when the user removes it — changing a
+  base URL keeps the token. The trade-off: anyone who can reach `POST /api/keys` (loopback by default) could
+  point a service at a host they control and the next fetch would send that service's token there. Keep
+  the board on loopback (the default); if you expose it on the LAN, treat `/api/keys` as admin access.
 - **Safe writes.** One write queue; a randomly named temp file opened exclusive, no-follow, mode 0600,
   synced, then renamed over the old one (and deleted if anything fails); comments and lines the board
   does not own are kept. The log records key names, never a value.

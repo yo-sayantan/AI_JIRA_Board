@@ -6,8 +6,8 @@
 // runner-env.sh export_secrets_from_file(): KEY=VALUE, literal values, nothing is executed.
 //
 // Values never leave this module in full: status() returns masked secrets, and the registry's
-// `url` / `email` / `text` fields as they are. A new URL clears its service's secrets in the
-// same write, so a stored token is never sent to a host it was not entered for.
+// `url` / `email` / `text` fields as they are. Saving one key never touches another: a
+// token is only removed when the user removes it.
 import { randomBytes } from 'node:crypto'
 import { constants } from 'node:fs'
 import { open, readFile, rename, unlink } from 'node:fs/promises'
@@ -136,18 +136,9 @@ export function createSecretsStore({ file, registry }) {
     const checked = validateValue(field, raw)
     if (checked.error) return { error: checked.error }
     const before = await read()
-    let next = upsertEnv(before, name, checked.value)
-    // A token belongs to the host it was entered for: pointing the service somewhere new clears it.
-    const cleared = []
-    if (kindOf(field) === 'url' && checked.value && checked.value !== (parseEnv(before)[name] || '')) {
-      for (const [other, f] of fields) {
-        if (f.service !== field.service || kindOf(f) !== 'secret' || !parseEnv(next)[other]) continue
-        next = upsertEnv(next, other, '')
-        cleared.push(other)
-      }
-    }
-    await writeAtomic(next)
-    return { status: await status(), cleared }
+    // Only the named key changes — nothing else is ever removed on the user's behalf.
+    await writeAtomic(upsertEnv(before, name, checked.value))
+    return { status: await status() }
   }
 
   // Random name, exclusive create, never through a symlink, owner-only from the first byte; synced

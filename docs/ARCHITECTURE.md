@@ -116,8 +116,7 @@ Every token lives in **`setup/.env`** (git-ignored, docker-ignored, never served
 that can be saved before anything reads it. The board's key button writes the file through
 `server/secrets.mjs`; nothing else writes it. Readers: `runner-env.sh::load_agent_secrets` (every fetch
 script), `jira-intern/_config.py::secrets_path`, `docker/docker-entrypoint.sh` and `ai-intern/worker.py`.
-Variables already in the environment win. A new base URL clears its service's secrets, so a token is
-never sent to a host it was not entered for. Details: [`SECURITY.md`](SECURITY.md), [`SETUP.md`](SETUP.md).
+Variables already in the environment win. Saving a key changes only that key. Details: [`SECURITY.md`](SECURITY.md), [`SETUP.md`](SETUP.md).
 
 ## External proof sources
 

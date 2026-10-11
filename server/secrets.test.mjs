@@ -144,32 +144,30 @@ describe('createSecretsStore', () => {
     expect(await readFile(file, 'utf8')).toBe('A=1\n')
   })
 
-  it('a new base URL clears that service\'s tokens, so a stored token never goes to a new host', async () => {
+  it('never removes a token the user did not remove — a new URL keeps every key', async () => {
     const file = await tempFile()
     await writeFile(file, 'JIRA_PERSONAL_TOKEN=abcd1234567890wxyz\nBITBUCKET_PAT=bbbb1234567890zzzz\n')
     const store = createSecretsStore({ file, registry })
     const r = await store.save('JIRA_URL', 'https://jira.example.com')
-    expect(r.cleared).toEqual(['JIRA_PERSONAL_TOKEN'])
-    expect(parseEnv(await readFile(file, 'utf8'))).toEqual({ BITBUCKET_PAT: 'bbbb1234567890zzzz', JIRA_URL: 'https://jira.example.com' })
+    expect(r.error).toBeUndefined()
+    expect(r.status.JIRA_PERSONAL_TOKEN.set).toBe(true)
+    await store.save('JIRA_URL', 'https://other.example.com')
+    await store.save('ATLASSIAN_SITE_URL', 'https://your-org.atlassian.net')
+    expect(parseEnv(await readFile(file, 'utf8'))).toEqual({
+      JIRA_PERSONAL_TOKEN: 'abcd1234567890wxyz',
+      BITBUCKET_PAT: 'bbbb1234567890zzzz',
+      JIRA_URL: 'https://other.example.com',
+      ATLASSIAN_SITE_URL: 'https://your-org.atlassian.net',
+    })
   })
 
-  it('email and text fields come back in full; a changed email clears nothing', async () => {
+  it('email and text fields come back in full', async () => {
     const file = await tempFile()
     await writeFile(file, 'ATLASSIAN_TOKEN=atl-0123456789abcdef\n')
     const store = createSecretsStore({ file, registry })
     const r = await store.save('ATLASSIAN_EMAIL', 'me@example.com')
-    expect(r.cleared).toEqual([])
     expect(r.status.ATLASSIAN_EMAIL).toEqual({ set: true, masked: 'me@example.com' })
     expect(r.status.ATLASSIAN_TOKEN.masked).toBe('atl-••••••••cdef')
-  })
-
-  it('re-saving the same URL, or removing it, keeps the token', async () => {
-    const file = await tempFile()
-    await writeFile(file, 'JIRA_PERSONAL_TOKEN=abcd1234567890wxyz\nJIRA_URL=https://jira.example.com\n')
-    const store = createSecretsStore({ file, registry })
-    expect((await store.save('JIRA_URL', 'https://jira.example.com')).cleared).toEqual([])
-    expect((await store.save('JIRA_URL', '')).cleared).toEqual([])
-    expect(parseEnv(await readFile(file, 'utf8'))).toEqual({ JIRA_PERSONAL_TOKEN: 'abcd1234567890wxyz' })
   })
 
   it('leaves no temp file behind', async () => {

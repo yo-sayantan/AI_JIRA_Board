@@ -275,11 +275,11 @@ export async function getApiKeys(): Promise<KeyStatus | null> {
   }
 }
 
-export type ApiKeySave = { ok: true; keys: KeyStatus; cleared: string[] } | { ok: false; error: string }
+export type ApiKeySave = { ok: true; keys: KeyStatus } | { ok: false; error: string }
 
 /**
  * Save one key ('' removes it). Resolves with the new masked status — plus any tokens the server
- * cleared because their service's URL changed — or the server's reason.
+ * or the server's reason.
  */
 export async function saveApiKey(name: string, value: string): Promise<ApiKeySave> {
   try {
@@ -288,8 +288,8 @@ export async function saveApiKey(name: string, value: string): Promise<ApiKeySav
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, value }),
     })
-    const body = (await r.json().catch(() => null)) as { keys?: KeyStatus; cleared?: string[]; error?: string } | null
-    if (r.ok && body?.keys) return { ok: true, keys: body.keys, cleared: body.cleared ?? [] }
+    const body = (await r.json().catch(() => null)) as { keys?: KeyStatus; error?: string } | null
+    if (r.ok && body?.keys) return { ok: true, keys: body.keys }
     return { ok: false, error: body?.error || `save failed (HTTP ${r.status})` }
   } catch {
     return { ok: false, error: 'the board server did not answer' }
