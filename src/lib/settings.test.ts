@@ -1,9 +1,34 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_SETTINGS, parseSettings } from './settings'
+import { AI_LEVELS, DEFAULT_SETTINGS, effortForLevel, mergeServerSettings, parseSettings, serverSettingsOf } from './settings'
 
 describe('parseSettings', () => {
   it('falls back for an invalid aiLevel', () => {
-    expect(parseSettings({ aiLevel: 'high' }).aiLevel).toBe(DEFAULT_SETTINGS.aiLevel)
+    expect(parseSettings({ aiLevel: 'ultra' }).aiLevel).toBe(DEFAULT_SETTINGS.aiLevel)
+  })
+  it('offers exactly Low · Medium · High · Max', () => {
+    expect(AI_LEVELS.map((l) => l.label)).toEqual(['Low', 'Medium', 'High', 'Max'])
+    expect(parseSettings({ aiLevel: 'high' }).aiLevel).toBe('high')
+  })
+  it('turns the retired "none" level into the AI switch being off', () => {
+    const s = parseSettings({ aiLevel: 'none' })
+    expect(s.aiEnabled).toBe(false)
+    expect(s.aiLevel).toBe(DEFAULT_SETTINGS.aiLevel)
+  })
+  it('has both master switches on by default and keeps a saved off', () => {
+    expect(DEFAULT_SETTINGS.aiEnabled).toBe(true)
+    expect(DEFAULT_SETTINGS.jobsEnabled).toBe(true)
+    const s = parseSettings({ aiEnabled: false, jobsEnabled: false })
+    expect([s.aiEnabled, s.jobsEnabled]).toEqual([false, false])
+  })
+  it('mirrors both switches to the server and reads them back', () => {
+    const sent = serverSettingsOf({ ...DEFAULT_SETTINGS, aiEnabled: false, jobsEnabled: false })
+    expect(sent.aiEnabled).toBe(false)
+    expect(sent.jobsEnabled).toBe(false)
+    expect(mergeServerSettings(DEFAULT_SETTINGS, { aiEnabled: false, jobsEnabled: false }).jobsEnabled).toBe(false)
+    expect(mergeServerSettings(DEFAULT_SETTINGS, { aiEnabled: 'x' }).aiEnabled).toBe(true)
+  })
+  it('derives cloud effort from the level', () => {
+    expect(AI_LEVELS.map((l) => effortForLevel(l.key))).toEqual(['low', 'medium', 'high', 'high'])
   })
   it('falls back for a model id with shell characters', () => {
     expect(parseSettings({ aiLocalModel: 'bad model;rm' }).aiLocalModel).toBe(DEFAULT_SETTINGS.aiLocalModel)

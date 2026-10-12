@@ -336,9 +336,16 @@ Overlay with three areas (`src/components/settings/Settings.tsx`):
 - **Features** — a switch per *behaviour* (drag to change status, demo mode, PR reports, AI briefs,
   shortcuts, refresh on open, auto-refresh, motion & animations, the AI-Ollama container), generated from
   `src/lib/settings.ts::FEATURES` (entry + colour/icon in `FEATURE_STYLE`; TypeScript enforces both).
-- **AI usage** — level None/Low/Moderate/Max, backend local (Ollama tag dropdown, host-Ollama
-  checkbox, model pulls with live progress) or cloud (provider / model / effort — the models, their efforts Low · Medium · High · Auto and the ⚠ costly line all come from `ai-intern/cloud-models.json`), parallelism knobs (PR reports 1–10 at once),
-  server cadences. Server-relevant keys mirror to `jira-intern/.settings.json`.
+- **AI** — one level, Low · Medium · High · Max, that sets timeout, cloud effort and which cloud models are selectable
+  (output price per 1M: Low ≤ $1 · Medium ≤ $5 · High < $10 · Max all; the rest greyed out — see AI-PIPELINE.md), backend
+  local (Ollama tag dropdown, host-Ollama checkbox, model pulls with live progress) or cloud (provider / model — the models
+  and the ⚠ costly line come from `ai-intern/cloud-models.json`), parallelism knob (PR reports 1–10 at once). The whole
+  section is greyed out while **Features → AI** is off, which also disables every AI feature (briefs, report write-ups, model
+  downloads, the AI-Ollama container).
+- **Background jobs** — the server's schedules (active tickets, whole board, PR reports) and parallelism knobs. The section is
+  greyed out while **Features → Background jobs** is off: nothing is started on a schedule and a fetch no longer launches the
+  report pass by itself; a refresh or report you start yourself still runs. Switching it back on restarts every schedule from
+  that moment. Server-relevant keys mirror to `jira-intern/.settings.json`.
 
 ## Live jobs & notifications
 

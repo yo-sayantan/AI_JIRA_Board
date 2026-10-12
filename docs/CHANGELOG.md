@@ -5,6 +5,16 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Settings: one AI dial, and two master switches.** Settings → AI now has just **Low · Medium · High · Max** (`None` is
+  gone; the old Effort dropdown is gone — the level sets the effort). The level also decides which cloud models can be picked,
+  by output price per 1M tokens: Low ≤ $1 · Medium ≤ $5 · High < $10 · Max everything (costly ≥ $10 included); models outside
+  the level are greyed out, and the worker refuses one (`level_allows`). Two new switches under **Features** — **AI** and
+  **Background jobs** — grey out their section; AI off stops every AI feature (briefs, report write-ups, summary pass, model
+  pulls, queued jobs, the AI-Ollama container) and Background jobs off stops every scheduled run and the post-fetch report pass.
+  Both are server settings (`aiEnabled`, `jobsEnabled`; config defaults `ai.enabled`, `schedule.enabled`) and **on by default**,
+  so nothing changes until a switch is turned off. An old saved level `none` reads as AI off. `aiCloudEffort` is still accepted
+  but ignored.
+
 - **Proof: Dynatrace evidence, the Evidence section of the AI brief, the report's Issue insight, a Jenkins console excerpt.**
   QA and support tickets carry Dynatrace links; `jira-intern/dynatrace.py` now reads **only what those links point at**
   (classic `#trace;…`, `#problems/problemdetails;pid=`, `#serviceOverview;id=SERVICE-…`, `#logs;…` and platform

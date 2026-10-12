@@ -200,8 +200,8 @@ absolute path of this folder), so the prompts are path-portable with zero config
 | `main` | Model for the daily/weekly/refresh runs. `"auto"` = let the connector pick (no flag passed). Env `MODEL=` overrides per run. |
 
 ## `ai`
-Defaults for Settings and the intern worker: `level`, `backend`, local/cloud models,
-`cloudProvider`, `cloudEffort` (low / medium / high / auto), `useHostOllama`, and `parallel` (1–10, PR reports built at once). Saved choices
+Defaults for Settings and the intern worker: `enabled` (`false` starts with AI switched off), `level` (`low` / `moderate` / `high` / `full`; the old `none` = AI off), `backend`, local/cloud models,
+`cloudProvider`, `cloudEffort` (no longer read — the level sets the effort), `useHostOllama`, and `parallel` (1–10, PR reports built at once). Saved choices
 in `jira-intern/.settings.json` override these defaults. The local model catalog remains
 `ai-intern/models.json`; `models.catalog` points to it. The **cloud** model list — models, efforts, what counts as
 costly — is `ai-intern/cloud-models.json`, not this file (see CONTRIBUTING → Add a model).
@@ -215,7 +215,7 @@ costly — is `ai-intern/cloud-models.json`, not this file (see CONTRIBUTING →
 
 Models: `models.report` picks the connector-agent model (`"auto"` = connector default; env
 `REPORT_MODEL=` overrides). `timeouts.reportSec` (default 600) bounds one enrichment run.
-Settings AI usage **None** skips report AI; otherwise enrichment is queued for the AI-Intern container.
+Settings → Features → **AI** off skips report AI; otherwise enrichment is queued for the AI-Intern container.
 Reports are written to `jira-intern/reports/` — git-ignored; they contain real ticket and PR content.
 
 `defaultWindowDays` and `presetWindowDays` control the report menu's custom-date default and

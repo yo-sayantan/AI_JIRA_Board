@@ -23,7 +23,8 @@ SETTINGS_FILE = os.path.join(HERE, ".settings.json")
 
 VALID_TYPES = ("enrich-report", "summarize-active", "pull-model")
 VALID_BACKENDS = ("local", "cloud")
-VALID_LEVELS = ("none", "low", "moderate", "full")
+# "none" is the retired spelling of "AI off" — still accepted from an old job file or CLI call.
+VALID_LEVELS = ("none", "low", "moderate", "high", "full")
 # A job file name / model tag reaches shell-adjacent code in the worker, so both are
 # validated here — the one place every enqueue path (CLI, serve.mjs) goes through.
 KEY_RE = re.compile(r"^[A-Z][A-Z0-9]+-\d+$")
@@ -37,6 +38,7 @@ def now_iso():
 def load_settings():
     ai = (load_config(HERE).get("ai") or {})
     defaults = {
+        "aiEnabled": ai.get("enabled") is not False,
         "aiLevel": ai.get("level", "moderate"),
         "aiBackend": ai.get("backend", "local"),
         "aiLocalModel": ai.get("localModel", ""),
@@ -50,6 +52,11 @@ def load_settings():
             return {**defaults, **(json.load(f) or {})}
     except Exception:
         return defaults
+
+
+def ai_enabled(settings):
+    """Settings → Features → AI. The retired level "none" means off as well."""
+    return settings.get("aiEnabled") is not False and settings.get("aiLevel") != "none"
 
 
 def _ensure_queue():
@@ -69,6 +76,8 @@ def enqueue(job):
         if value and not MODEL_RE.match(value):
             raise ValueError(f"bad {field} {value!r} — lower-case letters, digits, . _ - and an optional :tag")
     settings = load_settings()
+    if not ai_enabled(settings):
+        raise ValueError("AI is switched off in Settings (Features → AI)")
     backend = job.get("backend") or settings.get("aiBackend") or "local"
     payload = {
         "id": job.get("id") or f"{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}",

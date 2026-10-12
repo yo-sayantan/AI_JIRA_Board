@@ -63,6 +63,24 @@ async function refreshReports() {
 async function tick() {
   const [settings, state] = await Promise.all([readBoardSettings(), readState()])
   const now = new Date().toISOString()
+  // Settings → Features → Background jobs. While it is off nothing is started on a schedule. `pausedAt` is written once
+  // per switch-off; on switch-on every last-run stamp restarts from now, so the jobs that fell due meanwhile do not all
+  // fire in the same minute (the same reason startScheduler seeds the stamps).
+  if (settings.jobsEnabled === false) {
+    if (!state.pausedAt) {
+      state.pausedAt = now
+      await writeState(state)
+      console.log('[schedule] background jobs switched off')
+    }
+    return
+  }
+  if (state.pausedAt) {
+    delete state.pausedAt
+    state.activeAt = state.fullAt = state.reportAt = now
+    await writeState(state)
+    console.log('[schedule] background jobs switched on — schedules restart now')
+    return
+  }
   if (due(state.fullAt, settings.fullRefresh)) {
     if (await startDaily()) {
       state.fullAt = now

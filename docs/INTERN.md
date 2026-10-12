@@ -52,7 +52,7 @@ Thin shell wrappers the server (and cron / Shortcuts / your terminal) invoke. Al
 | `transition.py <KEY> <column>` | The only Jira **write**: checks PR / QA gates on live Jira, picks a workflow transition into the target column, POSTs it. Prints one JSON verdict line. Uses the REST PAT directly, not MCP. |
 | `refresh-ticket.sh <KEY>` | Single-ticket refresh (Bitbucket skipped; dev-status only). Holds `.refresh.lock`. Auto-triggers a PR report `--if-needed`. |
 | `refresh-raised.sh` | Raised-by-me hard refresh, deterministic only. Holds `.raised.lock`. |
-| `pr-report.sh <KEY>` · `pr-reports-backfill.sh` | Base report(s), then enqueue AI enrichment unless the AI level is None. |
+| `pr-report.sh <KEY>` · `pr-reports-backfill.sh` | Base report(s), then enqueue AI enrichment unless AI is switched off in Settings. |
 | `config.mjs` | Deep-merges project config + personal override + saved Settings → `shellenv` vars, prompt rendering, MCP policy. |
 | `sync-datajs.mjs` · `sync-reports.mjs` | Regenerate `data.js` / `reports/index.js` from the JSON (safety nets for the agent path). |
 

@@ -222,7 +222,9 @@ function shellenv() {
   // PR Readiness Reports (local-runner/pr-report.sh + pr-reports-backfill.sh).
   out.push(`MODEL_REPORT=${shq(cfg.models?.report ?? 'auto')}`)
   out.push(`TIMEOUT_REPORT=${shq(cfg.timeouts?.reportSec ?? 600)}`)
-  out.push(`REPORTS_AUTO=${shq(cfg.reports?.autoGenerate === false ? 0 : 1)}`)
+  // Settings → Features → Background jobs off also stops the report pass a fetch launches by itself.
+  const jobsOn = (boardSettings().jobsEnabled ?? cfg.schedule?.enabled) !== false
+  out.push(`REPORTS_AUTO=${shq(cfg.reports?.autoGenerate === false || !jobsOn ? 0 : 1)}`)
   out.push(`REPORTS_YEAR=${shq(cfg.reports?.year ?? 2026)}`)
   out.push(`REPORTS_MAX_PER_RUN=${shq(cfg.reports?.maxPerRun ?? 5)}`)
   // The board's Settings panel writes jira-intern/.settings.json; it overrides config.json so a
@@ -231,7 +233,12 @@ function shellenv() {
   out.push(`COMPLETED_MAX_FETCH=${shq(cfg.archive?.maxFetch ?? 999)}`)
   out.push(`COMPLETED_WORKERS=${shq(runtime.archiveParallel ?? cfg.archive?.workers ?? 8)}`)
   out.push(`REFRESH_WORKERS=${shq(runtime.refreshParallel ?? cfg.refresh?.workers ?? 8)}`)
-  out.push(`REPORTS_AI_LEVEL=${shq(runtime.aiLevel ?? cfg.ai?.level ?? 'moderate')}`)
+  // Settings → Features → AI off (or the retired "none" level) = no AI pass anywhere: pr-report.sh reads level "none" as
+  // "keep the deterministic report", run-intern.sh reads AI_ENABLED.
+  const level = runtime.aiLevel ?? cfg.ai?.level ?? 'moderate'
+  const aiOn = (runtime.aiEnabled ?? cfg.ai?.enabled) !== false && level !== 'none'
+  out.push(`AI_ENABLED=${shq(aiOn ? 1 : 0)}`)
+  out.push(`REPORTS_AI_LEVEL=${shq(aiOn ? level : 'none')}`)
   out.push(`AI_BACKEND=${shq(runtime.aiBackend ?? cfg.ai?.backend ?? 'local')}`)
   out.push(`AI_LOCAL_MODEL=${shq(runtime.aiLocalModel ?? cfg.ai?.localModel ?? '')}`)
   out.push(`AI_CLOUD_PROVIDER=${shq(runtime.aiCloudProvider ?? cfg.ai?.cloudProvider ?? 'cursor')}`)

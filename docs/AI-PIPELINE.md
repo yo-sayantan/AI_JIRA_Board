@@ -1,15 +1,33 @@
 # AI pipeline — how every AI feature works
 
-AI is strictly **optional and layered on top** of a deterministic core: with AI level `None` the
-board still fetches, renders, and produces base PR reports — nothing breaks, nothing is sent to
-any model. This file explains the full pipeline when AI is on.
+AI is strictly **optional and layered on top** of a deterministic core: with the **AI** switch off
+(Settings → Features) the board still fetches, renders, and produces base PR reports — nothing breaks,
+nothing is sent to any model. This file explains the full pipeline when AI is on.
 
 ## The dial: Settings → AI usage
 
-| Level | Meaning |
+One dial, four steps — **Low · Medium · High · Max** (stored `low` / `moderate` / `high` / `full`). It sets
+how long a pass may think (the worker timeout: ½ × · 1 × · 1.5 × · 2 × `timeouts.reportSec`), how hard a cloud
+model works (effort: low · medium · high · high — there is no separate effort control; `ai-intern/worker.py::EFFORT_FOR_LEVEL`,
+mirrored by `src/lib/settings.ts::effortForLevel`), and **which cloud models it may use**, by output price per 1M tokens:
+
+| Level | Cloud models it can pick and run |
 |---|---|
-| **None** | Deterministic only. No briefs, no report enrichment, no model calls at all. |
-| **Low / Moderate / Max** | Same features, increasing inference timeout/depth (`full` is the stored value for Max). |
+| **Low** | up to $1 |
+| **Medium** | up to $5 |
+| **High** | under $10 (never a costly model) |
+| **Max** | every model, costly ones included (a costly model always runs at Medium effort) |
+
+The rest of the list stays visible but greyed out. Lowering the level while a model outside it is selected switches
+to the provider's preferred model that fits; the worker refuses a job whose model is outside its level
+(`worker.level_allows`, mirrored by `src/lib/cloudModels.ts::levelAllows`). A model with no listed price runs only at Max.
+
+**The AI switch** (Settings → Features → *AI*, `aiEnabled`) replaces the old "None" level. Off greys out the whole AI
+section and turns every AI feature off: briefs are hidden, `server/reports.mjs` hands nothing to the intern (the base report
+stands alone), `run-intern.sh` skips the summary pass, `ai_queue.enqueue` refuses every job type, the worker drains jobs
+queued earlier without running them (`process_job`), model pulls and `POST /api/ai-jobs` answer 403, and the AI-Ollama
+container is stopped (`ollama.mjs::ollamaOn`). Nothing is deleted: switch it back on and the level, backend and model are
+as they were. An old saved level `none` reads as AI off.
 
 Backend choice is independent of level:
 

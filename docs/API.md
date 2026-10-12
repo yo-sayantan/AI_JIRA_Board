@@ -80,9 +80,9 @@ A report summary is `{ key, title, timeZone, generatedAt, enrichedAt, enriched, 
 | `GET /api/settings` | **200** `{ ok, settings }` — project defaults overlaid by `jira-intern/.settings.json` |
 | `POST /api/settings` `body:` partial settings object, ≤ 4 KB | **200** `{ ok, settings }` · **400** `bad json` / `bad <field>` / `aborted` · **413** `too large` · **415** · **500** `save failed` |
 
-Accepted fields (`server/settings.mjs` `SCHEMA`): `aiLevel` (none/low/moderate/full),
+Accepted fields (`server/settings.mjs` `SCHEMA`): `aiEnabled`, `jobsEnabled` (the two Features master switches), `aiLevel` (low/moderate/high/full = Low/Medium/High/Max; a legacy `none` is accepted and read back as `aiEnabled: false`),
 `aiBackend` (local/cloud), `aiLocalModel` (≤ 80 chars), `aiCloudModel` (≤ 128), `aiCloudProvider`
-(claude/cursor/gemini), `aiCloudEffort` (low/medium/high/auto), `aiUseHostOllama`, `reportParallel` (1–10),
+(claude/cursor/gemini), `aiCloudEffort` (accepted for old clients, ignored — the level sets the effort), `aiUseHostOllama`, `reportParallel` (1–10),
 `archiveParallel` (1–16), `refreshParallel` (1–16), `activeRefresh` (off/daily/twice-daily),
 `fullRefresh` and `reportRefresh` (off/daily/weekly/twice-weekly). Model ids must match
 `^[\w.:/-]*$`. Unknown keys are ignored; one invalid value rejects the whole patch.
