@@ -36,7 +36,7 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i)
 const hourLabel = (h: number) => `${String(h).padStart(2, '0')}:00`
 
 /**
- * `off` greys the whole body out and makes it inert (no focus, no clicks, hidden from assistive tech's
+ * `off` turns the whole card light grey (background, border, body) and makes the body inert (no focus, no clicks, hidden from assistive tech's
  * "interactive" list) — the header stays live so the reason ("switched off under Features") is readable.
  */
 function Section({
@@ -53,13 +53,17 @@ function Section({
   off?: boolean
 }) {
   return (
-    <section className={`flex min-w-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] p-3 ${className}`}>
+    <section
+      className={`flex min-w-0 flex-col rounded-xl border p-3 transition-[background-color,filter] ${
+        off ? 'border-dashed border-[var(--line-strong)] bg-[var(--surface-2)] grayscale' : 'border-[var(--line)] bg-[var(--surface-solid)]'
+      } ${className}`}
+    >
       <div className="mb-2 flex h-4 items-center gap-3">
         <h3 className="shrink-0 text-[10.5px] font-bold uppercase tracking-wider text-[var(--muted)]">{title}</h3>
         {aside && <div className="ml-auto flex min-w-0 items-center text-[10.5px]">{aside}</div>}
       </div>
       <div
-        className={`flex min-w-0 flex-1 flex-col transition-[opacity,filter] ${off ? 'pointer-events-none select-none opacity-45 grayscale' : ''}`}
+        className={`flex min-w-0 flex-1 flex-col transition-[opacity,filter] ${off ? 'pointer-events-none select-none opacity-40' : ''}`}
         inert={off}
         aria-disabled={off || undefined}
       >
