@@ -148,7 +148,9 @@ export const Column = memo(function Column({
       return
     }
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
+    // ⌥ held: macOS narrows the drag to a COPY, and a zone that still answers "move" can be refused before the
+    // drop fires. The card allows copyMove and carries only the key, so a copy lands exactly like a move.
+    e.dataTransfer.dropEffect = e.altKey ? 'copy' : 'move'
     setOver((cur) => (cur === t ? cur : t))
   }
   const onDragLeave = (e: DragEvent) => {

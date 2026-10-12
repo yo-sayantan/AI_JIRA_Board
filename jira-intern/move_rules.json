@@ -1,0 +1,4 @@
+{
+  "_readme": "Shared by src/lib/moveRules.ts (board) and jira-intern/transition.py (server): issue types that need no pull request to move to In Review. Case-insensitive. Add a type here and both sides follow.",
+  "prOptionalTypes": ["Support"]
+}

@@ -1,3 +1,4 @@
+import rules from '../../jira-intern/move_rules.json'
 import { describe, expect, it } from 'vitest'
 import type { Ticket } from '../types'
 import { checkMove, isQaTicket, laneBlocker, looksLikeQa, moveTargetOf, qaIssuesOf, readinessOf } from './moveRules'
@@ -115,6 +116,23 @@ describe('Next Sprint', () => {
     expect(moveTargetOf(at('todo', 'To Do', { sprint: 'Team READY (future)' }))).toBe('next')
     expect(moveTargetOf(at('todo', 'To Do', { sprint: 'Team REFINEMENT (future · <null> → <null>)' }))).toBe('next')
     expect(moveTargetOf(at('todo', 'To Do', { sprint: 'Some Backlog (future)' }))).toBe('todo')
+  })
+})
+
+describe('Support tickets (no PR needed for In Review)', () => {
+  const support: Ticket = { key: 'SUP-1', title: 'Customer sees a conflicting value', type: 'Support', status: 'In Progress', column: 'prog' }
+  it('may move to In Review with no PR at all', () => {
+    expect(checkMove(support, 'rev').kind).toBeNull()
+    expect(checkMove({ ...support, type: 'support' }, 'rev').kind).toBeNull()
+  })
+  it('a dev ticket of another type still needs one', () => {
+    expect(checkMove({ ...support, type: 'Story' }, 'rev').kind).toBe('gate')
+  })
+  it('the exemption is only for In Review — Done still asks for its PR and QA ticket', () => {
+    expect(checkMove(support, 'done').kind).toBe('gate')
+  })
+  it('the type list is the shared jira-intern/move_rules.json', () => {
+    expect(rules.prOptionalTypes).toContain('Support')
   })
 })
 
