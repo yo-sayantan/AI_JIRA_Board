@@ -541,7 +541,6 @@ export function SettingsPanel({
 
               <div className="flex min-w-0 flex-col">
                 <Section
-                  className="h-full"
                   title="AI"
                   off={!settings.aiEnabled}
                   aside={
@@ -1207,7 +1206,7 @@ function CloudModelPicker({
 function FactTile({ label, value, hint, warn = false }: { label: string; value: ReactNode; hint?: string; warn?: boolean }) {
   return (
     <div
-      className="flex min-w-0 flex-col justify-center rounded-lg border bg-[var(--surface-2)] px-2.5"
+      className="flex h-12 min-w-0 flex-col justify-center rounded-lg border bg-[var(--surface-2)] px-2.5"
       style={{ borderColor: warn ? 'rgba(220,38,38,0.5)' : 'var(--line)', background: warn ? 'rgba(220,38,38,0.06)' : undefined }}
       title={hint}
     >
@@ -1226,8 +1225,7 @@ function FactTile({ label, value, hint, warn = false }: { label: string; value: 
 
 /**
  * The rest of the AI card: facts about the model the next job will use, and the intern's queue.
- * Laid out absolutely inside the leftover height, so it fills the card without ever making the
- * card — or the dialog — taller.
+ * Compact fixed-height tiles — they take only the room they need, never the card's leftover height.
  */
 function AiFacts({
   settings,
@@ -1265,7 +1263,7 @@ function AiFacts({
         />
       </>
     ) : (
-      <div className="col-span-3 flex min-w-0 items-center rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-2.5 text-[11px] text-[var(--muted)]">
+      <div className="col-span-3 flex h-12 min-w-0 items-center rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-2.5 text-[11px] text-[var(--muted)]">
         <span className="min-w-0 truncate">{settings.aiCloudModel ? `${biller} sets this model's prices — see ${biller}'s pricing page.` : 'Pick a model to see its prices.'}</span>
       </div>
     )
@@ -1299,14 +1297,12 @@ function AiFacts({
     : `${queued} waiting · ${running} running${aiStatus?.parallel ? ` · up to ${aiStatus.parallel} at once` : ''}`
 
   return (
-    <div className="relative min-h-[5.5rem] flex-1">
-      <div className="absolute inset-0 flex flex-col gap-2">
-        <div className="grid min-h-0 flex-1 grid-cols-3 gap-1.5">{tiles}</div>
-        <div className={STRIP} title={`AI-Intern: ${activity}`}>
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: down ? '#dc2626' : running ? AI : '#16a34a' }} />
-          <span className="shrink-0 font-semibold text-[var(--ink-soft)]">Intern</span>
-          <span className="min-w-0 truncate">{activity}</span>
-        </div>
+    <div className="flex flex-col gap-1.5">
+      <div className="grid grid-cols-3 gap-1.5">{tiles}</div>
+      <div className={STRIP} title={`AI-Intern: ${activity}`}>
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: down ? '#dc2626' : running ? AI : '#16a34a' }} />
+        <span className="shrink-0 font-semibold text-[var(--ink-soft)]">Intern</span>
+        <span className="min-w-0 truncate">{activity}</span>
       </div>
     </div>
   )
