@@ -7,8 +7,8 @@ code does now, so a reader can check them against the tree.
 
 - **Light PDF deck, more Google.** The Light deck now follows Material 3 / Google Slides throughout: Google's colour families in
   tonal pairs (a 50-shade container behind dark ink of the same family — never yellow text; the 600 fill only for bars, dots and
-  the score ring), Google's greys, the M3 type scale in regular weight for big type (headline 32/40, title 22/28, body 15/22,
-  labels 13/16) with sentence case, an 8px spacing grid (56px margins, 24px between blocks), 8px tonal chips, a verdict status
+  the score ring), Google's greys, the M3 type scale (headline 32/40, title 22/28, body 15/22, labels 13/16) with sentence case — headings, key numbers,
+  labels and lead cells in **bold** so the deck reads solid, darker outlines, ink-coloured body text, an 8px spacing grid (56px margins, 24px between blocks), 8px tonal chips, a verdict status
   chip with a dot, outlined 12px KPI tiles with a status dot, an outlined "Next step" card with a status rail, Material tables
   with no row stripes, an overline section label instead of a pill, and the four-colour bar as the only decoration. Colourful
   is unchanged.
