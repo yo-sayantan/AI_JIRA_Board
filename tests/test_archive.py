@@ -50,10 +50,10 @@ class FullRebuildKeepsPriorRows(unittest.TestCase):
 
         real_build = ca.build_completed
 
-        def flaky_build(issue_, prior, dev_map, children, pr_overrides, mine, inherit_details=True):
+        def flaky_build(issue_, prior, dev_map, children, pr_overrides, mine, inherit_details=True, **kw):
             if issue_["key"] in ("T-2", "T-3"):
                 raise RuntimeError("boom " + issue_["key"])
-            return real_build(issue_, prior, dev_map, children, pr_overrides, mine, inherit_details)
+            return real_build(issue_, prior, dev_map, children, pr_overrides, mine, inherit_details, **kw)
 
         self.issues = [issue("T-1", "new T-1"), issue("T-2", "new T-2"), issue("T-3", "new T-3")]
         patches = [
@@ -104,6 +104,88 @@ class FullRebuildKeepsPriorRows(unittest.TestCase):
 
 # Captured before any test patches the module attribute.
 _ORIGINAL_BUILD = ca.build_completed
+
+
+def sub_issue(key, parent, summary, itype="Sub-task", labels=(), who="Tess Tester"):
+    """A sub-task as Jira's search returns it (type / labels / owner are what the QA test reads)."""
+    fields = {
+        "summary": summary,
+        "status": {"name": "Done", "statusCategory": {"key": "done"}},
+        "issuetype": {"name": itype},
+        "labels": list(labels),
+        "parent": {"key": parent},
+        "assignee": {"displayName": who, "name": who.split()[0].lower()},
+        "created": "2026-02-01T10:00:00.000+0000",
+        "resolutiondate": "2026-03-01T10:00:00.000+0000",
+    }
+    return {"key": key, "id": key.split("-")[1], "fields": fields}
+
+
+class QaSubtasksAreNested(unittest.TestCase):
+    """A closed ticket's QA sub-task belongs to a tester, not to me — it must still reach subtasks[],
+    or the closure report says "no QA sub-task on the ticket" for every closed ticket."""
+
+    def build(self, children=(), qa_children=(), prior=None):
+        return ca.build_completed(issue("T-1", "Parent"), prior, {}, list(children), {}, True, qa_children=qa_children)
+
+    def test_qa_subtask_of_someone_else_is_nested_as_not_mine(self):
+        mine = sub_issue("T-2", "T-1", "Implement the export", who="Me Myself")
+        qa = sub_issue("T-3", "T-1", "QA: verify the export", labels=["qa"])
+        subs = {s["key"]: s for s in self.build(children=[mine], qa_children=[qa])["subtasks"]}
+        self.assertEqual(sorted(subs), ["T-2", "T-3"])
+        self.assertTrue(subs["T-2"]["mine"])
+        self.assertFalse(subs["T-3"]["mine"])
+        self.assertEqual(subs["T-3"]["assignee"], "Tess Tester (TESS)")
+        self.assertEqual(self.build(children=[mine], qa_children=[qa])["subtaskCount"], 2)
+
+    def test_a_qa_subtask_that_is_also_mine_is_not_duplicated(self):
+        qa = sub_issue("T-3", "T-1", "QA: verify the export")
+        subs = self.build(children=[qa], qa_children=[qa])["subtasks"]
+        self.assertEqual([(s["key"], s["mine"]) for s in subs], [("T-3", True)])
+
+    def test_a_failed_qa_lookup_keeps_the_cached_qa_subtasks(self):
+        prior = {"subtasks": [
+            {"key": "T-3", "title": "QA: verify", "mine": False},
+            {"key": "T-9", "title": "an old mine row", "mine": True},  # mine rows come from this run's search, not the cache
+        ]}
+        kept = self.build(qa_children=None, prior=prior)["subtasks"]
+        self.assertEqual([s["key"] for s in kept], ["T-3"])
+
+    def test_a_successful_empty_lookup_drops_stale_qa_subtasks(self):
+        prior = {"subtasks": [{"key": "T-3", "title": "QA: verify", "mine": False}]}
+        self.assertEqual(self.build(qa_children=[], prior=prior)["subtasks"], [])
+
+
+class FetchQaChildren(unittest.TestCase):
+    def fetch(self, parents, issues=None, fail=False):
+        def fake_search(jql, **k):
+            if fail:
+                raise RuntimeError("jira down")
+            return issues or []
+        with mock.patch.object(ca, "search_jira", fake_search):
+            return ca.fetch_qa_children(parents)
+
+    def test_keeps_only_qa_subtasks_grouped_by_parent(self):
+        found = self.fetch(["T-1", "T-5", "T-7"], [
+            sub_issue("T-2", "T-1", "Implement the export"),                      # plain sibling: not fetched
+            sub_issue("T-3", "T-1", "QA: verify the export"),                     # title prefix
+            sub_issue("T-6", "T-5", "Check it on staging", labels=["qa"]),        # label
+            sub_issue("T-8", "T-5", "Anything", itype="QA Task"),                 # type
+        ])
+        self.assertEqual({k: [i["key"] for i in v] for k, v in found.items()},
+                         {"T-1": ["T-3"], "T-5": ["T-6", "T-8"], "T-7": []})
+
+    def test_a_failed_search_leaves_the_parents_out_instead_of_mapping_them_to_none_found(self):
+        found = self.fetch(["T-1", "T-5"], fail=True)
+        self.assertEqual(found, {})
+        self.assertIsNone(found.get("T-1"))   # → build_completed carries the cached QA sub-tasks forward
+
+    def test_asks_in_chunks_of_100(self):
+        calls = []
+        with mock.patch.object(ca, "search_jira", lambda jql, **k: calls.append(jql) or []):
+            found = ca.fetch_qa_children(f"T-{n}" for n in range(1, 251))
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(len(found), 250)
 
 
 class MineFlags(unittest.TestCase):

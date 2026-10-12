@@ -96,7 +96,9 @@ Closed in Jira, code not merged · Declined, no replacement · On hold* — plus
 idle days. The deterministic pass **owns** the verdict, score and every colour; the AI pass may only add
 (its own tab, extra evidence rows, CI/scan gate states) — a report that changes anything derived is
 rejected and the base is restored. Every block carries a provenance chip: **measured**, **AI-enriched**,
-or **not verified** (a gap — shown, never hidden). A ring shows the 0–100 readiness score.
+or **not verified** (a gap — shown, never hidden). A gate that does not apply to the ticket (the Checkmarx scan
+on a ticket that is not a vulnerability fix) reads **Not required**: grey, and left out of "gates passed X of Y".
+A ring shows the 0–100 readiness score.
 
 **How reports are produced.** Two passes, so a report always exists once a PR appears:
 1. *Deterministic base* — `jira-intern/pr_report.py`, from the fetched ticket data. No AI, no network.

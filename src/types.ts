@@ -345,7 +345,8 @@ export interface Ticket {
   parentTitle?: string | null
   /**
    * False for a team-mate's sub-task pulled in because it hangs off a master ticket I worked
-   * on. Those rows give a master ticket its full delivery picture without being counted as
+   * on — in the archive that is a parent's QA sub-task (a nested child, not a row of its own).
+   * Those rows give a master ticket its full delivery picture without being counted as
    * my own output.
    */
   mine?: boolean

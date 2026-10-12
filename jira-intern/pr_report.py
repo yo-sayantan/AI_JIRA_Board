@@ -273,6 +273,9 @@ def build_evidence(b, now):
 
 # ── Checkmarx (ticket.vulnFixes — written by daily_fetch via checkmarx.py) ──────
 SECURITY_GATE = "Security scan (Checkmarx) clean"
+# A gate state, like Pass / Fail / Not verified: the check does not apply to this ticket. The report UI
+# (PrReportPrint.tsx::tallyGates) reads the text, so keep the spelling.
+NOT_REQUIRED = "Not required"
 VULN_STATUS = {"fixed": ("Fixed", "success"), "open": ("Still open", "danger"),
                "not-found": ("Not found", "warning"), "unknown": ("Unknown", "neutral")}
 VULN_KIND = {"cve": "CVE", "sast": "SAST", "result": "Result", "package": "Package"}
@@ -294,9 +297,11 @@ def vuln_gate(t):
     """(state, evidence, tone) for the "Security scan (Checkmarx) clean" gate — the base report and
     ai-intern/worker.py both use it, so the two never disagree. Pass = every target the ticket names
     is fixed; Fail = any is still open; Not verified otherwise, saying why. Only the ticket's own
-    targets count — the scan's other findings are not this ticket's to fix."""
+    targets count — the scan's other findings are not this ticket's to fix. A ticket that is not a
+    vulnerability fix has nothing to scan: **Not required** (grey), which the board leaves out of the
+    "gates passed" count instead of counting it as a gap."""
     if not checkmarx.is_vuln_fix(t):
-        return "Not verified", "Not a vulnerability-fix ticket — no scan needed", "neutral"
+        return NOT_REQUIRED, "Not a vulnerability-fix ticket — no scan needed", "neutral"
     vf = vuln_fixes_of(t)
     if not vf:
         if not checkmarx.extract_targets(t):
@@ -644,7 +649,7 @@ def build_base(t, src, cfg):
         {"kind": "stats", "title": "At a glance", "tone": "neutral", "provenance": "derived", "items": stats},
         {"kind": "table", "title": "Gate checklist", "tone": worst(g["tone"] for g in gates), "provenance": "derived",
          "headers": ["Gate", "State", "Evidence", "Blocks closure?"], "rows": gates,
-         "note": "Rows are in verdict-rule order: the first Fail is the reason for the verdict. 'Not verified' is grey, never green."},
+         "note": "Rows are in verdict-rule order: the first Fail is the reason for the verdict. 'Not verified' is a gap and never green; 'Not required' is grey and not counted."},
     ]}
     if ev_all["sections"]:
         # "What was the issue?", in plain words, for whoever reads the report without opening Dynatrace, Checkmarx or Jenkins.

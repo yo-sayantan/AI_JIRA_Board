@@ -3,8 +3,8 @@ import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, describe, expect, it } from 'vitest'
 import { demoReports } from '../../demo/reports'
-import type { PrReport } from '../../lib/reportTypes'
-import { PrReportPrintDoc, kpiColumns } from './PrReportPrint'
+import type { PrReport, ReportTableBlock } from '../../lib/reportTypes'
+import { PrReportPrintDoc, kpiColumns, rowTone, tallyGates } from './PrReportPrint'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -95,5 +95,52 @@ describe('deck style (Settings → PDF report)', () => {
     expect(el.querySelector('.jb-pdf')?.classList.contains('jb-deck-colorful')).toBe(true)
     expect(el.querySelector('.jb-pdf')?.classList.contains('jb-deck-light')).toBe(false)
     expect(agendaColour(el)).toMatch(/rgb\(79, 70, 229\)|#4f46e5/i)
+  })
+})
+
+describe('gate tally', () => {
+  const gates = (...states: string[]): ReportTableBlock => ({
+    kind: 'table',
+    title: 'Gate checklist',
+    tone: 'neutral',
+    provenance: 'derived',
+    headers: ['Gate', 'State', 'Evidence', 'Blocks closure?'],
+    rows: states.map((s, i) => ({ cells: [`Gate ${i}`, s, '', 'No'] })),
+  })
+
+  it('counts passes, gaps and failures out of every gate that applies', () => {
+    expect(tallyGates(gates('Pass', 'Pass', 'Not verified', 'Fail'))).toEqual({ pass: 2, warn: 1, fail: 1, na: 0, total: 4 })
+  })
+
+  it('leaves a "Not required" gate out of the total instead of counting it as a gap', () => {
+    // 6 pass, 3 gaps, 1 not required: the old tally read "6 of 10" with 4 amber.
+    const t = tallyGates(gates(...Array(6).fill('Pass'), 'Not verified', 'Not verified', 'Not verified', 'Not required'))
+    expect(t).toEqual({ pass: 6, warn: 3, fail: 0, na: 1, total: 9 })
+  })
+
+  it('reads a ticket whose only open gate is not applicable as fully passed', () => {
+    expect(tallyGates(gates('Pass', 'Pass', 'Not required'))).toEqual({ pass: 2, warn: 0, fail: 0, na: 1, total: 2 })
+  })
+
+  it('draws "Not required" grey, never amber, red or green', () => {
+    const row = (state: string) => ({ cells: ['Security scan (Checkmarx) clean', state, 'Not a vulnerability-fix ticket'] })
+    expect(rowTone(row('Not required'), 1)).toBe('neutral')
+    expect(rowTone(row('not applicable'), 1)).toBe('neutral')
+    // the others keep their colours
+    expect(rowTone(row('Not verified'), 1)).toBe('warning')
+    expect(rowTone(row('Pass'), 1)).toBe('success')
+    expect(rowTone(row('Fail'), 1)).toBe('danger')
+  })
+
+  it('shows the not-required count in the gate bar legend only when there is one', () => {
+    const report = Object.values(demoReports().reports)[0]
+    const withGates = (...states: string[]): PrReport => ({
+      ...report,
+      tabs: report.tabs.map((tab, i) => (i === 0 ? { ...tab, blocks: [...tab.blocks, gates(...states)] } : tab)),
+    })
+    expect(render(withGates('Pass', 'Not required')).textContent).toMatch(/1 not required/)
+    act(() => root?.unmount())
+    host?.remove()
+    expect(render(withGates('Pass', 'Not verified')).textContent).not.toMatch(/not required/)
   })
 })

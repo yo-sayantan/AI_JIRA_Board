@@ -201,7 +201,8 @@ says so instead of staying silent (see **Visible status** below).
   orange for that — green after a read, orange for unreachable / budget, red for a rejected key).
   `jira-intern/_sources.py`, `ticket.proofNotes`, `data.json → proofSources`, `lib/proofStatus.ts`.
 - **PR readiness report**: the "Security scan (Checkmarx) clean" gate — Pass when every named target is fixed,
-  Fail when any is open, Not verified otherwise (with the reason) — and one "Checkmarx · <kind>" evidence row per
+  Fail when any is open, Not verified otherwise (with the reason), **Not required** for a ticket that is not a
+  vulnerability fix (grey; not counted in "gates passed X of Y") — and one "Checkmarx · <kind>" evidence row per
   target, in the deterministic base report (AI level None included). `pr_report.vuln_gate`, shared with the
   AI worker's "Proof · vulnerability fix" table.
 
