@@ -14,6 +14,9 @@ code does now, so a reader can check them against the tree.
   switches. Blur is used only over content (header, footer, dialogs, menus, tooltips), not on every card. It goes opaque for
   *reduce transparency*, *increase contrast* and browsers without `backdrop-filter`, switches off with Motion & animations,
   and print is untouched. Colours, gradients and animations are unchanged. To undo it, delete `glass.css` and its import.
+  Follow-up: the glass is tinted (indigo → pink → teal) over a lavender / deep-indigo base with stronger ambient colour, so
+  nothing reads grey; dialog dims are coloured, not black; header menus (Rebuild archive, PR reports) and tooltips are near-opaque
+  — a blur inside the blurred header only sees the header, so it could not hide the board; every Close button is red.
 
 - **Settings: one AI dial, and two master switches.** Settings → AI now has just **Low · Medium · High · Max** (`None` is
   gone; the old Effort dropdown is gone — the level sets the effort). The level also decides which cloud models can be picked,
