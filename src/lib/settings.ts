@@ -13,6 +13,8 @@ import { setMotionEnabled } from './motionPolicy'
 export type ThemeMode = 'auto' | 'fixed' | 'schedule'
 /** Stored values; the labels are Low · Medium · High · Max (`moderate` = Medium, `full` = Max — see AI_LEVELS). */
 export type AiLevel = 'low' | 'moderate' | 'high' | 'full'
+/** How the PDF report deck looks: Google-style white pages (`light`) or the original section-coloured deck (`colorful`). */
+export type ReportStyle = 'light' | 'colorful'
 export type AiBackend = 'local' | 'cloud'
 export type AiCloudProvider = 'claude' | 'cursor' | 'gemini'
 
@@ -25,6 +27,8 @@ export interface Settings {
   dayEnd: number
   /** Master switch for everything AI. Off greys out the AI section and the server skips every AI job. */
   aiEnabled: boolean
+  /** The look of the PR report PDF deck — used the next time a report is printed / saved as PDF. */
+  reportStyle: ReportStyle
   /** Master switch for the server's scheduled jobs. Off greys out the Background jobs section. */
   jobsEnabled: boolean
   aiLevel: AiLevel
@@ -294,12 +298,19 @@ const LOCAL_FIELDS = {
   toastSeconds: bounded('toastSeconds'),
   toastMax: bounded('toastMax'),
   showLocalModels: bool,
+  reportStyle: oneOf<ReportStyle>(['light', 'colorful']),
 } satisfies { [K in Exclude<keyof Settings, ServerKey | 'features'>]: Parse<Settings[K]> }
 
 /**
  * The one AI dial. It sets how long a pass may think (the worker's timeout) AND how hard a cloud model works
  * (`effortForLevel`) — there is no separate effort control. "None" is gone: the AI switch under Features is "off".
  */
+/** The two looks of the PDF deck (Settings → PDF report). The deck is generated in whichever is chosen when you print. */
+export const REPORT_STYLES: { key: ReportStyle; label: string; hint: string }[] = [
+  { key: 'light', label: 'Light', hint: 'White pages in Google Slides style — soft tinted boxes, outlined cards, a clean title slide' },
+  { key: 'colorful', label: 'Colourful', hint: 'The original deck — a coloured band and table header per section, bold gradients, a dark title slide' },
+]
+
 export const AI_LEVELS: {
   key: AiLevel
   label: string
@@ -352,6 +363,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: APP_CONFIG.settingsDefaults?.theme ?? 'dark',
   dayStart: APP_CONFIG.settingsDefaults?.dayStart ?? 7,
   dayEnd: APP_CONFIG.settingsDefaults?.dayEnd ?? 19,
+  reportStyle: APP_CONFIG.settingsDefaults?.reportStyle ?? 'light',
   aiEnabled: APP_CONFIG.ai?.enabled !== false && APP_CONFIG.ai?.level !== 'none',
   jobsEnabled: APP_CONFIG.schedule?.enabled !== false,
   aiLevel: APP_CONFIG.ai?.level && APP_CONFIG.ai.level !== 'none' ? APP_CONFIG.ai.level : 'moderate',

@@ -166,7 +166,7 @@ export function columnWidths(headers: string[], rows: string[][]): number[] {
   const weights = headers.map((h, j) => {
     const lens = rows.map((r) => (r[j] ?? '').length).sort((a, b) => a - b)
     const typical = lens.length ? lens[Math.floor((lens.length - 1) * 0.8)] : 0
-    return Math.min(60, Math.max(8, h.length * 0.9, typical))
+    return Math.min(60, Math.max(11, h.length * 0.9, typical))
   })
   const total = weights.reduce((a, b) => a + b, 0) || 1
   return weights.map((w) => Math.round((1000 * w) / total) / 10)

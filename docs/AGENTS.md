@@ -169,9 +169,11 @@ ticket's branches, and that has its own status words):
   Print slides (`.jb-pdf`) stay flat. Keep the column colours, gradients and animations — glass is the material, not a monochrome.
 - **The PDF deck is not glass.** `.jb-pdf` (the PR report slides) is paper — flat, static, no blur / translucency / pointer
   effects (they have nothing to show through on a page and cannot exist in a PDF). It uses Google's presentation look
-  (`src/styles/slides-google.css`: white pages, Google palette via `DECK_TONE` in `PrReportPrint.tsx`, tonal containers,
-  outlined cards, Material tables). Keep the deck's colours in `DECK_TONE` / `SECTION_COLOR` (6-digit hex — the markup appends
-  an alpha pair), not the board's `toneColor`, and keep every override scoped to `.jb-pdf`.
+  (`src/styles/slides-google.css`: white pages, Google palette, tonal containers, outlined cards, Material tables) when
+  Settings → PDF report is **Light**, and the original section-coloured deck when it is **Colourful** (`reportStyle`, a
+  local-only setting → `PrReportPrintDoc`'s `style` → class `jb-deck-light` / `jb-deck-colorful`). Keep the deck's colours in
+  `PALETTE` in `PrReportPrint.tsx` (6-digit hex — the markup appends an alpha pair), not the board's `toneColor`, and keep
+  every Light override scoped to `.jb-pdf.jb-deck-light`. A slide's content may never overflow its cell: table chips wrap.
 - Drag and drop: a zone must arm on `dragenter` as well as `dragover`, columns overlap their gap by 6px so
   hit areas touch, widths do not animate while a drag is in flight (`jb-dragging`), and the carried card is a
   translucent clone (`DRAG_GHOST_OPACITY`) so the drop zone shows through it. The board stays "calm"

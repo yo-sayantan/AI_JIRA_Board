@@ -385,6 +385,7 @@ export default function App() {
           onRegenerate={served ? reports.generateOne : undefined}
           generating={reports.openReport ? reports.generating.has(reports.openReport.key) : false}
           internStatus={ai}
+          reportStyle={settings.reportStyle}
         />
       </ErrorBoundary>
 

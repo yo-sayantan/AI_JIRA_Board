@@ -11,9 +11,10 @@
    · type: Google Sans where the machine has it, else Roboto, else the system sans — nothing is downloaded, so the deck
      still exports offline (a licensed Google Sans is not bundled)
 
-   Scoped to `.jb-pdf`, loaded after index.css so it wins on order alone. Revert: delete this file and its import. */
+   Scoped to `.jb-pdf.jb-deck-light` — Settings → PDF report picks it (Light) or leaves the original deck (Colourful).
+   Revert: delete this file and its import. */
 
-.jb-pdf {
+.jb-pdf.jb-deck-light {
   font-family: 'Google Sans', 'Google Sans Text', 'Product Sans', Roboto, 'Helvetica Neue', Arial, system-ui, sans-serif;
   color: #202124;
   --ink: #202124;

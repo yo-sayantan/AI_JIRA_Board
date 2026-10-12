@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { ACTIVE_CADENCE, AI_LEVELS, BOARD_CADENCE, FEATURES, LIMITS, clampSetting, type AiCloudProvider, type FeatureKey, type Settings } from '../../lib/settings'
+import { ACTIVE_CADENCE, AI_LEVELS, BOARD_CADENCE, FEATURES, LIMITS, REPORT_STYLES, clampSetting, type AiCloudProvider, type FeatureKey, type Settings } from '../../lib/settings'
 import { getAiModels, getCloudModels, pullAiModel, guideUrl, type AiCatalogModel, type AiInternStatus, type AiPullProgress, type CloudModelChoice, type CloudListInfo, type CloudPrice, type OllamaContainerInfo } from '../../lib/runner'
 import { DEFAULT_COSTLY_USD, groupByProvider, isPricey, levelAllows, levelPriceText, usd } from '../../lib/cloudModels'
 import fallbackCatalog from '../../../ai-intern/models.json'
@@ -79,6 +79,22 @@ function OffNote({ what }: { what: string }) {
     <span className="truncate font-semibold text-[var(--muted)]" title={`${what} is switched off — turn it back on under Features.`}>
       Off — turn on under Features
     </span>
+  )
+}
+
+/** A tiny preview of each PDF look: Google's four colours, or the original multi-hue gradient. */
+function ReportSwatch({ style }: { style: 'light' | 'colorful' }) {
+  return (
+    <span
+      aria-hidden
+      className="h-2 w-5 shrink-0 rounded-full"
+      style={{
+        background:
+          style === 'light'
+            ? 'linear-gradient(90deg,#4285f4 0 25%,#ea4335 25% 50%,#fbbc04 50% 75%,#34a853 75%)'
+            : 'linear-gradient(90deg,#4f46e5,#0d9488,#ea580c,#7c3aed)',
+      }}
+    />
   )
 }
 
@@ -460,6 +476,21 @@ export function SettingsPanel({
                       {APPEARANCE.find((m) => m.key === appearanceKey(settings))?.hint}
                     </p>
                   </div>
+                </Section>
+
+                <Section title="PDF report" aside={<span className="truncate text-[var(--muted)]">used the next time you export</span>}>
+                  <Segmented
+                    label="PDF report style"
+                    options={REPORT_STYLES.map((r) => ({
+                      key: r.key,
+                      label: r.label,
+                      hint: r.hint,
+                      icon: <ReportSwatch style={r.key} />,
+                    }))}
+                    value={settings.reportStyle}
+                    onChange={(k) => set('reportStyle', k)}
+                  />
+                  <p className="mt-1.5 line-clamp-2 h-8 text-[11.5px] leading-4 text-[var(--muted)]">{REPORT_STYLES.find((r) => r.key === settings.reportStyle)?.hint}</p>
                 </Section>
 
                 <Section title="Notifications">

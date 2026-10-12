@@ -14,6 +14,8 @@ import type {
   ReportTimelineBlock,
   ReportTone,
 } from '../../lib/reportTypes'
+import type { ReportStyle } from '../../lib/settings'
+import { TONE_COLOR } from '../../lib/reportTypes'
 import { fmtDate, fmtDateTime, fmtReportMetadata } from '../../lib/format'
 import { APP_CONFIG } from '../../lib/appConfig'
 import { hrefForKey, shareableLinks } from '../../lib/reportLinks'
@@ -52,11 +54,13 @@ const RAG: Record<ReportTone, string> = {
 }
 
 /**
- * The deck's palette is Google's (Material / Google Slides): blue #1a73e8, red #d93025, green #1e8e3e, amber #c26401,
- * purple #9334e6, grey #5f6368. It is the deck's own — the board's `toneColor` keeps its colours — and every value is a
- * 6-digit hex because the slide markup appends an alpha pair (`${c}14`) to make Material's tonal containers.
+ * The deck's two palettes (Settings → PDF report). **Light** is Google's (Material / Google Slides): blue #1a73e8, red
+ * #d93025, green #1e8e3e, amber #c26401, purple #9334e6, grey #5f6368. **Colourful** is the original deck: the board's
+ * own tone colours and a hue per section. Every value is a 6-digit hex because the slide markup appends an alpha pair
+ * (`${c}14`) to make tinted containers. The chosen style also becomes a class on the deck (`jb-deck-light` /
+ * `jb-deck-colorful`), which is what slides-google.css keys on.
  */
-const DECK_TONE: Record<ReportTone, string> = {
+const LIGHT_TONE: Record<ReportTone, string> = {
   success: '#1e8e3e',
   warning: '#c26401',
   danger: '#d93025',
@@ -64,10 +68,7 @@ const DECK_TONE: Record<ReportTone, string> = {
   violet: '#9334e6',
   neutral: '#5f6368',
 }
-const deckTone = (t?: ReportTone | null): string => DECK_TONE[t ?? 'neutral'] ?? DECK_TONE.neutral
-
-/** Each section owns a hue, carried by its eyebrow, rule and table accents. */
-const SECTION_COLOR: Record<string, string> = {
+const LIGHT_SECTION: Record<string, string> = {
   'Executive summary': '#1a73e8',
   'Delivery gates': '#1e8e3e',
   'Open items': '#c26401',
@@ -79,7 +80,31 @@ const SECTION_COLOR: Record<string, string> = {
   'Additional detail': '#5f6368',
   Appendix: '#5f6368',
 }
-const sectionColor = (s: string) => SECTION_COLOR[s] ?? '#5f6368'
+const COLORFUL_SECTION: Record<string, string> = {
+  'Executive summary': '#4f46e5',
+  'Delivery gates': '#0d9488',
+  'Open items': '#ea580c',
+  'Code review': '#7c3aed',
+  Evidence: '#2563eb',
+  'Quality and security': '#16a34a',
+  'Technical assessment': '#0891b2',
+  Risk: '#dc2626',
+  'Additional detail': '#64748b',
+  Appendix: '#475569',
+}
+const PALETTE: Record<ReportStyle, { tone: Record<ReportTone, string>; section: Record<string, string>; fallback: string }> = {
+  light: { tone: LIGHT_TONE, section: LIGHT_SECTION, fallback: '#5f6368' },
+  colorful: { tone: TONE_COLOR, section: COLORFUL_SECTION, fallback: '#475569' },
+}
+
+/**
+ * The style being drawn. Set at the top of PrReportPrintDoc's render, before any slide component runs: the colour helpers
+ * are called from plain render closures (list / table / card builders) that cannot use a hook or context, and only one deck
+ * is ever on screen. A style change re-renders the doc, which sets it again and re-measures the pages.
+ */
+let activeStyle: ReportStyle = 'light'
+const deckTone = (t?: ReportTone | null): string => PALETTE[activeStyle].tone[t ?? 'neutral'] ?? PALETTE[activeStyle].tone.neutral
+const sectionColor = (s: string) => PALETTE[activeStyle].section[s] ?? PALETTE[activeStyle].fallback
 
 /** One block of a section. Items are table rows, rows of cards, or list entries; atoms never split. */
 interface BlockDef {
@@ -110,21 +135,22 @@ interface Deck {
   sections: SectionDef[]
 }
 
-export function PrReportPrintDoc({ report, tabs }: { report: PrReport; tabs: ReportTab[] }) {
+export function PrReportPrintDoc({ report, tabs, style = 'light' }: { report: PrReport; tabs: ReportTab[]; style?: ReportStyle }) {
+  activeStyle = style
   const deck = useMemo(() => planDeck(report, tabs), [report, tabs])
   const rootRef = useRef<HTMLDivElement>(null)
   const [generation, setGeneration] = useState(0)
   // The pages belong to the deck (and font generation) they were measured for; anything else means
   // "measure again", so a new report can never be drawn with the previous report's pagination.
-  const [layout, setLayout] = useState<{ deck: Deck; generation: number; pages: Page[] } | null>(null)
-  const pages = layout && layout.deck === deck && layout.generation === generation ? layout.pages : null
+  const [layout, setLayout] = useState<{ deck: Deck; generation: number; style: ReportStyle; pages: Page[] } | null>(null)
+  const pages = layout && layout.deck === deck && layout.generation === generation && layout.style === style ? layout.pages : null
 
   // Pass 1 + 2: measure the offscreen render, paginate. A layout effect, so it completes before
   // paint — the deck is ready long before anyone reaches the print button.
   useLayoutEffect(() => {
     if (pages || !rootRef.current) return
-    setLayout({ deck, generation, pages: measureAndPaginate(rootRef.current, deck.sections) })
-  }, [pages, deck, generation])
+    setLayout({ deck, generation, style, pages: measureAndPaginate(rootRef.current, deck.sections) })
+  }, [pages, deck, generation, style])
 
   // Pass 3: fit every slide; again right before printing (fonts or the window may have changed).
   useLayoutEffect(() => {
@@ -145,7 +171,7 @@ export function PrReportPrintDoc({ report, tabs }: { report: PrReport; tabs: Rep
   const byId = useMemo(() => new Map(deck.sections.map((s) => [s.id, s])), [deck])
 
   return (
-    <div className="jb-pdf" ref={rootRef} aria-hidden>
+    <div className={`jb-pdf jb-deck-${style}`} ref={rootRef} aria-hidden>
       {!pages ? (
         <MeasureLayer sections={deck.sections} />
       ) : (
@@ -731,7 +757,7 @@ function CoverSlide({ report, sections }: { report: PrReport; sections: SectionD
         </div>
         {typeof v?.score === 'number' && (
           <div className="jb-cover-score">
-            <ScoreRing score={v.score} color={c} size={170} />
+            <ScoreRing score={v.score} color={c} size={170} dark={activeStyle === 'colorful'} />
             <span>Readiness score</span>
           </div>
         )}
@@ -927,7 +953,7 @@ function Kpis({ stats }: { stats: ReportStat[] }) {
         const toned = s.tone && s.tone !== 'neutral'
         const c = deckTone(s.tone)
         return (
-          <div key={i} className="jb-kpi" style={{ borderTopColor: toned ? c : '#dadce0', background: toned ? `${c}10` : undefined }}>
+          <div key={i} className="jb-kpi" style={{ borderTopColor: toned ? c : activeStyle === 'light' ? '#dadce0' : '#cbd2de', background: toned ? `${c}10` : undefined }}>
             <div className="jb-kpi-label">{s.label}</div>
             <div className={`jb-kpi-value${String(s.value ?? '').length <= 14 ? ' jb-nowrap' : ''}`} style={toned ? { color: c } : undefined}>
               <Segments text={sentenceCase(String(s.value ?? ''))} />

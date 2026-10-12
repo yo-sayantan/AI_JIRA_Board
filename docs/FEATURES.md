@@ -263,11 +263,13 @@ in three passes before the print dialog opens (`reports/PrReportPrint.tsx`): eve
 composite too tall for one slide falls back to its parts, a nearly empty last slide is rebalanced
 with the one before, and short sections share a slide; then `reports/printFit.ts` **fits** each
 slide, enlarging sparse content (up to 1.3×) and shrinking dense content (down to 0.62×). Slides
-are exactly one page and clip, so nothing ever spills onto the next page. **Look:** Google's presentation
-language (Material / Google Slides), not the board's Liquid Glass — white pages, a clean title slide, Google's
-four-colour accent bar, tonal containers for the verdict / next step / KPIs / callouts, outlined cards, pill chips and
-Material data tables, in Google's palette (`DECK_TONE` in `PrReportPrint.tsx`) and Google Sans → Roboto → system sans.
-Styles: `src/styles/slides-google.css` (scoped to `.jb-pdf`, on top of the layout rules in `index.css`).
+are exactly one page and clip, so nothing ever spills onto the next page. **Look — chosen in Settings → PDF report** (a Light / Colourful switch, saved on this device, used the next time you
+export): **Light** is Google's presentation language (Material / Google Slides) — white pages, a clean title slide,
+Google's four-colour accent bar, tonal containers for the verdict / next step / KPIs / callouts, outlined cards, pill chips and
+Material data tables, in Google's palette and Google Sans → Roboto → system sans (`src/styles/slides-google.css`,
+scoped to `.jb-pdf.jb-deck-light`); **Colourful** is the original deck — a coloured band and table header per section,
+gradients, a dark title slide. Palettes: `PALETTE` in `PrReportPrint.tsx`; the deck is never glass (paper). A state chip
+wraps inside its table cell instead of running into the next column.
 
 ## AI briefs
 

@@ -5,6 +5,11 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Settings → PDF report: Light or Colourful.** A two-way switch (not a dropdown) chooses the look of the PDF deck the next
+  time you export: **Light** (the Google-style deck below) or **Colourful** (the original section-coloured deck). Saved on
+  this device (`reportStyle`, default Light); the deck re-measures itself when the choice changes. Also fixed: state chips in
+  deck tables ("Not verified", "approved · 3 of 2 · 0 open comments") overran into the next column — they now wrap inside
+  their cell, and the State column gets a little more room.
 - **PR report PDF deck in Google's presentation style.** The slide deck (separate from the on-screen report, and flat on
   purpose — no glass on paper) now follows Material / Google Slides: a white title slide with big type and Google's
   four-colour accent bar, tonal containers for the verdict, next step, KPIs and callouts, outlined 14px cards, pill chips,
