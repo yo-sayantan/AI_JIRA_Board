@@ -306,9 +306,9 @@ const LOCAL_FIELDS = {
  * (`effortForLevel`) — there is no separate effort control. "None" is gone: the AI switch under Features is "off".
  */
 /** The two looks of the PDF deck (Settings → PDF report). The deck is generated in whichever is chosen when you print. */
-export const REPORT_STYLES: { key: ReportStyle; label: string; hint: string }[] = [
-  { key: 'light', label: 'Light', hint: 'White pages in Google Slides style — soft tinted boxes, outlined cards, a clean title slide' },
-  { key: 'colorful', label: 'Colourful', hint: 'The original deck — a coloured band and table header per section, bold gradients, a dark title slide' },
+export const REPORT_STYLES: { key: ReportStyle; label: string }[] = [
+  { key: 'light', label: 'Light' },
+  { key: 'colorful', label: 'Colourful' },
 ]
 
 export const AI_LEVELS: {

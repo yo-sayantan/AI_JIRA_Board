@@ -478,19 +478,17 @@ export function SettingsPanel({
                   </div>
                 </Section>
 
-                <Section title="PDF report" aside={<span className="truncate text-[var(--muted)]">used the next time you export</span>}>
+                <Section title="PDF report">
                   <Segmented
                     label="PDF report style"
                     options={REPORT_STYLES.map((r) => ({
                       key: r.key,
                       label: r.label,
-                      hint: r.hint,
                       icon: <ReportSwatch style={r.key} />,
                     }))}
                     value={settings.reportStyle}
                     onChange={(k) => set('reportStyle', k)}
                   />
-                  <p className="mt-1.5 line-clamp-2 h-8 text-[11.5px] leading-4 text-[var(--muted)]">{REPORT_STYLES.find((r) => r.key === settings.reportStyle)?.hint}</p>
                 </Section>
 
                 <Section title="Notifications">
