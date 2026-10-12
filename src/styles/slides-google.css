@@ -1,385 +1,642 @@
-/* ── PR Readiness Report deck — Google presentation look ────────────────────────────────────────────────────────────
-   The PDF deck (PrReportPrint.tsx, `.jb-pdf`) is paper: flat, static, high-contrast. It is deliberately NOT Liquid Glass
-   (blur and translucency have nothing to show through on a page, and a pointer highlight cannot exist in a PDF). It
-   follows Google's own slide language instead — Material 3 / Google Slides:
+/* ── PR Readiness Report deck — Light: Google's presentation look ───────────────────────────────────────────────────
+   Settings → PDF report → Light. The deck is paper — flat and static, never Liquid Glass — and this file makes it read
+   like a Google deck (Material 3 + Google Slides):
 
-   · white pages, one idea per slide, left-aligned titles, generous space
-   · Google's palette: blue #1a73e8 · red #d93025 · green #1e8e3e · amber #c26401 · grey #5f6368 (see DECK_TONE in the TSX)
-   · TONAL containers (a 10% tint of the status colour, no outline) for the verdict, next step, KPIs and callouts
-   · outlined cards (1px #dadce0, 14px corners), pill chips, Material data tables (grey header, hairline rows, no zebra)
-   · Google's four-colour accent bar as the only decoration; sentence-case labels instead of tracked capitals
-   · type: Google Sans where the machine has it, else Roboto, else the system sans — nothing is downloaded, so the deck
-     still exports offline (a licensed Google Sans is not bundled)
+   · palette — Google's colour families in TONAL PAIRS (PALETTE in PrReportPrint.tsx): a 50-shade container behind
+     dark ink of the same family (green #e6f4ea / #137333, yellow #fef7e0 / #b06000, red #fce8e6 / #c5221f, blue
+     #e8f0fe / #185abc); the 600 fill only for bars, dots and rings. Greys are Google's: #202124 ink, #3c4043 body,
+     #5f6368 secondary, #dadce0 outline, #e8eaed divider, #f1f3f4 / #f8f9fa surfaces
+   · type — the Material 3 scale: headline 32/40 regular, title 22/28 and 16/24 medium, body 15/22, labels 13/16 and
+     12/16 medium; regular weight for big type (Google never shouts in bold); sentence case, no tracked capitals.
+     Google Sans → Roboto → system sans (nothing downloaded; a licensed Google Sans is not bundled)
+   · spacing — an 8px grid: 56px side margins, 24px between blocks, 16px inside cards, 12×16px table cells
+   · shapes — 8px chips (M3), 12px cards and tiles, 16px feature containers; outlines, not shadows
+   · decoration — Google's four-colour bar, top-left, and nothing else on content slides
 
-   Scoped to `.jb-pdf.jb-deck-light` — Settings → PDF report picks it (Light) or leaves the original deck (Colourful).
-   Revert: delete this file and its import. */
+   Every rule is scoped to `.jb-pdf.jb-deck-light`, so Colourful keeps the original deck untouched. Layout, pagination and
+   the fit pass are shared; this only restyles. Revert: delete this file and its import in main.tsx. */
 
 .jb-pdf.jb-deck-light {
-  font-family: 'Google Sans', 'Google Sans Text', 'Product Sans', Roboto, 'Helvetica Neue', Arial, system-ui, sans-serif;
-  color: #202124;
-  --ink: #202124;
-  --ink-soft: #3c4043;
-  --muted: #5f6368;
-  --line: #dadce0;
+  --g-sans: 'Google Sans Text', 'Google Sans', 'Product Sans', Roboto, 'Helvetica Neue', Arial, system-ui, sans-serif;
+  --g-display: 'Google Sans Display', 'Google Sans', 'Product Sans', Roboto, 'Helvetica Neue', Arial, system-ui, sans-serif;
+  --g-mono: 'Roboto Mono', 'Google Sans Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --g-ink: #202124;
+  --g-body: #3c4043;
+  --g-muted: #5f6368;
+  --g-outline: #dadce0;
+  --g-divider: #e8eaed;
+  --g-surface: #f8f9fa;
+  --g-surface-2: #f1f3f4;
+  --g-blue: #1a73e8;
+  --g-bar: linear-gradient(90deg, #4285f4 0 25%, #ea4335 25% 50%, #fbbc04 50% 75%, #34a853 75% 100%);
+
+  font-family: var(--g-sans);
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--g-body);
+  --ink: var(--g-ink);
+  --ink-soft: var(--g-body);
+  --muted: var(--g-muted);
+  --line: var(--g-outline);
   --line-strong: #bdc1c6;
-  --surface-2: #f8f9fa;
-  --link: #1a73e8;
-  --g-blue: #4285f4;
-  --g-red: #ea4335;
-  --g-yellow: #fbbc04;
-  --g-green: #34a853;
-  --g-bar: linear-gradient(90deg, var(--g-blue) 0 25%, var(--g-red) 25% 50%, var(--g-yellow) 50% 75%, var(--g-green) 75% 100%);
+  --surface-2: var(--g-surface);
+  --link: var(--g-blue);
+  --font-mono: var(--g-mono);
 
   a {
-    color: #1a73e8;
+    color: var(--g-blue);
+  }
+  b,
+  strong {
+    font-weight: 500;
+    color: var(--g-ink);
   }
 
-  /* ── Slide frame ──────────────────────────────────────────────────────────────────────────────────────────────── */
+  /* ── Content slide ───────────────────────────────────────────────────────────────────────────────────────────── */
   .jb-slide {
-    padding: 0.62in 0.8in 0.46in 0.8in;
+    padding: 56px 56px 40px;
     background: #fff;
   }
-  /* The old coloured side band becomes Google's four-colour accent, top-left. */
   .jb-slide-band {
-    inset: 0.34in auto auto 0.8in;
-    width: 0.62in;
+    inset: 32px auto auto 56px;
+    width: 64px;
     height: 6px;
     border-radius: 3px;
     background: var(--g-bar);
   }
   .jb-slide-head {
-    padding-bottom: 0.17in;
-    margin-bottom: 0.26in;
-    background: linear-gradient(#dadce0, #dadce0) bottom / 100% 1px no-repeat;
+    align-items: flex-start;
+    gap: 24px;
+    padding-bottom: 0;
+    margin-bottom: 24px;
+    background: none;
   }
+  /* Overline: the section name in its colour, above the title — no pill. */
   .jb-slide-eyebrow {
-    padding: 4px 12px;
-    background: color-mix(in srgb, var(--sec) 10%, #fff);
+    padding: 0;
+    border-radius: 0;
+    background: none;
     color: var(--sec);
-    font-size: 12.5px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
+    font-family: var(--g-sans);
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
     text-transform: none;
   }
   .jb-slide-title {
-    margin-top: 9px;
+    margin: 4px 0 0;
+    font-family: var(--g-display);
     font-size: 32px;
-    line-height: 1.15;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    color: #202124;
+    line-height: 40px;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--g-ink);
   }
+  .jb-slide-aud {
+    gap: 8px;
+    padding-top: 4px;
+  }
+  /* Audience: Material 3 assist chips — outlined, 8px corners. */
+  .jb-slide-aud .jb-chip-quiet {
+    padding: 5px 12px;
+    border: 1px solid var(--g-outline) !important;
+    border-radius: 8px;
+    background: #fff;
+    color: var(--g-body);
+    font-size: 13px;
+    line-height: 16px;
+    font-weight: 500;
+  }
+  .jb-slide-content[data-overflow]::after {
+    padding: 4px 12px;
+    border-radius: 8px;
+    background: #fef7e0;
+    color: #b06000;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .jb-flow {
+    gap: 24px;
+  }
+  .jb-split {
+    gap: 40px;
+  }
+  .jb-col {
+    gap: 24px;
+  }
+  /* A second section sharing a slide: its own overline + title, a quiet divider above. */
   .jb-subhead {
-    border-top: 1px solid #dadce0;
-    padding: 10px 0 6px;
-    font-size: 19px;
-    font-weight: 600;
-    color: #202124;
+    display: block;
+    padding: 16px 0 0;
+    border-top: 1px solid var(--g-divider);
+    font-family: var(--g-display);
+    font-size: 22px;
+    line-height: 28px;
+    font-weight: 400;
+    color: var(--g-ink);
   }
   .jb-subhead span {
-    font-size: 12.5px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
+    display: block;
+    margin-bottom: 2px;
+    font-family: var(--g-sans);
+    font-size: 13px;
+    line-height: 16px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
     text-transform: none;
+    color: var(--sec);
+  }
+  .jb-h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
+    text-transform: none;
+    color: var(--g-ink);
   }
 
-  /* ── Title slide: white, big type, Google's accent bar and one soft shape ─────────────────────────────────────── */
+  /* ── Title slide ─────────────────────────────────────────────────────────────────────────────────────────────── */
   .jb-slide-cover {
+    padding: 0;
     background: #fff;
-    color: #202124;
+    color: var(--g-ink);
   }
   .jb-cover {
-    padding: 0.9in 0.85in 0.55in 0.9in;
+    padding: 96px 64px 48px 72px;
   }
   .jb-cover-band {
-    inset: 0.58in auto auto 0.9in;
-    width: 1.05in;
+    inset: 56px auto auto 72px;
+    width: 96px;
     height: 8px;
     border-radius: 4px;
     background: var(--g-bar);
   }
+  /* One soft shape in the verdict's container colour, behind the score — the only flourish. */
   .jb-cover-glow {
-    right: -1.7in;
-    top: -2.3in;
-    width: 7in;
-    height: 7in;
-    background: color-mix(in srgb, var(--tone) 9%, #fff);
+    right: -160px;
+    top: -200px;
+    width: 640px;
+    height: 640px;
+    background: var(--tone-soft, var(--g-surface));
+    opacity: 0.7;
   }
   .jb-cover-top {
-    margin-left: 1.35in;
-    font-size: 13px;
+    position: absolute;
+    top: 48px;
+    left: 192px;
+    right: 64px;
+    font-size: 14px;
+    line-height: 20px;
     font-weight: 500;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.1px;
     text-transform: none;
-    color: #5f6368;
+    color: var(--g-muted);
   }
   .jb-cover-main {
-    gap: 0.7in;
+    gap: 64px;
   }
   .jb-cover-key {
-    padding: 3px 14px;
-    border: 1px solid #dadce0;
-    border-radius: 999px;
-    font-size: 16px;
-    font-weight: 500;
-    letter-spacing: 0.03em;
-    color: #1a73e8 !important;
+    padding: 4px 12px;
+    border: 0;
+    border-radius: 8px;
     background: #e8f0fe;
-    border-color: transparent;
+    color: #185abc !important;
+    font-family: var(--g-mono);
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 500;
+    letter-spacing: 0;
   }
   .jb-cover-title {
     margin-top: 16px;
-    font-size: 46px;
-    line-height: 1.12;
-    font-weight: 600;
-    letter-spacing: -0.015em;
-    color: #202124;
+    font-family: var(--g-display);
+    font-size: 44px;
+    line-height: 52px;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--g-ink);
   }
   .jb-cover-title-long {
     font-size: 36px;
+    line-height: 44px;
   }
   .jb-cover-verdict {
-    margin-top: 0.34in;
+    gap: 16px;
+    margin-top: 32px;
   }
   .jb-cover-label {
-    font-size: 26px;
-    font-weight: 600;
+    font-family: var(--g-display);
+    font-size: 24px;
+    line-height: 32px;
+    font-weight: 400;
+    color: var(--g-ink);
   }
   .jb-cover-lead {
-    font-size: 19px;
-    color: #3c4043;
+    margin-top: 16px;
+    font-size: 18px;
+    line-height: 28px;
+    color: var(--g-body);
   }
   .jb-cover-score {
-    font-size: 13px;
+    gap: 8px;
+    font-size: 14px;
+    line-height: 20px;
     font-weight: 500;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.1px;
     text-transform: none;
-    color: #5f6368;
+    color: var(--g-muted);
   }
   .jb-cover-foot {
-    border-top: 1px solid #dadce0;
+    gap: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--g-divider);
   }
   .jb-cover-foot-label {
-    font-size: 12.5px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
+    margin-bottom: 8px;
+    font-size: 13px;
+    line-height: 16px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
     text-transform: none;
-    color: #5f6368;
+    color: var(--g-muted);
   }
   .jb-cover-agenda {
-    color: #3c4043;
+    gap: 8px 32px;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--g-body);
+  }
+  .jb-cover-agenda li {
+    gap: 12px;
   }
   .jb-cover-agenda-n {
-    font-weight: 600;
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+    font-weight: 500;
   }
   .jb-cover-meta {
-    color: #3c4043;
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--g-body);
   }
 
-  /* ── Pills and chips: tonal, no outline ───────────────────────────────────────────────────────────────────────── */
-  .jb-rag {
-    padding: 5px 16px;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    text-transform: none;
-  }
+  /* ── Chips and status pills: tonal, 8px corners ──────────────────────────────────────────────────────────────── */
   .jb-chip {
-    padding: 3px 11px;
-    border-color: transparent !important;
-    font-size: 12px;
-    font-weight: 600;
+    padding: 4px 10px;
+    border: 0 !important;
+    border-radius: 8px;
+    font-size: 12.5px;
+    line-height: 16px;
+    font-weight: 500;
   }
   .jb-chip-quiet {
-    border-color: transparent !important;
-    background: #f1f3f4;
-    color: #5f6368;
+    background: var(--g-surface-2);
+    color: var(--g-body);
+  }
+  /* The verdict pill: a tonal chip with a status dot (Google's status chip). */
+  .jb-rag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px 6px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
+    text-transform: none;
+  }
+  .jb-rag::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
   }
   .jb-tag {
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
+    margin-right: 8px;
+    font-size: 13px;
+    line-height: 16px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
     text-transform: none;
-    color: #5f6368;
+    color: var(--g-muted);
   }
-  .jb-h3 {
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0;
-    text-transform: none;
+  .jb-prose {
+    font-size: 15px !important;
+    line-height: 22px !important;
+    color: var(--g-body) !important;
+  }
+  .jb-prose-sm {
+    font-size: 13px !important;
+    line-height: 20px !important;
   }
   .jb-muted {
-    color: #5f6368 !important;
+    color: var(--g-muted) !important;
+  }
+  .jb-small {
+    font-size: 12px;
+    line-height: 16px;
   }
   .jb-strong {
-    font-weight: 600;
-    color: #202124;
+    font-weight: 500;
+    color: var(--g-ink);
   }
 
-  /* ── Summary: tonal containers ────────────────────────────────────────────────────────────────────────────────── */
+  /* ── Where it stands: a tonal feature container + an outlined "next step" card ───────────────────────────────── */
+  .jb-summary {
+    gap: 24px 32px;
+  }
   .jb-summary-status {
     border-width: 0 !important;
-    border-radius: 20px;
-    padding: 0.24in 0.3in;
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .jb-summary-row {
+    gap: 16px;
   }
   .jb-summary-label {
-    font-size: 30px;
-    font-weight: 600;
+    font-family: var(--g-display);
+    font-size: 28px;
+    line-height: 36px;
+    font-weight: 400;
+    letter-spacing: 0;
   }
   .jb-summary-lead {
-    font-weight: 500;
-    color: #202124;
+    margin-top: 16px;
+    font-size: 18px;
+    line-height: 26px;
+    font-weight: 400;
+    color: var(--g-ink);
   }
   .jb-summary-why {
-    color: #3c4043;
+    margin-top: 12px;
+    font-size: 15px;
+    line-height: 22px;
+    color: var(--g-body);
+  }
+  .jb-summary-side {
+    gap: 24px;
   }
   .jb-next {
-    border-width: 1px;
+    position: relative;
+    border: 1px solid var(--g-outline);
     border-radius: 16px;
-    padding: 0.19in 0.23in;
+    padding: 20px 24px 20px 28px;
+    background: #fff;
+    overflow: hidden;
+  }
+  /* A 4px status rail on the leading edge — the card stays white. */
+  .jb-next::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: var(--next, var(--g-blue));
   }
   .jb-next-label {
-    font-size: 12.5px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
+    font-size: 13px;
+    line-height: 16px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
     text-transform: none;
-    color: #5f6368;
+    color: var(--g-muted);
   }
   .jb-next-action {
-    font-weight: 600;
-    color: #202124;
+    margin-top: 8px;
+    font-size: 18px;
+    line-height: 26px;
+    font-weight: 500;
+    color: var(--g-ink);
   }
   .jb-next-meta {
-    color: #3c4043;
+    gap: 8px 24px;
+    margin-top: 12px;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--g-body);
   }
   .jb-next-meta b {
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
+    margin-right: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
     text-transform: none;
-    color: #5f6368;
+    color: var(--g-muted);
+  }
+  .jb-facts {
+    gap: 8px 16px;
+    font-size: 14px;
+    line-height: 20px;
   }
   .jb-facts dt {
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.01em;
+    padding-top: 0;
+    font-size: 13px;
+    line-height: 20px;
+    font-weight: 400;
+    letter-spacing: 0;
     text-transform: none;
-    color: #5f6368;
+    color: var(--g-muted);
   }
   .jb-facts dd {
     font-weight: 500;
-    color: #202124;
+    color: var(--g-ink);
   }
 
-  /* ── KPI tiles ────────────────────────────────────────────────────────────────────────────────────────────────── */
+  /* ── KPI tiles: outlined, a status dot by the label, the number in regular weight ────────────────────────────── */
+  .jb-kpis {
+    gap: 16px;
+  }
   .jb-kpi {
-    border-top-width: 0 !important;
-    border-radius: 16px;
-    background: #f1f3f4;
-    padding: 14px 16px 15px;
+    border: 1px solid var(--g-outline) !important;
+    border-radius: 12px;
+    background: #fff;
+    padding: 16px;
   }
   .jb-kpi-label {
-    font-size: 12.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    line-height: 16px;
     font-weight: 500;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.1px;
     text-transform: none;
-    color: #5f6368;
+    color: var(--g-muted);
+  }
+  .jb-kpi-label::before {
+    content: '';
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--kpi, #bdc1c6);
   }
   .jb-kpi-value {
-    margin-top: 6px;
-    font-size: 26px;
-    font-weight: 600;
-    color: #202124;
+    margin-top: 8px;
+    font-family: var(--g-display);
+    font-size: 28px;
+    line-height: 36px;
+    font-weight: 400;
+    color: var(--g-ink);
   }
   .jb-kpi-hint {
-    color: #5f6368;
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--g-muted);
   }
 
-  /* ── Gate bar: Material linear progress ───────────────────────────────────────────────────────────────────────── */
+  /* ── Gate bar: Material linear progress ──────────────────────────────────────────────────────────────────────── */
   .jb-gatebar-track {
-    height: 10px;
-    background: #e8eaed;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--g-divider);
   }
   .jb-gatebar-legend {
-    font-weight: 500;
-    color: #3c4043;
+    gap: 24px;
+    margin-top: 12px;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 400;
+    color: var(--g-body);
+  }
+  .jb-gatebar-legend i {
+    width: 8px;
+    height: 8px;
+    margin-right: 8px;
   }
 
-  /* ── Data tables ──────────────────────────────────────────────────────────────────────────────────────────────── */
+  /* ── Data tables: Material — grey header, hairline rows, no zebra, no row stripes ────────────────────────────── */
+  .jb-table {
+    font-size: 14px;
+    line-height: 20px;
+  }
   .jb-table th {
-    padding: 10px 12px;
-    font-size: 12.5px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
+    padding: 12px 16px;
+    font-size: 13px;
+    line-height: 16px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
     text-transform: none;
-    color: #5f6368;
+    color: var(--g-muted);
     background: transparent;
-    border-bottom: 1px solid #bdc1c6;
+    border-bottom: 1px solid var(--g-outline);
   }
   .jb-table th:first-child,
   .jb-table th:last-child {
     border-radius: 0;
   }
   .jb-table td {
-    padding: 10px 12px;
-    border-bottom: 1px solid #e8eaed;
-    color: #3c4043;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--g-divider);
+    color: var(--g-body);
   }
   .jb-table tbody tr:nth-child(even) td {
     background: transparent;
   }
   .jb-table td.jb-td-lead {
-    font-weight: 600;
-    color: #202124;
+    font-weight: 500;
+    color: var(--g-ink);
+  }
+  .jb-table .jb-chip {
+    border-radius: 8px;
   }
 
-  /* ── Callouts, actions, cards, timeline, links ────────────────────────────────────────────────────────────────── */
+  /* ── Callouts, actions, cards, timeline, links ───────────────────────────────────────────────────────────────── */
   .jb-callout {
     border-left-width: 0 !important;
-    border-radius: 16px;
-    padding: 14px 18px;
+    border-radius: 12px;
+    padding: 16px 20px;
   }
   .jb-callout-title {
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
+    margin-bottom: 4px;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+    letter-spacing: 0.1px;
     text-transform: none;
   }
   .jb-actions li {
-    color: #202124;
+    gap: 16px;
+    padding: 8px 0;
+    font-size: 15px;
+    line-height: 22px;
+    color: var(--g-ink);
   }
   .jb-action-n {
-    font-weight: 600;
+    width: 28px;
+    height: 28px;
+    margin-top: -3px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .jb-cards {
+    gap: 16px;
   }
   .jb-card {
-    border: 1px solid #dadce0;
-    border-top-width: 1px;
-    border-top-color: #dadce0 !important;
-    border-radius: 14px;
-    padding: 13px 15px;
+    border: 1px solid var(--g-outline);
+    border-top: 1px solid var(--g-outline);
+    border-radius: 12px;
+    padding: 16px;
+    background: #fff;
+  }
+  .jb-card-head {
+    gap: 8px;
+    margin-bottom: 8px;
   }
   .jb-card-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #202124;
+    font-size: 15px;
+    line-height: 22px;
+    font-weight: 500;
+    color: var(--g-ink);
   }
   .jb-card-detail {
-    color: #5f6368;
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 20px;
+    color: var(--g-muted);
   }
   .jb-timeline {
-    border-left-color: #dadce0;
+    border-left: 2px solid var(--g-divider);
+  }
+  .jb-timeline li {
+    gap: 16px;
+    padding: 6px 0 6px 20px;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--g-body);
+  }
+  .jb-tl-dot {
+    left: -6px;
+    top: 11px;
+    width: 10px;
+    height: 10px;
+    border: 2px solid #fff;
   }
   .jb-tl-when {
-    color: #5f6368;
+    font-family: var(--g-mono);
+    font-size: 12px;
+    color: var(--g-muted);
   }
   .jb-links li {
-    border-bottom-color: #e8eaed;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--g-divider);
   }
   .jb-links b {
-    font-weight: 600;
-    color: #202124;
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+    color: var(--g-ink);
   }
   .jb-links span {
-    color: #1a73e8;
+    margin-top: 2px;
+    font-family: var(--g-mono);
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--g-blue);
   }
 }

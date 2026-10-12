@@ -86,7 +86,9 @@ describe('deck style (Settings → PDF report)', () => {
   it('is Light (Google palette) unless told otherwise', () => {
     const el = render2()
     expect(el.querySelector('.jb-pdf')?.classList.contains('jb-deck-light')).toBe(true)
-    expect(agendaColour(el)).toMatch(/rgb\(26, 115, 232\)|#1a73e8/i)
+    // Google's tonal pair: the blue 50 container with blue ink, not a filled dot
+    expect(agendaColour(el)).toMatch(/rgb\(232, 240, 254\)|#e8f0fe/i)
+    expect((el.querySelector('.jb-cover-agenda-n') as HTMLElement).style.color).toMatch(/rgb\(24, 90, 188\)|#185abc/i)
   })
   it('draws the original section colours when Colourful is chosen', () => {
     const el = render2('colorful')
