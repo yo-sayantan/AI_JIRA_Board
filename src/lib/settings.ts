@@ -11,11 +11,10 @@ import { APP_CONFIG } from './appConfig'
 import { setMotionEnabled } from './motionPolicy'
 
 export type ThemeMode = 'auto' | 'fixed' | 'schedule'
-export type AiLevel = 'none' | 'low' | 'moderate' | 'full'
+/** Stored values; the labels are Low · Medium · High · Max (`moderate` = Medium, `full` = Max — see AI_LEVELS). */
+export type AiLevel = 'low' | 'moderate' | 'high' | 'full'
 export type AiBackend = 'local' | 'cloud'
 export type AiCloudProvider = 'claude' | 'cursor' | 'gemini'
-/** Cursor reasoning effort. Low is the default; medium is the only step up. */
-export type AiCloudEffort = 'low' | 'medium' | 'high' | 'auto'
 
 export interface Settings {
   /** auto = follow the OS · fixed = always `theme` · schedule = light between the day hours. */
@@ -24,6 +23,10 @@ export interface Settings {
   /** Local hours [start, end) during which the LIGHT theme applies in `schedule` mode. */
   dayStart: number
   dayEnd: number
+  /** Master switch for everything AI. Off greys out the AI section and the server skips every AI job. */
+  aiEnabled: boolean
+  /** Master switch for the server's scheduled jobs. Off greys out the Background jobs section. */
+  jobsEnabled: boolean
   aiLevel: AiLevel
   /** Local Ollama (in-container or host Metal) vs a cloud chat API. */
   aiBackend: AiBackend
@@ -33,8 +36,6 @@ export interface Settings {
   aiCloudProvider: AiCloudProvider
   /** Model id returned by that provider's list-models API. */
   aiCloudModel: string
-  /** Cursor only. Low by default. Medium is the only other pass. */
-  aiCloudEffort: AiCloudEffort
   /** Talk to Ollama.app on the Mac (Metal) instead of the Linux Docker VM (CPU). */
   aiUseHostOllama: boolean
   /** PR readiness reports the AI intern builds at once. */
@@ -247,12 +248,13 @@ const modelId =
 
 /** Settings the server-side jobs honour, mirrored to jira-intern/.settings.json in served mode. */
 const SERVER_FIELDS = {
-  aiLevel: oneOf<AiLevel>(['none', 'low', 'moderate', 'full']),
+  aiEnabled: bool,
+  jobsEnabled: bool,
+  aiLevel: oneOf<AiLevel>(['low', 'moderate', 'high', 'full']),
   aiBackend: oneOf<AiBackend>(['local', 'cloud']),
   aiLocalModel: modelId(MODEL_ID_MAX.aiLocalModel),
   aiCloudModel: modelId(MODEL_ID_MAX.aiCloudModel),
   aiCloudProvider: oneOf<AiCloudProvider>(['claude', 'cursor', 'gemini']),
-  aiCloudEffort: oneOf<AiCloudEffort>(['low', 'medium', 'high', 'auto']),
   aiUseHostOllama: bool,
   ollamaEnabled: bool,
   reportParallel: bounded('reportParallel'),
@@ -294,6 +296,10 @@ const LOCAL_FIELDS = {
   showLocalModels: bool,
 } satisfies { [K in Exclude<keyof Settings, ServerKey | 'features'>]: Parse<Settings[K]> }
 
+/**
+ * The one AI dial. It sets how long a pass may think (the worker's timeout) AND how hard a cloud model works
+ * (`effortForLevel`) — there is no separate effort control. "None" is gone: the AI switch under Features is "off".
+ */
 export const AI_LEVELS: {
   key: AiLevel
   label: string
@@ -302,34 +308,39 @@ export const AI_LEVELS: {
   cons: string[]
 }[] = [
   {
-    key: 'none',
-    label: 'None',
-    hint: 'Base report only — no intern',
-    plus: ['Instant and free', 'Verdict stays deterministic', 'Works even if the intern is down'],
-    cons: ['No business-impact write-up', 'No per-file review notes'],
-  },
-  {
     key: 'low',
     label: 'Low',
-    hint: 'Short timeout — fastest pass',
-    plus: ['Quick on nano / mini models', 'Cheapest cloud option', 'Unblocks the queue sooner'],
+    hint: 'Short timeout, low effort · cloud models up to $1/M out',
+    plus: ['Quick on nano / mini models', 'Cheapest cloud option (models up to $1 per 1M output)', 'Unblocks the queue sooner'],
     cons: ['Shallow file notes', 'May skip longer diffs'],
   },
   {
     key: 'moderate',
-    label: 'Moderate',
-    hint: 'Balanced depth (default)',
-    plus: ['Solid JSON follow-through', 'Fits 7B local models', 'Sensible wait vs quality'],
+    label: 'Medium',
+    hint: 'Balanced depth and effort (default) · models up to $5/M out',
+    plus: ['Solid JSON follow-through', 'Fits 7B local models', 'Cloud models up to $5 per 1M output'],
     cons: ['Slower than Low', 'Still skips live CI / scan proof'],
+  },
+  {
+    key: 'high',
+    label: 'High',
+    hint: 'Longer timeout, high effort · models under $10/M out',
+    plus: ['Noticeably better notes than Medium', 'Room for 14B local models', 'Cloud models under $10 per 1M output'],
+    cons: ['Slower than Medium', 'More cloud tokens per report'],
   },
   {
     key: 'full',
     label: 'Max',
-    hint: 'Longest timeout — deepest pass',
-    plus: ['Best local / cloud quality', 'Room for 14B+ models', 'Richer file and risk notes'],
+    hint: 'Longest timeout · every model, costly ones too',
+    plus: ['Best local / cloud quality', 'The only level that can use a costly model (≥ $10 per 1M output)', 'Richer file and risk notes'],
     cons: ['Slowest, especially on CPU', 'Burns the most cloud tokens'],
   },
 ]
+
+/** The cloud effort each level runs at. Max stays at High: its extra is the timeout and the costly models. */
+export function effortForLevel(level: AiLevel): 'low' | 'medium' | 'high' {
+  return level === 'low' ? 'low' : level === 'moderate' ? 'medium' : 'high'
+}
 
 const DEFAULT_FEATURES = {
   ...(Object.fromEntries(FEATURES.map((f) => [f.key, f.default])) as Record<FeatureKey, boolean>),
@@ -341,12 +352,13 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: APP_CONFIG.settingsDefaults?.theme ?? 'dark',
   dayStart: APP_CONFIG.settingsDefaults?.dayStart ?? 7,
   dayEnd: APP_CONFIG.settingsDefaults?.dayEnd ?? 19,
-  aiLevel: APP_CONFIG.ai?.level ?? 'moderate',
+  aiEnabled: APP_CONFIG.ai?.enabled !== false && APP_CONFIG.ai?.level !== 'none',
+  jobsEnabled: APP_CONFIG.schedule?.enabled !== false,
+  aiLevel: APP_CONFIG.ai?.level && APP_CONFIG.ai.level !== 'none' ? APP_CONFIG.ai.level : 'moderate',
   aiBackend: APP_CONFIG.ai?.backend ?? 'local',
   aiLocalModel: APP_CONFIG.ai?.localModel || modelCatalog.defaultLocal,
   aiCloudProvider: APP_CONFIG.ai?.cloudProvider ?? 'cursor',
   aiCloudModel: APP_CONFIG.ai?.cloudModel ?? '',
-  aiCloudEffort: APP_CONFIG.ai?.cloudEffort ?? 'auto',
   aiUseHostOllama: APP_CONFIG.ai?.useHostOllama ?? false,
   ollamaEnabled: APP_CONFIG.ai?.ollamaEnabled ?? false,
   showLocalModels: true,
@@ -365,11 +377,13 @@ const KEY = 'jb-settings'
 
 /**
  * Validate a saved settings object field by field; anything missing, of the wrong type, out of
- * range or no longer a valid choice (an old "aiLevel": "high", a model tag with a space) takes the
+ * range or no longer a valid choice (a model tag with a space; the old "none" level becomes aiEnabled: false) takes the
  * default instead of being passed through. Never throws — a non-object yields the defaults.
  */
 export function parseSettings(raw: unknown, defaults: Settings = DEFAULT_SETTINGS): Settings {
-  const saved = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+  let saved = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>
+  // The old "None" level is now the AI switch being off (the level itself falls back to the default).
+  if (saved.aiLevel === 'none') saved = { ...saved, aiLevel: defaults.aiLevel, aiEnabled: false }
   const next: Record<string, unknown> = { ...defaults }
   for (const k of SERVER_KEYS) {
     const parse = SERVER_FIELDS[k] as Parse<Settings[typeof k]>

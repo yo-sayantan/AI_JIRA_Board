@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CloudModelChoice } from './runner'
-import { effortChoicesFor, groupByProvider, isPricey, usd } from './cloudModels'
+import { effortChoicesFor, groupByProvider, isPricey, levelAllows, usd } from './cloudModels'
 
 describe('usd', () => {
   it('writes whole dollars bare and fractions to the precision Cursor quotes', () => {
@@ -74,5 +74,26 @@ describe('isPricey follows the worker\'s costly verdict', () => {
     expect(isPricey({ price: { output: 10 } })).toBe(true)
     expect(isPricey({ price: { output: 9.99 } })).toBe(false)
     expect(isPricey({ price: null })).toBe(false)
+  })
+})
+
+describe('levelAllows', () => {
+  const priced = (output: number | null, costly?: boolean) => ({ costly, price: { output } })
+  it('caps Low at $1, Medium at $5 (both inclusive) and High below $10', () => {
+    expect([0.5, 1, 1.2].map((o) => levelAllows('low', priced(o)))).toEqual([true, true, false])
+    expect([4.5, 5, 6].map((o) => levelAllows('moderate', priced(o)))).toEqual([true, true, false])
+    expect([6, 9, 9.99, 10, 12].map((o) => levelAllows('high', priced(o)))).toEqual([true, true, true, false, false])
+  })
+  it('lets Max run every model, priced or not', () => {
+    expect(levelAllows('full', priced(12))).toBe(true)
+    expect(levelAllows('full', priced(null))).toBe(true)
+    expect(levelAllows('full', null)).toBe(true)
+  })
+  it('never lets a costly model below Max, whatever it costs', () => {
+    expect(levelAllows('high', priced(3, true))).toBe(false)
+  })
+  it('does not allow a model with no listed price below Max', () => {
+    expect(levelAllows('moderate', priced(null))).toBe(false)
+    expect(levelAllows('moderate', { price: null })).toBe(false)
   })
 })

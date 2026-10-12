@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ACTIVE_CADENCE, AI_LEVELS, BOARD_CADENCE, FEATURES, LIMITS, clampSetting, type AiCloudProvider, type FeatureKey, type Settings } from '../../lib/settings'
 import { getAiModels, getCloudModels, pullAiModel, guideUrl, type AiCatalogModel, type AiInternStatus, type AiPullProgress, type CloudModelChoice, type CloudListInfo, type CloudPrice, type OllamaContainerInfo } from '../../lib/runner'
-import { DEFAULT_COSTLY_USD, effortChoicesFor, groupByProvider, isPricey, usd } from '../../lib/cloudModels'
+import { DEFAULT_COSTLY_USD, groupByProvider, isPricey, levelAllows, levelPriceText, usd } from '../../lib/cloudModels'
 import fallbackCatalog from '../../../ai-intern/models.json'
 import { hexToRgba } from '../../lib/format'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
@@ -35,16 +35,22 @@ function withAppearance(s: Settings, key: AppearanceKey): Settings {
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
 const hourLabel = (h: number) => `${String(h).padStart(2, '0')}:00`
 
+/**
+ * `off` greys the whole body out and makes it inert (no focus, no clicks, hidden from assistive tech's
+ * "interactive" list) — the header stays live so the reason ("switched off under Features") is readable.
+ */
 function Section({
   title,
   aside,
   children,
   className = '',
+  off = false,
 }: {
   title: string
   aside?: React.ReactNode
   children: React.ReactNode
   className?: string
+  off?: boolean
 }) {
   return (
     <section className={`flex min-w-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] p-3 ${className}`}>
@@ -52,8 +58,23 @@ function Section({
         <h3 className="shrink-0 text-[10.5px] font-bold uppercase tracking-wider text-[var(--muted)]">{title}</h3>
         {aside && <div className="ml-auto flex min-w-0 items-center text-[10.5px]">{aside}</div>}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      <div
+        className={`flex min-w-0 flex-1 flex-col transition-[opacity,filter] ${off ? 'pointer-events-none select-none opacity-45 grayscale' : ''}`}
+        inert={off}
+        aria-disabled={off || undefined}
+      >
+        {children}
+      </div>
     </section>
+  )
+}
+
+/** Header note of a section its Features switch has turned off. */
+function OffNote({ what }: { what: string }) {
+  return (
+    <span className="truncate font-semibold text-[var(--muted)]" title={`${what} is switched off — turn it back on under Features.`}>
+      Off — turn on under Features
+    </span>
   )
 }
 
@@ -146,8 +167,7 @@ function AiLevelPicker({ value, onChange }: { value: Settings['aiLevel']; onChan
       {AI_LEVELS.map((level, i) => {
         const active = value === level.key
         return (
-          // `flex`, not a plain block: an inline-flex button in a block wrapper is placed by its
-          // baseline, which differs between "None" (text first) and the sparkle levels (icon first).
+          // `flex`, not a plain block: an inline-flex button in a block wrapper is placed by its baseline.
           <div key={level.key} className="relative flex min-w-0" onMouseEnter={() => setTip(level.key)} onMouseLeave={() => setTip(null)}>
             <button
               type="button"
@@ -161,7 +181,7 @@ function AiLevelPicker({ value, onChange }: { value: Settings['aiLevel']; onChan
               className={SEGMENT_BUTTON}
               style={segmentStyle(active)}
             >
-              {level.key !== 'none' && <SparkleIcon size={11} color={active ? AI : 'currentColor'} />}
+              <SparkleIcon size={11} color={active ? AI : 'currentColor'} />
               <span className="truncate">{level.label}</span>
             </button>
             <AnimatePresence>
@@ -228,6 +248,28 @@ const OLLAMA_FEATURE = {
     'Runs the AI-Ollama Docker container for Local AI. It only starts when this is on AND jira-intern/models/ contains a model — one pulled from the AI section, or a .gguf file you place there yourself. Off stops the container at once and keeps it off across restarts and deploys. Cloud AI never needs it.',
 } as const
 const OLLAMA_STYLE = { color: '#0ea5e9', icon: (c: string) => <SparkleIcon size={13} color={c} /> }
+
+/**
+ * The two master switches. Like the Ollama container they are SERVER settings (`aiEnabled`, `jobsEnabled`), not
+ * `features` flags: the worker, the scheduler and the shell runners have to honour them. Turning one off greys its
+ * section out; turning it back on restores everything as it was (no other setting is touched).
+ */
+const AI_FEATURE = {
+  key: 'aiEnabled',
+  label: 'AI',
+  hint: 'Briefs, report write-ups, models — the whole AI section',
+  detail:
+    'Master switch for every AI feature. Off greys out the AI section and nothing AI runs: no ticket briefs, no AI write-up on PR reports (the deterministic report and its verdict are unchanged), no model downloads, and the AI-Ollama container is stopped. Your AI choices are kept — turn it back on and everything works as before.',
+} as const
+const AI_STYLE = { color: AI, icon: (c: string) => <SparkleIcon size={13} color={c} /> }
+const JOBS_FEATURE = {
+  key: 'jobsEnabled',
+  label: 'Background jobs',
+  hint: 'Scheduled refreshes and report runs on the server',
+  detail:
+    'Master switch for the jobs the server starts on its own: the active-ticket refresh, the whole-board rebuild, scheduled PR report runs, and the report pass that follows a fetch. Off greys out the Background jobs section. A refresh or report you start yourself still runs. Turning it back on restarts every schedule from that moment, so overdue jobs do not all fire at once.',
+} as const
+const JOBS_STYLE = { color: '#06b6d4', icon: (c: string) => <RefreshIcon size={13} color={c} /> }
 
 const ORDERED_FEATURES = FEATURES.filter((f) => !SECTION_KEYS.includes(f.key)).sort((a, b) => {
   const rank = (k: FeatureKey) => (FEATURE_ORDER.includes(k) ? FEATURE_ORDER.indexOf(k) : FEATURE_ORDER.length)
@@ -432,11 +474,16 @@ export function SettingsPanel({
 
                 <Section
                   title="Background jobs"
+                  off={!settings.jobsEnabled}
                   aside={
-                    !aiLevelSynced && (
-                      <span className="truncate font-semibold text-[#d97706]" title="Schedules and parallel limits apply only while the local server is running.">
-                        Server offline — not applied
-                      </span>
+                    !settings.jobsEnabled ? (
+                      <OffNote what="Background jobs" />
+                    ) : (
+                      !aiLevelSynced && (
+                        <span className="truncate font-semibold text-[#d97706]" title="Schedules and parallel limits apply only while the local server is running.">
+                          Server offline — not applied
+                        </span>
+                      )
                     )
                   }
                 >
@@ -463,8 +510,11 @@ export function SettingsPanel({
                 <Section
                   className="h-full"
                   title="AI"
+                  off={!settings.aiEnabled}
                   aside={
-                    aiLevelSynced ? (
+                    !settings.aiEnabled ? (
+                      <OffNote what="AI" />
+                    ) : aiLevelSynced ? (
                       <span className="flex min-w-0 items-center gap-1.5 text-[var(--ink-soft)]" title={internLine(aiStatus)}>
                         <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: internTone(aiStatus) }} />
                         <span className="truncate">{internLine(aiStatus)}</span>
@@ -519,21 +569,31 @@ export function SettingsPanel({
                 className="md:col-span-2"
                 aside={
                   <span className="text-[var(--muted)]">
-                    {ORDERED_FEATURES.filter((f) => settings.features[f.key]).length + (settings.ollamaEnabled ? 1 : 0)} of {ORDERED_FEATURES.length + 1} on
+                    {ORDERED_FEATURES.filter((f) => settings.features[f.key]).length + [settings.aiEnabled, settings.jobsEnabled, settings.ollamaEnabled].filter(Boolean).length} of {ORDERED_FEATURES.length + 3} on
                   </span>
                 }
               >
                 <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                  <FeatureCard feature={AI_FEATURE} style={AI_STYLE} on={settings.aiEnabled} onToggle={(v) => set('aiEnabled', v)} />
+                  <FeatureCard feature={JOBS_FEATURE} style={JOBS_STYLE} on={settings.jobsEnabled} onToggle={(v) => set('jobsEnabled', v)} />
                   {ORDERED_FEATURES.map((f) => (
-                    <FeatureCard key={f.key} feature={f} style={FEATURE_STYLE[f.key]} on={settings.features[f.key]} onToggle={(v) => setFeature(f.key, v)} />
+                    <FeatureCard
+                      key={f.key}
+                      feature={f}
+                      style={FEATURE_STYLE[f.key]}
+                      on={settings.features[f.key]}
+                      onToggle={(v) => setFeature(f.key, v)}
+                      disabled={f.key === 'aiBriefs' && !settings.aiEnabled}
+                      disabledHint="Turn on AI first"
+                    />
                   ))}
                   <FeatureCard
                     feature={OLLAMA_FEATURE}
                     style={OLLAMA_STYLE}
                     on={settings.ollamaEnabled}
                     onToggle={(v) => onChange({ ...settings, ollamaEnabled: v })}
-                    disabled={!aiLevelSynced}
-                    disabledHint="Needs the local server (the container is started and stopped by it)"
+                    disabled={!aiLevelSynced || !settings.aiEnabled}
+                    disabledHint={settings.aiEnabled ? 'Needs the local server (the container is started and stopped by it)' : 'Turn on AI first'}
                   />
                 </div>
               </Section>
@@ -597,7 +657,7 @@ function FeatureCard({
       aria-label={`${feature.label}, ${on ? 'on' : 'off'}. ${feature.hint}`}
       title={disabled && disabledHint ? `${disabledHint}\n\n${feature.detail}` : feature.detail}
       onClick={() => !disabled && onToggle(!on)}
-      className="flex h-11 w-full min-w-0 items-center gap-2 rounded-lg border px-2.5 text-left transition-colors"
+      className={`flex h-11 w-full min-w-0 items-center gap-2 rounded-lg border px-2.5 text-left transition-colors ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
       style={{
         borderColor: on ? hexToRgba(color, 0.45) : 'var(--line)',
         background: on ? hexToRgba(color, 0.08) : 'var(--surface-2)',
@@ -904,13 +964,6 @@ function cloudProviderOf(s: Settings): 'claude' | 'cursor' | 'gemini' {
   return s.aiCloudProvider === 'claude' || s.aiCloudProvider === 'gemini' ? s.aiCloudProvider : 'cursor'
 }
 
-const CLOUD_EFFORTS: { id: Settings['aiCloudEffort']; label: string }[] = [
-  { id: 'low', label: 'Low' },
-  { id: 'medium', label: 'Medium' },
-  { id: 'high', label: 'High' },
-  { id: 'auto', label: 'Auto' },
-]
-
 /** The models themselves come from ai-intern/cloud-models.json; these are per-provider texts. */
 const CLOUD_PROVIDER_INFO: Record<
   AiCloudProvider,
@@ -919,20 +972,20 @@ const CLOUD_PROVIDER_INFO: Record<
   cursor: {
     label: 'Cursor',
     missingKey: 'Add CURSOR_API_KEY with the key button in the header (Cursor Dashboard → API Keys).',
-    about: 'The Cursor models listed in cloud-models.json. ⚠ marks the costly ones.',
+    about: 'The Cursor models listed in cloud-models.json. ⚠ marks the costly ones (Max only).',
     // GPT-5.6 Luna: cheapest of the capable models, and what most installs already use.
     prefer: (models) => models.find((m) => /luna/i.test(m.id)) || models[0],
   },
   claude: {
     label: 'Claude',
     missingKey: 'Add ANTHROPIC_API_KEY with the key button in the header (console.anthropic.com → API keys).',
-    about: 'The Claude models listed in cloud-models.json. ⚠ marks the costly ones.',
+    about: 'The Claude models listed in cloud-models.json. ⚠ marks the costly ones (Max only).',
     prefer: (models) => models.find((m) => /haiku/i.test(m.id)) || models[0],
   },
   gemini: {
     label: 'Gemini',
     missingKey: 'Add GEMINI_API_KEY with the key button in the header (aistudio.google.com → API keys).',
-    about: 'The Gemini models listed in cloud-models.json. ⚠ marks the costly ones.',
+    about: 'The Gemini models listed in cloud-models.json. ⚠ marks the costly ones (Max only).',
     prefer: (models) => models[0],
   },
 }
@@ -1014,34 +1067,52 @@ function CloudModelPicker({
   const models = useMemo(() => cloud?.models ?? [], [cloud])
   const hasKey = !!cloud?.hasKey
   const selected = models.find((m) => m.id === settings.aiCloudModel) ?? null
-  // The efforts cloud-models.json lists for this model. A costly one lists none: its effort is fixed at Medium and the
-  // dropdown stays, disabled — so the row never changes shape.
-  const effortChoices = CLOUD_EFFORTS.filter((e) => effortChoicesFor(selected).includes(e.id))
-  const effortLocked = !!selected && effortChoices.length === 0
-  const effortValue = effortLocked
-    ? 'medium'
-    : effortChoices.some((e) => e.id === settings.aiCloudEffort)
-      ? settings.aiCloudEffort
-      : (effortChoices.find((e) => e.id === 'auto') ?? effortChoices[0])?.id ?? 'auto'
+  // The level decides which models are selectable (cloudModels.ts::levelAllows: Low ≤ $1 · Medium ≤ $5 · High < $10 · Max all);
+  // the rest stay in the list, greyed out. Effort has no control of its own any more: the level sets it
+  // (lib/settings.ts::effortForLevel), and a costly model always runs at Medium.
+  const level = settings.aiLevel
+  const fits = (m: CloudModelChoice) => levelAllows(level, m)
+  const selectable = models.filter(fits)
 
   // Only pre-fill an EMPTY draft (nothing ever saved, or the provider was just switched — both
   // cases where the user is already choosing). Overwriting a saved model that merely isn't in this
   // provider's list made the panel show "Unsaved changes" the moment it opened.
   useEffect(() => {
     if (!models.length || settings.aiCloudModel !== '') return
-    onChange({ ...settings, aiCloudModel: info.prefer(models).id })
-  }, [models, info, settings, onChange])
+    onChange({ ...settings, aiCloudModel: info.prefer(selectable.length ? selectable : models).id })
+  }, [models, selectable, info, settings, onChange])
+
+  // Changing the level can leave the selected model outside it — a choice the worker would refuse to run: move to the
+  // provider's preferred model among those the new level covers. Only a change of level triggers it — a saved model
+  // is left alone when the panel merely opens (that would show "Unsaved changes" with nothing touched).
+  const lastLevel = useRef(settings.aiLevel)
+  useEffect(() => {
+    const was = lastLevel.current
+    lastLevel.current = settings.aiLevel
+    if (was === settings.aiLevel || !selected || levelAllows(settings.aiLevel, selected)) return
+    const allowed = models.filter((m) => levelAllows(settings.aiLevel, m))
+    if (allowed.length) onChange({ ...settings, aiCloudModel: info.prefer(allowed).id })
+  }, [settings, selected, models, info, onChange])
 
   // Costly (cloud-models.json: output at or above its costlyOutputUsd): the red ⚠ at the right of the row, and this line, say so where it is chosen.
   const pricey = isPricey(selected)
   const costlyLine = cloud?.info?.costlyUsd ?? DEFAULT_COSTLY_USD
+  const levelLabel = AI_LEVELS.find((l) => l.key === level)?.label ?? level
+  const selectedFits = !selected || fits(selected)
   const hint = !ready
     ? 'Loading the model list…'
     : !hasKey
       ? info.missingKey
-      : pricey
-        ? `Costly model (at or above $${costlyLine} per 1M output tokens).${effortLocked ? ' Effort is fixed at Medium — pick a cheaper model to choose one.' : ''}`
-        : (cloud.error ?? info.about)
+      : !selectedFits
+        ? `${selected.label} is outside ${levelLabel} (${levelPriceText(level)}) — it will not run. Pick a listed model or raise the level.`
+        : pricey
+          ? `Costly model (at or above $${costlyLine} per 1M output tokens). It runs at Medium effort.`
+          : (cloud.error ??
+            (!models.length || selectable.length === models.length
+              ? info.about
+              : selectable.length
+                ? `${levelLabel} covers models ${levelPriceText(level)} — the greyed ones need a higher level.`
+                : `No ${info.label} model fits ${levelLabel} (${levelPriceText(level)}) — raise the level.`))
 
   return (
     <>
@@ -1056,7 +1127,7 @@ function CloudModelPicker({
           {!models.length && <option value="">{!ready ? 'Loading models…' : hasKey ? 'No models in cloud-models.json' : 'No key yet'}</option>}
           {groupByProvider(models).map(([group, rows]) => {
             const options = rows.map((m) => (
-              <option key={m.id} value={m.id} title={m.id}>
+              <option key={m.id} value={m.id} title={fits(m) ? m.id : `Outside ${levelLabel} (${levelPriceText(level)}) — needs a higher level`} disabled={!fits(m)}>
                 {m.price?.output != null ? `${m.label} · ${usd(m.price.output)}/M out${isPricey(m) ? '  ⚠' : ''}` : m.label === m.id ? m.label : `${m.label} · ${m.id}`}
               </option>
             ))
@@ -1068,24 +1139,6 @@ function CloudModelPicker({
               options
             )
           })}
-        </select>
-        <select
-          value={effortValue}
-          onChange={(e) => onChange({ ...settings, aiCloudEffort: e.target.value as Settings['aiCloudEffort'] })}
-          aria-label="Effort"
-          disabled={!selected || effortLocked}
-          title={
-            effortLocked
-              ? 'A costly model always runs at Medium effort'
-              : 'Effort — Low uses the fewest tokens, High the most (and the best answers); Auto leaves it to the model'
-          }
-          className="jb-field h-8 w-[5.75rem] shrink-0 rounded-lg border border-[var(--line)] bg-[var(--bg)] px-2 text-[12px] text-[var(--ink)] disabled:opacity-60"
-        >
-          {(effortLocked || !selected ? CLOUD_EFFORTS : effortChoices).map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.label}
-            </option>
-          ))}
         </select>
         <a
           href={guideUrl('cloudPrices')}

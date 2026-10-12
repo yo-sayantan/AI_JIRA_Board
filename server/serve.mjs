@@ -91,7 +91,7 @@ import { externalGenerating, readReport, reportQueue, reportsIndex, resolveRepor
 import { aiStatus, enrichingKeys, localCatalog, proxyAi } from './ai.mjs'
 import { readBoardSettings, updateBoardSettings } from './settings.mjs'
 import { startScheduler } from './schedule.mjs'
-import { MODELS_DIR_LABEL, ensureOllamaReady, ollamaInfo, ollamaWanted, reconcileOllama } from './ollama.mjs'
+import { MODELS_DIR_LABEL, ensureOllamaReady, ollamaInfo, ollamaOn, ollamaWanted, reconcileOllama } from './ollama.mjs'
 
 const serveStatic = createStaticHandler(ROOT, STATIC_ALLOW, { noStore: [/^\/jira-intern\//] })
 
@@ -275,8 +275,9 @@ const routes = {
       // The AI-Ollama container follows its Settings toggle (and the models directory).
       // Answered immediately; Docker takes its time in the background.
       let ollama = 'unchanged'
-      if (!!before.ollamaEnabled !== !!after.ollamaEnabled) {
-        if (!after.ollamaEnabled) ollama = 'stopping'
+      // ollamaOn folds in the AI master switch: turning AI off stops the container, turning it back on restarts it.
+      if (ollamaOn(before) !== ollamaOn(after)) {
+        if (!ollamaOn(after)) ollama = 'stopping'
         else ollama = (await ollamaWanted(after)) ? 'starting' : 'no-models'
         reconcileOllama(after).then((r) => console.log(`[ollama] settings → ${r}`), () => {})
       }
@@ -359,6 +360,7 @@ const routes = {
   // Pulling a model needs the container up — start it on demand (a stopped Ollama has no models).
   'POST /api/ai-models/pull': async (req, res) => {
     const settings = await readBoardSettings()
+    if (settings.aiEnabled === false) return json(res, 403, { ok: false, error: 'AI is switched off in Settings' })
     if (!settings.aiUseHostOllama && !(await ensureOllamaReady(settings))) {
       const error = settings.ollamaEnabled
         ? 'AI-Ollama container is not available'
@@ -367,7 +369,10 @@ const routes = {
     }
     return proxyAi(req, res, '/api/models/pull')
   },
-  'POST /api/ai-jobs': (req, res) => proxyAi(req, res, '/api/jobs'),
+  'POST /api/ai-jobs': async (req, res) => {
+    if ((await readBoardSettings()).aiEnabled === false) return json(res, 403, { ok: false, error: 'AI is switched off in Settings' })
+    return proxyAi(req, res, '/api/jobs')
+  },
 
   // One call carries everything the board polls for: run state, queues, reports, AI intern.
   'GET /api/intern-status': async (req, res) => {

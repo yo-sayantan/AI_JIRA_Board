@@ -141,7 +141,9 @@ except Exception:
     print(1)
 ' "$INTERN_DIR/data.json" 2>/dev/null || echo 1)"
 fi
-if [ "$code" = "0" ] && [ "$NEED_SUMMARY" = "1" ]; then
+if [ "${AI_ENABLED:-1}" = "0" ]; then
+  echo "$(date): AI is switched off in Settings — skipping the summary pass" | tee -a "$LOG"
+elif [ "$code" = "0" ] && [ "$NEED_SUMMARY" = "1" ]; then
   echo "$(date): enqueueing AI-summary pass for JIRA-AI-Intern…" | tee -a "$LOG"
   python3 "$INTERN_DIR/ai_queue.py" enqueue --type summarize-active >>"$LOG" 2>&1 \
     || echo "$(date): could not enqueue summary job (ignored)" | tee -a "$LOG"

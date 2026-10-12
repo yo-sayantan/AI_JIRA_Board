@@ -288,11 +288,16 @@ def mem_gb():
     return None
 
 
+LEVEL_LABEL = {"low": "Low", "moderate": "Medium", "high": "High", "full": "Max"}
+
+
 def timeout_for(level, default=600):
     cfg = load_config(str(INTERN))
     base = int((cfg.get("timeouts") or {}).get("reportSec") or default)
     if level == "low":
         return max(60, base // 2)
+    if level == "high":
+        return base * 3 // 2
     if level == "full":
         return base * 2
     return base
@@ -692,6 +697,30 @@ def _cloud_allowed(provider, model):
     return _cloud_row(provider, model) is not None
 
 
+# Settings → AI has one dial (Low · Medium · High · Max) and no separate effort control: the level sets the effort a
+# cloud model runs at. Max stays at high — its extra is the timeout and the costly models. Mirrors
+# src/lib/settings.ts::effortForLevel.
+EFFORT_FOR_LEVEL = {"low": "low", "moderate": "medium", "high": "high", "full": "high"}
+
+# What each level may spend: the highest output price (USD per 1M tokens) of a cloud model it can run, and whether that
+# price itself is allowed. Max has no cap. Mirrors src/lib/cloudModels.ts::LEVEL_PRICE_CAP.
+LEVEL_PRICE_CAP = {"low": (1.0, True), "moderate": (5.0, True), "high": (10.0, False)}
+
+
+def level_allows(level, row):
+    """May this level run the cloud model `row` (a cloud-models.json entry as Settings offers it)?
+    A costly model, or one with no listed price, runs only at Max."""
+    cap = LEVEL_PRICE_CAP.get(level)
+    if cap is None:
+        return True
+    if not row or row.get("costly"):
+        return False
+    out = (row.get("price") or {}).get("output")
+    if not isinstance(out, (int, float)):
+        return False
+    return out <= cap[0] if cap[1] else out < cap[0]
+
+
 def _effort_for(row, requested):
     """The effort a model actually runs at: the saved one if the model offers it, else auto (or its first offered);
     a model that offers none — a costly one — is fixed at medium (its dropdown is shown disabled)."""
@@ -713,6 +742,11 @@ def infer(job, system, user):
             provider = "cursor"
         if not _cloud_allowed(provider, model):
             raise RuntimeError("Pick a listed model in Settings.")
+        level = job.get("level") or "moderate"
+        if not level_allows(level, _cloud_row(provider, model)):
+            raise RuntimeError(
+                f"{model} is outside the {LEVEL_LABEL.get(level, level)} level's price range — pick a cheaper model or raise the level in Settings."
+            )
         requested = job.get("cloudEffort") if job.get("cloudEffort") in EFFORT_CHOICES else "auto"
         effort = _effort_for(_cloud_row(provider, model), requested)
         if provider == "cursor":
@@ -2069,24 +2103,25 @@ def apply_saved_model(job):
     provider = settings.get("aiCloudProvider")
     if provider in ("claude", "cursor", "gemini"):
         out["cloudProvider"] = provider
-    effort = settings.get("aiCloudEffort")
-    out["cloudEffort"] = effort if effort in EFFORT_CHOICES else "auto"
     level = settings.get("aiLevel")
-    if level in ("none", "low", "moderate", "full"):
+    if level in ("none", "low", "moderate", "high", "full"):
         out["level"] = level
+    # The level sets the effort; the old aiCloudEffort setting (still in .settings.json on older installs) is ignored.
+    out["cloudEffort"] = EFFORT_FOR_LEVEL.get(level, "medium")
     return out
 
 
 def process_job(job):
     # worker_loop already applied the saved Settings model to this job.
     typ = job.get("type")
+    # Settings → Features → AI off (or the retired "none" level) stops EVERY job type, including ones queued before it
+    # was switched off — the queue is drained, never run.
+    if not ai_queue.ai_enabled(ai_queue.load_settings()):
+        log(f"skip {typ} {job.get('key') or ''}: AI is switched off in Settings".replace("  ", " "))
+        return
     if typ in ("enrich-report", "summarize-active"):
         if stop_requested():
             raise Stopped()
-        # Settings "none" switches AI off for jobs that were queued before it was set, too.
-        if ai_queue.load_settings().get("aiLevel") == "none":
-            log(f"skip {typ} {job.get('key') or ''}: Settings AI level is none".replace("  ", " "))
-            return
         if (job.get("level") or "moderate") == "none":
             log(f"skip {typ}: job level none")
             return

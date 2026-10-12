@@ -30,6 +30,8 @@ export interface AppRuntimeConfig {
     features?: Record<string, boolean>
   }
   schedule?: {
+    /** false = the server's scheduled jobs start switched off (Settings → Features). */
+    enabled?: boolean
     activeRefresh?: 'off' | 'daily' | 'twice-daily'
     fullRefresh?: 'off' | 'daily' | 'weekly' | 'twice-weekly'
     reportRefresh?: 'off' | 'daily' | 'weekly' | 'twice-weekly'
@@ -39,12 +41,14 @@ export interface AppRuntimeConfig {
   archive?: { defaultWindowDays?: number; presetWindowDays?: number[]; workers?: number }
   ai?: {
     parallel?: number
-    level?: 'none' | 'low' | 'moderate' | 'full'
+    /** false = AI starts switched off (Settings → Features). */
+    enabled?: boolean
+    /** 'none' is the pre-switch spelling of "AI off". */
+    level?: 'none' | 'low' | 'moderate' | 'high' | 'full'
     backend?: 'local' | 'cloud'
     localModel?: string
     cloudProvider?: 'claude' | 'cursor' | 'gemini'
     cloudModel?: string
-    cloudEffort?: 'low' | 'medium' | 'high' | 'auto'
     useHostOllama?: boolean
     ollamaEnabled?: boolean
   }

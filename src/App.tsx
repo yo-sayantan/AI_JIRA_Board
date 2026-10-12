@@ -99,7 +99,9 @@ export default function App() {
   const focus: ColumnKey | null = sel === 'blocked' && !features.blocked ? null : sel
 
   const status = useInternStatus(served, features.autoRefresh || settingsOpen || jobs.running != null)
-  const ai = status?.ai ?? null
+  // Settings → Features → AI off: the intern's state, model and "working" lines disappear from the report menu, the report
+  // drawer and Settings along with the briefs (the server stops every AI job; this stops the board showing any of it).
+  const ai = settings.aiEnabled ? (status?.ai ?? null) : null
   const reports = useReports({ served, enabled: features.prReports, status, toast, demo })
 
   const byKey = useMemo(() => indexByKey(data), [data])
@@ -255,7 +257,7 @@ export default function App() {
       {keysDialog}
 
       <ErrorBoundary label="Settings" overlay onClose={closeSettings}>
-        <SettingsPanel open={settingsOpen} settings={settings} onChange={setSettings} onClose={closeSettings} aiLevelSynced={served} aiStatus={ai} />
+        <SettingsPanel open={settingsOpen} settings={settings} onChange={setSettings} onClose={closeSettings} aiLevelSynced={served} aiStatus={status?.ai ?? null} />
       </ErrorBoundary>
 
       {/* Counts follow the search. The Completed chip counts MY tickets only, like the archive's default scope. */}
@@ -343,7 +345,7 @@ export default function App() {
                 user={data.user}
                 report={features.prReports ? (reports.index?.reports[t.key] ?? null) : null}
                 reportsEnabled={features.prReports}
-                briefsEnabled={features.aiBriefs}
+                briefsEnabled={features.aiBriefs && settings.aiEnabled}
                 reportGenerating={reports.generating.has(t.key)}
                 reportLoading={reports.loadingKey === t.key}
                 onOpenReport={reports.openReportFor}
@@ -369,7 +371,7 @@ export default function App() {
           onRefresh={served ? jobs.refreshRaised : undefined}
           refreshing={jobs.running === 'raised'}
           fetchedAt={data.raisedAt ?? null}
-          briefsEnabled={features.aiBriefs}
+          briefsEnabled={features.aiBriefs && settings.aiEnabled}
           pauseEsc={drawers.open}
         />
       </ErrorBoundary>

@@ -21,7 +21,8 @@ async function generate(key) {
   baseChild = null
   if (code === 0 && !cancelled) {
     const settings = await readBoardSettings()
-    if ((settings.aiLevel || 'moderate') !== 'none') {
+    // Settings → Features → AI off: the deterministic report stands alone, nothing is handed to the intern.
+    if (settings.aiEnabled !== false) {
       await enqueueEnrich(key, settings).catch((e) => console.error('enqueue enrich failed', e))
     }
   }

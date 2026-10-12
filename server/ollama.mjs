@@ -57,8 +57,13 @@ export async function modelsInDir() {
   return [...new Set(names)]
 }
 
+/** The container toggle, once the AI master switch is taken into account: AI off means the container is off too. */
+export function ollamaOn(settings) {
+  return !!settings.ollamaEnabled && settings.aiEnabled !== false
+}
+
 export async function ollamaWanted(settings) {
-  if (!settings.ollamaEnabled) return false
+  if (!ollamaOn(settings)) return false
   return (await modelsInDir()).length > 0
 }
 
@@ -146,7 +151,7 @@ async function answering(timeoutMs = 2000) {
 
 /** Start the container (toggle permitting) and wait until Ollama answers — for a model pull. */
 export async function ensureOllamaReady(settings) {
-  if (!settings.ollamaEnabled) return false
+  if (!ollamaOn(settings)) return false
   if ((await startOllama()) === 'unavailable') return false
   const until = Date.now() + READY_WAIT_MS
   while (Date.now() < until) {
@@ -161,7 +166,7 @@ export async function ensureOllamaReady(settings) {
  * Returns 'started' | 'stopped' | 'unchanged' | 'no-models' | 'unavailable'.
  */
 export async function reconcileOllama(settings) {
-  if (!settings.ollamaEnabled) {
+  if (!ollamaOn(settings)) {
     const r = await stopOllama()
     return r === 'stopped' ? 'stopped' : r === 'idle' ? 'unchanged' : 'unavailable'
   }
@@ -177,7 +182,7 @@ export async function reconcileOllama(settings) {
 /** What the board reports about the container, for Settings. */
 export async function ollamaInfo(settings) {
   const [container, models] = await Promise.all([ollamaContainer(), modelsInDir()])
-  return { enabled: !!settings.ollamaEnabled, ...container, modelsDir: MODELS_DIR_LABEL, models }
+  return { enabled: ollamaOn(settings), ...container, modelsDir: MODELS_DIR_LABEL, models }
 }
 
 if (process.argv[2] === 'wanted' && process.argv[1]?.endsWith('ollama.mjs')) {

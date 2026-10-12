@@ -1,7 +1,9 @@
 import { readFile, rename, writeFile } from 'node:fs/promises'
 import { PATHS, PROJECT_CONFIG } from './config.mjs'
 
-export const AI_LEVELS = ['none', 'low', 'moderate', 'full']
+// Low · Medium · High · Max. The old "none" is the AI switch being off: still ACCEPTED on write (an older browser tab or a
+// hand-edited file), and turned into { aiLevel: 'moderate', aiEnabled: false } on read — see normaliseBoardSettings.
+export const AI_LEVELS = ['low', 'moderate', 'high', 'full']
 export const CLOUD_PROVIDERS = ['claude', 'cursor', 'gemini']
 export const DEFAULT_LOCAL_MODEL = 'qwen2.5-coder:7b'
 
@@ -16,7 +18,9 @@ const bool = (v) => ({ value: !!v })
 
 // Only the settings the shell runners and the AI intern read. Presentation stays in localStorage.
 const SCHEMA = {
-  aiLevel: oneOf(AI_LEVELS),
+  aiEnabled: bool,
+  jobsEnabled: bool,
+  aiLevel: oneOf([...AI_LEVELS, 'none']),
   aiBackend: oneOf(['local', 'cloud']),
   aiLocalModel: model(80),
   aiCloudModel: model(128),
@@ -48,6 +52,8 @@ export async function readBoardSettings() {
   const schedule = PROJECT_CONFIG.schedule || {}
   const pick = (allowed, value, fallback) => (allowed.includes(value) ? value : fallback)
   const defaults = {
+    aiEnabled: ai.enabled !== false,
+    jobsEnabled: schedule.enabled !== false,
     aiLevel: ai.level || 'moderate',
     aiBackend: ai.backend || 'local',
     aiLocalModel: ai.localModel || '',
@@ -63,7 +69,13 @@ export async function readBoardSettings() {
     fullRefresh: pick(BOARD_CADENCE, schedule.fullRefresh, 'twice-weekly'),
     reportRefresh: pick(BOARD_CADENCE, schedule.reportRefresh, 'twice-weekly'),
   }
-  return { ...defaults, ...(await readSaved()) }
+  return normaliseBoardSettings({ ...defaults, ...(await readSaved()) })
+}
+
+/** The retired "none" level means AI off; everything downstream then only ever sees a real level. */
+export function normaliseBoardSettings(settings) {
+  if (settings.aiLevel !== 'none') return settings
+  return { ...settings, aiLevel: 'moderate', aiEnabled: false }
 }
 
 let pending = Promise.resolve()

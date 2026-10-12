@@ -64,8 +64,10 @@
           <b>AI-Intern</b> (report enrichment, ticket briefs, model download). Both stay up with
           <code class="inl">restart: unless-stopped</code>. Refresh and Regenerate honour Settings — you do not
           need a host terminal for AI.</p>
-        <p class="small">Settings → AI usage: <b>None / Low / Moderate / Max</b>, then <b>Local</b> or <b>Cloud</b>.
-          Max is the product name for the stored value <code class="inl">full</code> (longest timeout).
+        <p class="small">Settings → AI: <b>Low / Medium / High / Max</b>, then <b>Local</b> or <b>Cloud</b>.
+          The level sets the timeout, the cloud effort and which cloud models you can pick (by output price per 1M tokens:
+          Low up to $1, Medium up to $5, High under $10, Max everything — the others are greyed out).
+          To turn AI off altogether use Features → <b>AI</b>.
           Local models are a <b>dropdown</b>. If the chosen tag is already on disk, that is enough.
           If it is not, the download icon beside the list queues a pull. The <b>?</b> next to the list
           opens <a href="#ai-model-files">GGUF models</a> — download a file, place it, register it. For Cloud AI
@@ -168,7 +170,7 @@ ollama create qwen2.5-coder:7b -f /tmp/Modelfile</pre>
         <p class="small">That writes into <code class="inl">~/.ollama/models</code>. Tick <b>Host Ollama</b> so
           the intern uses it.</p>
         <p class="small"><b>Then from the board:</b> Settings → pick the matching tag (download icon disappears
-          once the tag exists) → AI usage not None → <b>Regenerate</b> / <b>Refresh</b>. The intern enqueues
+          once the tag exists) → Features → <b>AI</b> on → <b>Regenerate</b> / <b>Refresh</b>. The intern enqueues
           the job; you do not need a host console.</p>
       </div>
       <h2 id="add-model">Add a newly released model</h2>

@@ -124,7 +124,8 @@
       "type": "object",
       "required": ["level", "backend", "cloudProvider", "cloudEffort", "useHostOllama"],
       "properties": {
-        "level": { "enum": ["none", "low", "moderate", "full"] },
+        "enabled": { "type": "boolean" },
+        "level": { "enum": ["none", "low", "moderate", "high", "full"] },
         "backend": { "enum": ["local", "cloud"] },
         "localModel": { "type": "string" },
         "cloudProvider": { "enum": ["claude", "cursor", "gemini"] },
@@ -153,6 +154,7 @@
       "type": "object",
       "required": ["activeRefresh", "fullRefresh", "reportRefresh"],
       "properties": {
+        "enabled": { "type": "boolean" },
         "activeRefresh": { "enum": ["off", "daily", "twice-daily"] },
         "fullRefresh": { "enum": ["off", "daily", "weekly", "twice-weekly"] },
         "reportRefresh": { "enum": ["off", "daily", "weekly", "twice-weekly"] }

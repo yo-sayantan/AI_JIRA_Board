@@ -139,7 +139,7 @@ docker compose build --build-arg DIST_SOURCE=prebuilt</pre>
       <details class="faq">
         <summary><span class="qi">+</span> AI briefs aren’t appearing on tickets <span class="ftag board">board</span></summary>
         <div class="a">
-          <p>Three usual causes, in order: Settings → <b>AI usage</b> is set to <b>None</b> (deterministic mode —
+          <p>Three usual causes, in order: Settings → Features → <b>AI</b> is switched off (deterministic mode —
             no briefs by design); the <code class="inl">AI-Intern</code> container is down (Settings shows its
             health); or it simply hasn’t gotten there yet — the summarize pass writes up to <b>8 briefs per
             run</b>, so a full board fills in over a few scheduled passes. Raised tickets queue after active ones.</p>
