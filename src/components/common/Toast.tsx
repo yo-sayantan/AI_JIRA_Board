@@ -33,7 +33,7 @@ export const Toasts = memo(function Toasts({ toasts, onDismiss }: { toasts: Toas
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.94 }}
               transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-              className="pointer-events-auto flex max-w-[92vw] items-center gap-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] px-4 py-2.5 text-[12.5px] font-medium text-[var(--ink)] card-shadow"
+              className="jb-float pointer-events-auto flex max-w-[92vw] items-center gap-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] px-4 py-2.5 text-[12.5px] font-medium text-[var(--ink)] card-shadow"
             >
               <span className={kind === 'loading' ? 'animate-spin' : ''} style={{ color: COLOR[kind] }}>
                 {ICON[kind]}

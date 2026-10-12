@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { CopyButton } from '../common/ui'
-import { KeyIcon, RefreshIcon } from '../common/Icons'
+import { FlaskIcon, KeyIcon, RefreshIcon } from '../common/Icons'
 import { hexToRgba } from '../../lib/format'
 
 export function EmptyState({
@@ -10,6 +10,7 @@ export function EmptyState({
   runCommand,
   onOpenKeys,
   keysMissing = false,
+  onTryDemo,
 }: {
   served: boolean
   refreshing: boolean
@@ -19,6 +20,8 @@ export function EmptyState({
   onOpenKeys?: () => void
   /** A required key (the Jira token) is missing — the intern cannot fetch until it is added. */
   keysMissing?: boolean
+  /** Switch Demo mode on: a sample board that needs no server, keys or data (nothing is ever sent to Jira). */
+  onTryDemo?: () => void
 }) {
   return (
     <div className="grid min-h-[80vh] place-items-center">
@@ -64,6 +67,18 @@ export function EmptyState({
             >
               <KeyIcon size={14} color="#f59e0b" />
               {keysMissing ? 'Add API keys first' : 'API keys'}
+            </motion.button>
+          )}
+          {onTryDemo && (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={onTryDemo}
+              className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-[13px] font-semibold"
+              style={{ color: '#0d9488', borderColor: hexToRgba('#14b8a6', 0.5), background: hexToRgba('#14b8a6', 0.09) }}
+              title="Look around a sample board of invented tickets — nothing reaches Jira, and it works without the server or any keys"
+            >
+              <FlaskIcon size={14} color="#14b8a6" />
+              Try demo mode
             </motion.button>
           )}
           {!served && <CopyButton text={runCommand} label="Copy command" />}

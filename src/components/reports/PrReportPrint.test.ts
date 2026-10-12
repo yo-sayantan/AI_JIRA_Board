@@ -71,3 +71,29 @@ describe('PDF deck', () => {
     expect([1, 2, 3, 4, 5, 6, 7, 8].map(kpiColumns)).toEqual([1, 2, 3, 4, 3, 3, 4, 4])
   })
 })
+
+describe('deck style (Settings → PDF report)', () => {
+  const report = Object.values(demoReports().reports)[0]
+  const render2 = (style?: 'light' | 'colorful') => {
+    host = document.createElement('div')
+    document.body.appendChild(host)
+    root = createRoot(host)
+    act(() => root!.render(createElement(PrReportPrintDoc, { report, tabs: report.tabs ?? [], style })))
+    return host
+  }
+  const agendaColour = (el: HTMLElement) => (el.querySelector('.jb-cover-agenda-n') as HTMLElement).style.background
+
+  it('is Light (Google palette) unless told otherwise', () => {
+    const el = render2()
+    expect(el.querySelector('.jb-pdf')?.classList.contains('jb-deck-light')).toBe(true)
+    // Google's tonal pair: the blue 50 container with blue ink, not a filled dot
+    expect(agendaColour(el)).toMatch(/rgb\(232, 240, 254\)|#e8f0fe/i)
+    expect((el.querySelector('.jb-cover-agenda-n') as HTMLElement).style.color).toMatch(/rgb\(24, 90, 188\)|#185abc/i)
+  })
+  it('draws the original section colours when Colourful is chosen', () => {
+    const el = render2('colorful')
+    expect(el.querySelector('.jb-pdf')?.classList.contains('jb-deck-colorful')).toBe(true)
+    expect(el.querySelector('.jb-pdf')?.classList.contains('jb-deck-light')).toBe(false)
+    expect(agendaColour(el)).toMatch(/rgb\(79, 70, 229\)|#4f46e5/i)
+  })
+})

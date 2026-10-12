@@ -221,7 +221,7 @@ export function ApiKeysDialog({
                 })}
               </nav>
 
-              <div className="min-h-0 overflow-y-auto bg-[var(--bg)] p-5 [scrollbar-gutter:stable] md:px-8 md:py-6">
+              <div className="min-h-0 overflow-y-auto bg-[var(--surface-2)] p-5 [scrollbar-gutter:stable] md:px-8 md:py-6">
                 {current && (
                   <ServicePanel
                     key={current.id}

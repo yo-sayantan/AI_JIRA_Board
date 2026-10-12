@@ -3,7 +3,7 @@ import { BRANDING } from '../../lib/appConfig'
 /** Very thin, fixed footer — credits + a pastel "made by" badge (text/link from config.json). */
 export function Footer() {
   return (
-    <footer className="fixed inset-x-0 bottom-0 z-30 flex h-9 items-center gap-3 border-t border-[var(--line)] bg-[var(--bg)]/85 px-4 text-[11px] text-[var(--muted)] backdrop-blur-xl md:px-6 lg:px-8">
+    <footer className="fixed inset-x-3 bottom-2 z-30 flex h-9 items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--bg)]/85 px-4 text-[11px] text-[var(--muted)] backdrop-blur-xl md:inset-x-5 lg:inset-x-6">
       <span className="min-w-0 flex-1 truncate">{BRANDING.tagline}</span>
 
       <span className="hidden shrink-0 items-center gap-2 sm:flex">

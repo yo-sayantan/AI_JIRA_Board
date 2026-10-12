@@ -14,7 +14,8 @@ import type {
   ReportTimelineBlock,
   ReportTone,
 } from '../../lib/reportTypes'
-import { toneColor } from '../../lib/reportTypes'
+import type { ReportStyle } from '../../lib/settings'
+import { TONE_COLOR } from '../../lib/reportTypes'
 import { fmtDate, fmtDateTime, fmtReportMetadata } from '../../lib/format'
 import { APP_CONFIG } from '../../lib/appConfig'
 import { hrefForKey, shareableLinks } from '../../lib/reportLinks'
@@ -52,8 +53,51 @@ const RAG: Record<ReportTone, string> = {
   neutral: 'Grey',
 }
 
-/** Each section owns a hue, carried by its slide band, eyebrow, rule and table header. */
-const SECTION_COLOR: Record<string, string> = {
+/**
+ * The deck's two palettes (Settings → PDF report). **Light** is Google's (Material / Google Slides): blue #1a73e8, red
+ * #d93025, green #1e8e3e, amber #c26401, purple #9334e6, grey #5f6368. **Colourful** is the original deck: the board's
+ * own tone colours and a hue per section. Every value is a 6-digit hex because the slide markup appends an alpha pair
+ * (`${c}14`) to make tinted containers. The chosen style also becomes a class on the deck (`jb-deck-light` /
+ * `jb-deck-colorful`), which is what slides-google.css keys on.
+ */
+/** Google's colour families as Material uses them: `fill` (bars, dots, rings), `ink` (text, ≥ 4.5:1 on white and on its
+ *  container) and `container` (the 50 shade behind tonal chips and boxes). Yellow text is never used — it reads `ink`. */
+interface Paint {
+  ink: string
+  fill: string
+  /** '' = no tonal container: the original deck derives a tint from `fill` with an alpha pair instead. */
+  container: string
+}
+const G: Record<'blue' | 'green' | 'yellow' | 'red' | 'purple' | 'cyan' | 'grey', Paint> = {
+  blue: { ink: '#185abc', fill: '#1a73e8', container: '#e8f0fe' },
+  green: { ink: '#137333', fill: '#1e8e3e', container: '#e6f4ea' },
+  yellow: { ink: '#b06000', fill: '#f9ab00', container: '#fef7e0' },
+  red: { ink: '#c5221f', fill: '#d93025', container: '#fce8e6' },
+  purple: { ink: '#681da8', fill: '#9334e6', container: '#f3e8fd' },
+  cyan: { ink: '#007b83', fill: '#12b5cb', container: '#e4f7fb' },
+  grey: { ink: '#3c4043', fill: '#5f6368', container: '#f1f3f4' },
+}
+const LIGHT_TONE: Record<ReportTone, Paint> = {
+  success: G.green,
+  warning: G.yellow,
+  danger: G.red,
+  info: G.blue,
+  violet: G.purple,
+  neutral: G.grey,
+}
+const LIGHT_SECTION: Record<string, Paint> = {
+  'Executive summary': G.blue,
+  'Delivery gates': G.green,
+  'Open items': G.yellow,
+  'Code review': G.purple,
+  Evidence: G.blue,
+  'Quality and security': G.green,
+  'Technical assessment': G.cyan,
+  Risk: G.red,
+  'Additional detail': G.grey,
+  Appendix: G.grey,
+}
+const COLORFUL_SECTION: Record<string, string> = {
   'Executive summary': '#4f46e5',
   'Delivery gates': '#0d9488',
   'Open items': '#ea580c',
@@ -65,7 +109,27 @@ const SECTION_COLOR: Record<string, string> = {
   'Additional detail': '#64748b',
   Appendix: '#475569',
 }
-const sectionColor = (s: string) => SECTION_COLOR[s] ?? '#475569'
+const flat = (c: string): Paint => ({ ink: c, fill: c, container: '' })
+
+/**
+ * The style being drawn. Set at the top of PrReportPrintDoc's render, before any slide component runs: the colour helpers
+ * are called from plain render closures (list / table / card builders) that cannot use a hook or context, and only one deck
+ * is ever on screen. A style change re-renders the doc, which sets it again and re-measures the pages.
+ */
+let activeStyle: ReportStyle = 'light'
+const isLight = () => activeStyle === 'light'
+const paint = (t?: ReportTone | null): Paint => (isLight() ? LIGHT_TONE[t ?? 'neutral'] ?? G.grey : flat(TONE_COLOR[t ?? 'neutral'] ?? TONE_COLOR.neutral))
+const sectionPaint = (s: string): Paint => (isLight() ? LIGHT_SECTION[s] ?? G.grey : flat(COLORFUL_SECTION[s] ?? '#475569'))
+/** A tinted background: Google's container shade in Light; the original `fill + alpha` in Colourful. */
+const soft = (p: Paint, alpha: string) => p.container || `${p.fill}${alpha}`
+/** A status mark that carries a label or number (verdict pill, action / agenda numbers): tonal in Light, filled in Colourful. */
+const badge = (p: Paint): CSSProperties => (p.container ? { background: p.container, color: p.ink } : { background: p.fill })
+/** A status chip: Google's tonal chip in Light (container + ink); the original outlined tint in Colourful. */
+const chip = (t?: ReportTone | null): CSSProperties => {
+  const p = paint(t)
+  return p.container ? { color: p.ink, background: p.container } : { color: p.fill, borderColor: p.fill, background: `${p.fill}14` }
+}
+const deckTone = (t?: ReportTone | null): string => paint(t).fill
 
 /** One block of a section. Items are table rows, rows of cards, or list entries; atoms never split. */
 interface BlockDef {
@@ -96,21 +160,22 @@ interface Deck {
   sections: SectionDef[]
 }
 
-export function PrReportPrintDoc({ report, tabs }: { report: PrReport; tabs: ReportTab[] }) {
+export function PrReportPrintDoc({ report, tabs, style = 'light' }: { report: PrReport; tabs: ReportTab[]; style?: ReportStyle }) {
+  activeStyle = style
   const deck = useMemo(() => planDeck(report, tabs), [report, tabs])
   const rootRef = useRef<HTMLDivElement>(null)
   const [generation, setGeneration] = useState(0)
   // The pages belong to the deck (and font generation) they were measured for; anything else means
   // "measure again", so a new report can never be drawn with the previous report's pagination.
-  const [layout, setLayout] = useState<{ deck: Deck; generation: number; pages: Page[] } | null>(null)
-  const pages = layout && layout.deck === deck && layout.generation === generation ? layout.pages : null
+  const [layout, setLayout] = useState<{ deck: Deck; generation: number; style: ReportStyle; pages: Page[] } | null>(null)
+  const pages = layout && layout.deck === deck && layout.generation === generation && layout.style === style ? layout.pages : null
 
   // Pass 1 + 2: measure the offscreen render, paginate. A layout effect, so it completes before
   // paint — the deck is ready long before anyone reaches the print button.
   useLayoutEffect(() => {
     if (pages || !rootRef.current) return
-    setLayout({ deck, generation, pages: measureAndPaginate(rootRef.current, deck.sections) })
-  }, [pages, deck, generation])
+    setLayout({ deck, generation, style, pages: measureAndPaginate(rootRef.current, deck.sections) })
+  }, [pages, deck, generation, style])
 
   // Pass 3: fit every slide; again right before printing (fonts or the window may have changed).
   useLayoutEffect(() => {
@@ -131,7 +196,7 @@ export function PrReportPrintDoc({ report, tabs }: { report: PrReport; tabs: Rep
   const byId = useMemo(() => new Map(deck.sections.map((s) => [s.id, s])), [deck])
 
   return (
-    <div className="jb-pdf" ref={rootRef} aria-hidden>
+    <div className={`jb-pdf jb-deck-${style}`} ref={rootRef} aria-hidden>
       {!pages ? (
         <MeasureLayer sections={deck.sections} />
       ) : (
@@ -207,7 +272,11 @@ function Slide({ section, eyebrow, title, audience, children }: { section: strin
   )
 }
 
-const secVars = (section: string) => ({ '--sec': sectionColor(section) }) as CSSProperties
+const secVars = (section: string) => {
+  const p = sectionPaint(section)
+  const vars: Record<string, string> = p.container ? { '--sec': p.ink, '--sec-fill': p.fill, '--sec-soft': p.container } : { '--sec': p.fill }
+  return vars as CSSProperties
+}
 
 // ── Pass 1: measure ─────────────────────────────────────────────────────────
 
@@ -570,7 +639,7 @@ function listDef(id: string, block: ReportListBlock, report: PrReport, title?: s
         <ol className="jb-actions">
           {block.items.slice(from, to).map((it, i) => (
             <li key={i} data-item>
-              <span className="jb-action-n" style={{ background: toneColor(it.tone) }}>
+              <span className="jb-action-n" style={badge(paint(it.tone))}>
                 {from + i + 1}
               </span>
               <span>
@@ -601,7 +670,7 @@ function timelineDef(id: string, block: ReportTimelineBlock, report: PrReport): 
         <ol className="jb-timeline">
           {items.slice(from, to).map((e, i) => (
             <li key={i} data-item>
-              <span className="jb-tl-dot" style={{ background: toneColor(e.tone) }} />
+              <span className="jb-tl-dot" style={{ background: deckTone(e.tone) }} />
               <span className="jb-tl-when">{fmtWhen(e.when, zone)}</span>
               <span className="jb-tl-what">
                 <b>
@@ -680,13 +749,14 @@ function genericDef(id: string, block: ReportBlock, report: PrReport, heading: s
 function CoverSlide({ report, sections }: { report: PrReport; sections: SectionDef[] }) {
   const v = report.verdict
   const tone = v?.tone ?? 'neutral'
-  const c = toneColor(tone)
+  const p = paint(tone)
+  const c = p.fill
   const zone = report.timeZone ?? APP_CONFIG.timeZone
   const ticketHref = safeHref(hrefForKey(report, report.key))
   const agenda = ['Executive summary', ...new Set(sections.map((s) => s.section))]
   const long = (report.title ?? '').length > 90
   return (
-    <div className="jb-cover" style={{ '--tone': c } as CSSProperties}>
+    <div className="jb-cover" style={{ '--tone': c, '--tone-soft': soft(p, '22') } as CSSProperties}>
       <div className="jb-cover-band" />
       <div className="jb-cover-glow" />
       <div className="jb-cover-top">
@@ -704,7 +774,7 @@ function CoverSlide({ report, sections }: { report: PrReport; sections: SectionD
           )}
           <h1 className={`jb-cover-title${long ? ' jb-cover-title-long' : ''}`}>{report.title}</h1>
           <div className="jb-cover-verdict">
-            <span className="jb-rag" style={{ background: c }}>
+            <span className="jb-rag" style={badge(p)}>
               {RAG[tone]}
             </span>
             <span className="jb-cover-label">{v?.label ?? 'No verdict'}</span>
@@ -717,7 +787,7 @@ function CoverSlide({ report, sections }: { report: PrReport; sections: SectionD
         </div>
         {typeof v?.score === 'number' && (
           <div className="jb-cover-score">
-            <ScoreRing score={v.score} color={c} size={170} dark />
+            <ScoreRing score={v.score} color={c} size={170} dark={activeStyle === 'colorful'} />
             <span>Readiness score</span>
           </div>
         )}
@@ -728,7 +798,7 @@ function CoverSlide({ report, sections }: { report: PrReport; sections: SectionD
           <ol className="jb-cover-agenda">
             {agenda.map((s, i) => (
               <li key={s}>
-                <span className="jb-cover-agenda-n" style={{ background: sectionColor(s) }}>
+                <span className="jb-cover-agenda-n" style={badge(sectionPaint(s))}>
                   {i + 1}
                 </span>
                 {s}
@@ -765,7 +835,9 @@ function SummarySlide({
 }) {
   const v = report.verdict
   const tone = v?.tone ?? 'neutral'
-  const c = toneColor(tone)
+  const p = paint(tone)
+  const c = p.fill
+  const done = paint('success')
   const next = v?.next
   const impact = decision && decision.kind === 'callout' ? italicLine(decision.body) : null
   const kpis: ReportStat[] = [
@@ -778,12 +850,12 @@ function SummarySlide({
 
   return (
     <div className="jb-summary">
-      <div className="jb-summary-status" style={{ borderColor: c, background: `${c}0d` }}>
+      <div className="jb-summary-status" style={{ borderColor: c, background: soft(p, '0d') }}>
         <div className="jb-summary-row">
-          <span className="jb-rag" style={{ background: c }}>
+          <span className="jb-rag" style={badge(p)}>
             {RAG[tone]}
           </span>
-          <span className="jb-summary-label" style={{ color: c }}>
+          <span className="jb-summary-label" style={{ color: p.ink }}>
             {v?.label ?? 'No verdict'}
           </span>
         </div>
@@ -807,7 +879,14 @@ function SummarySlide({
       </div>
 
       <div className="jb-summary-side">
-        <div className="jb-next" style={{ borderColor: next ? c : toneColor('success'), background: `${next ? c : toneColor('success')}0f` }}>
+        <div
+          className="jb-next"
+          style={
+            isLight()
+              ? ({ '--next': (next ? p : done).fill } as CSSProperties)
+              : { borderColor: next ? c : done.fill, background: `${next ? c : done.fill}0f` }
+          }
+        >
           <div className="jb-next-label">Next step</div>
           {next?.action ? (
             <>
@@ -911,11 +990,16 @@ function Kpis({ stats }: { stats: ReportStat[] }) {
     <div className="jb-kpis" style={{ gridTemplateColumns: `repeat(${kpiColumns(stats.length)}, minmax(0, 1fr))` }}>
       {stats.map((s, i) => {
         const toned = s.tone && s.tone !== 'neutral'
-        const c = toneColor(s.tone)
+        const p = paint(s.tone)
+        const c = p.fill
         return (
-          <div key={i} className="jb-kpi" style={{ borderTopColor: toned ? c : '#cbd2de', background: toned ? `${c}10` : undefined }}>
+          <div
+            key={i}
+            className="jb-kpi"
+            style={isLight() ? ({ '--kpi': toned ? c : '#bdc1c6' } as CSSProperties) : { borderTopColor: toned ? c : '#cbd2de', background: toned ? `${c}10` : undefined }}
+          >
             <div className="jb-kpi-label">{s.label}</div>
-            <div className={`jb-kpi-value${String(s.value ?? '').length <= 14 ? ' jb-nowrap' : ''}`} style={toned ? { color: c } : undefined}>
+            <div className={`jb-kpi-value${String(s.value ?? '').length <= 14 ? ' jb-nowrap' : ''}`} style={toned ? { color: p.ink } : undefined}>
               <Segments text={sentenceCase(String(s.value ?? ''))} />
             </div>
             {s.hint && <div className="jb-kpi-hint">{s.hint}</div>}
@@ -938,19 +1022,19 @@ function GateBar({ tally }: { tally: GateTally }) {
   return (
     <div className="jb-gatebar">
       <div className="jb-gatebar-track">
-        <span style={{ width: pct(tally.pass), background: toneColor('success') }} />
-        <span style={{ width: pct(tally.warn), background: toneColor('warning') }} />
-        <span style={{ width: pct(tally.fail), background: toneColor('danger') }} />
+        <span style={{ width: pct(tally.pass), background: deckTone('success') }} />
+        <span style={{ width: pct(tally.warn), background: deckTone('warning') }} />
+        <span style={{ width: pct(tally.fail), background: deckTone('danger') }} />
       </div>
       <div className="jb-gatebar-legend">
         <span>
-          <i style={{ background: toneColor('success') }} /> {tally.pass} passed
+          <i style={{ background: deckTone('success') }} /> {tally.pass} passed
         </span>
         <span>
-          <i style={{ background: toneColor('warning') }} /> {tally.warn} not verified
+          <i style={{ background: deckTone('warning') }} /> {tally.warn} not verified
         </span>
         <span>
-          <i style={{ background: toneColor('danger') }} /> {tally.fail} failing
+          <i style={{ background: deckTone('danger') }} /> {tally.fail} failing
         </span>
       </div>
     </div>
@@ -1001,11 +1085,11 @@ function TableBlock({
           {block.rows.slice(from, to).map((row, i) => {
             const t = status ? rowTone(row, stateCol) : row.tone && row.tone !== 'neutral' ? row.tone : null
             return (
-              <tr key={i} data-item style={t ? { boxShadow: `inset 4px 0 0 ${toneColor(t)}` } : undefined}>
+              <tr key={i} data-item style={t && !isLight() ? { boxShadow: `inset 4px 0 0 ${deckTone(t)}` } : undefined}>
                 {row.cells.map((cell, j) => (
                   <td key={j} className={j === 0 ? 'jb-td-lead' : undefined}>
                     {j === stateCol && t ? (
-                      <span className="jb-chip" style={{ color: toneColor(t), borderColor: toneColor(t), background: `${toneColor(t)}14` }}>
+                      <span className="jb-chip" style={chip(t)}>
                         {plain(cell)}
                       </span>
                     ) : j === blockCol ? (
@@ -1025,10 +1109,10 @@ function TableBlock({
 }
 
 function Callout({ title, tone, html, report }: { title: string; tone?: ReportTone; html: string; report: PrReport }) {
-  const c = toneColor(tone)
+  const p = paint(tone)
   return (
-    <section className="jb-callout" style={{ borderLeftColor: c, background: `${c}10` }}>
-      <div className="jb-callout-title" style={{ color: c }}>
+    <section className="jb-callout" style={{ borderLeftColor: p.fill, background: soft(p, '10') }}>
+      <div className="jb-callout-title" style={{ color: p.ink }}>
         {title}
       </div>
       <ReportHtml html={html} report={report} className="jb-prose" />
@@ -1045,7 +1129,7 @@ function KvCard({ block, report }: { block: ReportKvBlock; report: PrReport }) {
         {block.items.map((kv, i) => (
           <div key={i}>
             <dt>{kv.label}</dt>
-            <dd style={kv.tone && kv.tone !== 'neutral' ? { color: toneColor(kv.tone) } : undefined}>
+            <dd style={kv.tone && kv.tone !== 'neutral' ? { color: paint(kv.tone).ink } : undefined}>
               {safeHref(kv.href) ? <a href={safeHref(kv.href)}>{kv.value}</a> : <ReportHtml html={fmtReportMetadata(kv.label, kv.value, zone)} report={report} inline />}
             </dd>
           </div>
@@ -1056,7 +1140,8 @@ function KvCard({ block, report }: { block: ReportKvBlock; report: PrReport }) {
 }
 
 function Card({ card, report, compact }: { card: ReportCard; report: PrReport; compact?: boolean }) {
-  const c = toneColor(card.badgeTone)
+  const c = deckTone(card.badgeTone)
+  const chipStyle = chip(card.badgeTone)
   const inner = (
     <>
       <div className="jb-card-head">
@@ -1064,7 +1149,7 @@ function Card({ card, report, compact }: { card: ReportCard; report: PrReport; c
           <ReportHtml html={card.title} report={report} inline />
         </span>
         {card.badge && (
-          <span className="jb-chip" style={{ color: c, borderColor: c, background: `${c}14` }}>
+          <span className="jb-chip" style={chipStyle}>
             {card.badge}
           </span>
         )}
@@ -1078,7 +1163,7 @@ function Card({ card, report, compact }: { card: ReportCard; report: PrReport; c
     </>
   )
   const cardHref = safeHref(card.href)
-  const style = { borderTopColor: c, background: `linear-gradient(180deg, ${c}0d, #fff 46px)` }
+  const style = isLight() ? undefined : { borderTopColor: c, background: `linear-gradient(180deg, ${c}0d, #fff 46px)` }
   return cardHref ? (
     <a href={cardHref} className="jb-card" style={style} data-item>
       {inner}
@@ -1097,7 +1182,7 @@ function ScoreRing({ score, color, size, dark }: { score: number; color: string;
   const circ = 2 * Math.PI * r
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="jb-ring">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={dark ? 'rgba(255,255,255,0.14)' : '#e6e9ef'} strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={dark ? 'rgba(255,255,255,0.14)' : '#e8eaed'} strokeWidth={stroke} />
       <circle
         cx={size / 2}
         cy={size / 2}
@@ -1109,7 +1194,7 @@ function ScoreRing({ score, color, size, dark }: { score: number; color: string;
         strokeDasharray={`${(pct / 100) * circ} ${circ}`}
         transform={`rotate(-90 ${size / 2} ${size / 2})`}
       />
-      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize={size * 0.3} fontWeight={800} fill={dark ? '#fff' : '#10151f'}>
+      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize={size * 0.3} fontWeight={600} fill={dark ? '#fff' : '#202124'}>
         {pct}
       </text>
     </svg>

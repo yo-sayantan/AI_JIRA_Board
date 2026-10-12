@@ -5,6 +5,40 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Light PDF deck, more Google.** The Light deck now follows Material 3 / Google Slides throughout: Google's colour families in
+  tonal pairs (a 50-shade container behind dark ink of the same family — never yellow text; the 600 fill only for bars, dots and
+  the score ring), Google's greys, the M3 type scale (headline 32/40, title 22/28, body 15/22, labels 13/16) with sentence case — headings, key numbers,
+  labels and lead cells in **bold** so the deck reads solid, darker outlines, ink-coloured body text, an 8px spacing grid (56px margins, 24px between blocks), 8px tonal chips, a verdict status
+  chip with a dot, outlined 12px KPI tiles with a status dot, an outlined "Next step" card with a status rail, Material tables
+  with no row stripes, an overline section label instead of a pill, and the four-colour bar as the only decoration. Colourful
+  is unchanged.
+- **Settings → PDF report: Light or Colourful.** A two-way switch (not a dropdown) chooses the look of the PDF deck the next
+  time you export: **Light** (the Google-style deck below) or **Colourful** (the original section-coloured deck). Saved on
+  this device (`reportStyle`, default Light); the deck re-measures itself when the choice changes. Also fixed: state chips in
+  deck tables ("Not verified", "approved · 3 of 2 · 0 open comments") overran into the next column — they now wrap inside
+  their cell, and the State column gets a little more room.
+- **PR report PDF deck in Google's presentation style.** The slide deck (separate from the on-screen report, and flat on
+  purpose — no glass on paper) now follows Material / Google Slides: a white title slide with big type and Google's
+  four-colour accent bar, tonal containers for the verdict, next step, KPIs and callouts, outlined 14px cards, pill chips,
+  Material data tables (grey header, hairline rows), sentence-case labels, Google's palette and Google Sans → Roboto →
+  system sans (no font is downloaded or bundled). `src/styles/slides-google.css`, scoped to `.jb-pdf`; layout, pagination
+  and fitting are unchanged.
+
+- **"Try demo mode" on the empty board.** The *Nothing to show… yet* screen (no data yet) now has a **Try demo mode** button next to Run the intern / API keys. It turns the Demo mode feature on, so a new install — served or opened from `file://`, with or without keys — can look around the sample board at once; the demo banner's **Exit demo** brings the empty screen back.
+
+- **Liquid Glass UI.** The whole board is re-skinned as Apple-style Liquid Glass (`src/styles/glass.css`, following the
+  `liquid-glass-design` skill's rules for the web): translucent frosted panels and cards with a bright specular rim and
+  sheen over a vivid ambient background; a floating rounded header and footer; dialogs and the ticket drawer as blurred
+  sheets; recessed glass fields; rounder corners; and a highlight that follows the pointer over board cards and the Settings
+  switches. Blur is used only over content (header, footer, dialogs, menus, tooltips), not on every card. It goes opaque for
+  *reduce transparency*, *increase contrast* and browsers without `backdrop-filter`, switches off with Motion & animations,
+  and print is untouched. Colours, gradients and animations are unchanged. To undo it, delete `glass.css` and its import.
+  The glass is clear and neutral, as Apple's is — colour comes from the content (column hues, badges), not the material: a
+  near-white / near-black page with only a faint ambient hint, a light neutral dim behind dialogs, light falling from the top,
+  and a 1px gradient rim (bright top-left) on the bars, sheets and menus. Header menus (Rebuild archive, PR reports),
+  tooltips, toasts and the notices dock are near-opaque — a blur inside the blurred header only sees the header, so it
+  could not hide the board. Every Close button is red.
+
 - **Settings: one AI dial, and two master switches.** Settings → AI now has just **Low · Medium · High · Max** (`None` is
   gone; the old Effort dropdown is gone — the level sets the effort). The level also decides which cloud models can be picked,
   by output price per 1M tokens: Low ≤ $1 · Medium ≤ $5 · High < $10 · Max everything (costly ≥ $10 included); models outside

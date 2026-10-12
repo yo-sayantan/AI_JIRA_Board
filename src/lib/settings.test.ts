@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AI_LEVELS, DEFAULT_SETTINGS, effortForLevel, mergeServerSettings, parseSettings, serverSettingsOf } from './settings'
+import { AI_LEVELS, DEFAULT_SETTINGS, REPORT_STYLES, effortForLevel, mergeServerSettings, parseSettings, serverSettingsOf } from './settings'
 
 describe('parseSettings', () => {
   it('falls back for an invalid aiLevel', () => {
@@ -26,6 +26,15 @@ describe('parseSettings', () => {
     expect(sent.jobsEnabled).toBe(false)
     expect(mergeServerSettings(DEFAULT_SETTINGS, { aiEnabled: false, jobsEnabled: false }).jobsEnabled).toBe(false)
     expect(mergeServerSettings(DEFAULT_SETTINGS, { aiEnabled: 'x' }).aiEnabled).toBe(true)
+  })
+  it('offers a Light and a Colourful PDF report style, Light by default', () => {
+    expect(REPORT_STYLES.map((r) => r.key)).toEqual(['light', 'colorful'])
+    expect(DEFAULT_SETTINGS.reportStyle).toBe('light')
+    expect(parseSettings({ reportStyle: 'colorful' }).reportStyle).toBe('colorful')
+    expect(parseSettings({ reportStyle: 'neon' }).reportStyle).toBe('light')
+  })
+  it('keeps the PDF report style on this device only', () => {
+    expect('reportStyle' in serverSettingsOf(DEFAULT_SETTINGS)).toBe(false)
   })
   it('derives cloud effort from the level', () => {
     expect(AI_LEVELS.map((l) => effortForLevel(l.key))).toEqual(['low', 'medium', 'high', 'high'])

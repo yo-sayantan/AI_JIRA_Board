@@ -182,7 +182,7 @@ export const Header = memo(function Header({
   const archiveProgress = archiveRefreshing ? runProgress : null
 
   return (
-    <header className="sticky top-0 z-30 -mx-4 mb-4 border-b border-[var(--line)] bg-[var(--bg)]/80 px-4 py-3 backdrop-blur-xl md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
+    <header className="sticky top-2 z-30 mb-4 mt-2 rounded-2xl border border-[var(--line)] bg-[var(--bg)]/80 px-4 py-3 backdrop-blur-xl md:px-5">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex items-center gap-2.5">
           <motion.span

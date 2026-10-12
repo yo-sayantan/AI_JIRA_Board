@@ -27,6 +27,7 @@ export interface AppRuntimeConfig {
     dayEnd?: number
     toastSeconds?: number
     toastMax?: number
+    reportStyle?: 'light' | 'colorful'
     features?: Record<string, boolean>
   }
   schedule?: {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { ACTIVE_CADENCE, AI_LEVELS, BOARD_CADENCE, FEATURES, LIMITS, clampSetting, type AiCloudProvider, type FeatureKey, type Settings } from '../../lib/settings'
+import { ACTIVE_CADENCE, AI_LEVELS, BOARD_CADENCE, FEATURES, LIMITS, REPORT_STYLES, clampSetting, type AiCloudProvider, type FeatureKey, type Settings } from '../../lib/settings'
 import { getAiModels, getCloudModels, pullAiModel, guideUrl, type AiCatalogModel, type AiInternStatus, type AiPullProgress, type CloudModelChoice, type CloudListInfo, type CloudPrice, type OllamaContainerInfo } from '../../lib/runner'
 import { DEFAULT_COSTLY_USD, groupByProvider, isPricey, levelAllows, levelPriceText, usd } from '../../lib/cloudModels'
 import fallbackCatalog from '../../../ai-intern/models.json'
@@ -36,7 +36,7 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i)
 const hourLabel = (h: number) => `${String(h).padStart(2, '0')}:00`
 
 /**
- * `off` greys the whole body out and makes it inert (no focus, no clicks, hidden from assistive tech's
+ * `off` turns the whole card light grey (background, border, body) and makes the body inert (no focus, no clicks, hidden from assistive tech's
  * "interactive" list) — the header stays live so the reason ("switched off under Features") is readable.
  */
 function Section({
@@ -53,13 +53,17 @@ function Section({
   off?: boolean
 }) {
   return (
-    <section className={`flex min-w-0 flex-col rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] p-3 ${className}`}>
+    <section
+      className={`flex min-w-0 flex-col rounded-xl border p-3 transition-[background-color,filter] ${
+        off ? 'border-dashed border-[var(--line-strong)] bg-[var(--surface-2)] grayscale' : 'border-[var(--line)] bg-[var(--surface-solid)]'
+      } ${className}`}
+    >
       <div className="mb-2 flex h-4 items-center gap-3">
         <h3 className="shrink-0 text-[10.5px] font-bold uppercase tracking-wider text-[var(--muted)]">{title}</h3>
         {aside && <div className="ml-auto flex min-w-0 items-center text-[10.5px]">{aside}</div>}
       </div>
       <div
-        className={`flex min-w-0 flex-1 flex-col transition-[opacity,filter] ${off ? 'pointer-events-none select-none opacity-45 grayscale' : ''}`}
+        className={`flex min-w-0 flex-1 flex-col transition-[opacity,filter] ${off ? 'pointer-events-none select-none opacity-40' : ''}`}
         inert={off}
         aria-disabled={off || undefined}
       >
@@ -75,6 +79,22 @@ function OffNote({ what }: { what: string }) {
     <span className="truncate font-semibold text-[var(--muted)]" title={`${what} is switched off — turn it back on under Features.`}>
       Off — turn on under Features
     </span>
+  )
+}
+
+/** A tiny preview of each PDF look: Google's four colours, or the original multi-hue gradient. */
+function ReportSwatch({ style }: { style: 'light' | 'colorful' }) {
+  return (
+    <span
+      aria-hidden
+      className="h-2 w-5 shrink-0 rounded-full"
+      style={{
+        background:
+          style === 'light'
+            ? 'linear-gradient(90deg,#4285f4 0 25%,#ea4335 25% 50%,#fbbc04 50% 75%,#34a853 75%)'
+            : 'linear-gradient(90deg,#4f46e5,#0d9488,#ea580c,#7c3aed)',
+      }}
+    />
   )
 }
 
@@ -458,6 +478,19 @@ export function SettingsPanel({
                   </div>
                 </Section>
 
+                <Section title="PDF report">
+                  <Segmented
+                    label="PDF report style"
+                    options={REPORT_STYLES.map((r) => ({
+                      key: r.key,
+                      label: r.label,
+                      icon: <ReportSwatch style={r.key} />,
+                    }))}
+                    value={settings.reportStyle}
+                    onChange={(k) => set('reportStyle', k)}
+                  />
+                </Section>
+
                 <Section title="Notifications">
                   <div className="grid grid-cols-2 gap-x-3">
                     <label className="flex h-8 min-w-0 items-center gap-2 text-[11.5px] font-semibold text-[var(--ink-soft)]">
@@ -508,7 +541,6 @@ export function SettingsPanel({
 
               <div className="flex min-w-0 flex-col">
                 <Section
-                  className="h-full"
                   title="AI"
                   off={!settings.aiEnabled}
                   aside={
@@ -657,7 +689,7 @@ function FeatureCard({
       aria-label={`${feature.label}, ${on ? 'on' : 'off'}. ${feature.hint}`}
       title={disabled && disabledHint ? `${disabledHint}\n\n${feature.detail}` : feature.detail}
       onClick={() => !disabled && onToggle(!on)}
-      className={`flex h-11 w-full min-w-0 items-center gap-2 rounded-lg border px-2.5 text-left transition-colors ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+      className={`glass-interactive flex h-11 w-full min-w-0 items-center gap-2 rounded-lg border px-2.5 text-left transition-colors ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
       style={{
         borderColor: on ? hexToRgba(color, 0.45) : 'var(--line)',
         background: on ? hexToRgba(color, 0.08) : 'var(--surface-2)',
@@ -1174,7 +1206,7 @@ function CloudModelPicker({
 function FactTile({ label, value, hint, warn = false }: { label: string; value: ReactNode; hint?: string; warn?: boolean }) {
   return (
     <div
-      className="flex min-w-0 flex-col justify-center rounded-lg border bg-[var(--surface-2)] px-2.5"
+      className="flex h-12 min-w-0 flex-col justify-center rounded-lg border bg-[var(--surface-2)] px-2.5"
       style={{ borderColor: warn ? 'rgba(220,38,38,0.5)' : 'var(--line)', background: warn ? 'rgba(220,38,38,0.06)' : undefined }}
       title={hint}
     >
@@ -1193,8 +1225,7 @@ function FactTile({ label, value, hint, warn = false }: { label: string; value: 
 
 /**
  * The rest of the AI card: facts about the model the next job will use, and the intern's queue.
- * Laid out absolutely inside the leftover height, so it fills the card without ever making the
- * card — or the dialog — taller.
+ * Compact fixed-height tiles — they take only the room they need, never the card's leftover height.
  */
 function AiFacts({
   settings,
@@ -1232,7 +1263,7 @@ function AiFacts({
         />
       </>
     ) : (
-      <div className="col-span-3 flex min-w-0 items-center rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-2.5 text-[11px] text-[var(--muted)]">
+      <div className="col-span-3 flex h-12 min-w-0 items-center rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-2.5 text-[11px] text-[var(--muted)]">
         <span className="min-w-0 truncate">{settings.aiCloudModel ? `${biller} sets this model's prices — see ${biller}'s pricing page.` : 'Pick a model to see its prices.'}</span>
       </div>
     )
@@ -1266,14 +1297,12 @@ function AiFacts({
     : `${queued} waiting · ${running} running${aiStatus?.parallel ? ` · up to ${aiStatus.parallel} at once` : ''}`
 
   return (
-    <div className="relative min-h-[5.5rem] flex-1">
-      <div className="absolute inset-0 flex flex-col gap-2">
-        <div className="grid min-h-0 flex-1 grid-cols-3 gap-1.5">{tiles}</div>
-        <div className={STRIP} title={`AI-Intern: ${activity}`}>
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: down ? '#dc2626' : running ? AI : '#16a34a' }} />
-          <span className="shrink-0 font-semibold text-[var(--ink-soft)]">Intern</span>
-          <span className="min-w-0 truncate">{activity}</span>
-        </div>
+    <div className="flex flex-col gap-1.5">
+      <div className="grid grid-cols-3 gap-1.5">{tiles}</div>
+      <div className={STRIP} title={`AI-Intern: ${activity}`}>
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: down ? '#dc2626' : running ? AI : '#16a34a' }} />
+        <span className="shrink-0 font-semibold text-[var(--ink-soft)]">Intern</span>
+        <span className="min-w-0 truncate">{activity}</span>
       </div>
     </div>
   )

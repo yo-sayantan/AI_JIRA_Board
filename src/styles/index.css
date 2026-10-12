@@ -6,6 +6,11 @@
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  /* Liquid Glass shapes are rounder (styles/glass.css). */
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.95rem;
+  --radius-2xl: 1.3rem;
+  --radius-3xl: 1.7rem;
 }
 
 :root {
@@ -1119,6 +1124,20 @@ select.jb-field:disabled {
   .jb-table td.jb-td-lead {
     font-weight: 700;
     color: #10151f;
+  }
+  /* A state chip never spills into the next column: it may wrap inside its cell (long states such as
+     "approved · 3 of 2 · 0 open comments" used to run over the Owner column). */
+  .jb-table td {
+    min-width: 0;
+  }
+  .jb-table .jb-chip {
+    display: inline-block;
+    box-sizing: border-box;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.3;
+    border-radius: 12px;
   }
 
   /* ── Callouts, lists, cards, timeline, links ─────────────────────────────── */
