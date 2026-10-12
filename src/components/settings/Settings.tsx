@@ -661,7 +661,7 @@ function FeatureCard({
       aria-label={`${feature.label}, ${on ? 'on' : 'off'}. ${feature.hint}`}
       title={disabled && disabledHint ? `${disabledHint}\n\n${feature.detail}` : feature.detail}
       onClick={() => !disabled && onToggle(!on)}
-      className={`flex h-11 w-full min-w-0 items-center gap-2 rounded-lg border px-2.5 text-left transition-colors ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+      className={`glass-interactive flex h-11 w-full min-w-0 items-center gap-2 rounded-lg border px-2.5 text-left transition-colors ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
       style={{
         borderColor: on ? hexToRgba(color, 0.45) : 'var(--line)',
         background: on ? hexToRgba(color, 0.08) : 'var(--surface-2)',

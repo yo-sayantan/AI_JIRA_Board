@@ -1,0 +1,260 @@
+/* ── Liquid Glass ───────────────────────────────────────────────────────────────────────────────────────────────────
+   Apple's Liquid Glass (ecc:liquid-glass-design) translated to CSS. The rules it teaches, and where they land here:
+
+   · a material, not a colour — translucent frosted fill + bright specular rim on the lit edge + a diagonal sheen
+       → tokens below; every `bg-[var(--surface-solid)]` panel and card picks it up with no per-component class
+   · glass needs something behind it — a vivid, content-aware ambient background (the orbs on <body>)
+   · blur only where glass sits over content (header, footer, dialogs, drawers, menus, tooltips). NOT on every card and list
+     row: stacked backdrop-filters are the anti-pattern the skill warns about, and hundreds of them make scrolling heavy
+   · interactive glass reacts — a specular highlight follows the pointer over `.glass-interactive` and cards
+   · text on glass stays readable — alphas are high enough to read without the blur, and three fallbacks go OPAQUE:
+     prefers-reduced-transparency, prefers-contrast: more, and a browser without backdrop-filter
+   · the Settings "Motion & animations" switch (`jb-no-anim`) also switches the pointer highlight off
+
+   Revert: delete this file and its import in main.tsx (plus the few `jb-sheet` / `glass-interactive` classes) — nothing else
+   depends on it. Tokens are redefined, never renamed, so every component keeps working unchanged. */
+
+/* ── Tokens ─────────────────────────────────────────────────────────────────────────────────────────────────────── */
+:root,
+.light {
+  --glass-blur: 26px;
+  --glass-sat: 180%;
+  --surface-solid: rgba(255, 255, 255, 0.66);
+  --surface-2: rgba(255, 255, 255, 0.44);
+  --sheet: rgba(247, 249, 254, 0.74);
+  --bar: rgba(247, 249, 254, 0.58);
+  --field: rgba(255, 255, 255, 0.6);
+  --line: rgba(20, 28, 48, 0.09);
+  --spec: rgba(255, 255, 255, 0.95);
+  --spec-soft: rgba(255, 255, 255, 0.4);
+  --glass-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.14) 36%, rgba(255, 255, 255, 0) 62%);
+  --pointer-spec: rgba(255, 255, 255, 0.55);
+  --shadow: 0 1px 1px rgba(16, 24, 40, 0.04), 0 12px 32px -10px rgba(16, 24, 40, 0.16);
+  --shadow-sheet: 0 2px 4px rgba(16, 24, 40, 0.06), 0 32px 80px -20px rgba(16, 24, 40, 0.38);
+}
+
+.dark {
+  --surface-solid: rgba(46, 52, 70, 0.54);
+  --surface-2: rgba(62, 70, 90, 0.36);
+  --sheet: rgba(28, 32, 46, 0.7);
+  --bar: rgba(24, 28, 40, 0.56);
+  --field: rgba(10, 14, 24, 0.4);
+  --line: rgba(255, 255, 255, 0.13);
+  --spec: rgba(255, 255, 255, 0.3);
+  --spec-soft: rgba(255, 255, 255, 0.08);
+  --glass-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.045) 36%, rgba(255, 255, 255, 0) 62%);
+  --pointer-spec: rgba(255, 255, 255, 0.16);
+  --shadow: 0 1px 1px rgba(0, 0, 0, 0.4), 0 16px 40px -12px rgba(0, 0, 0, 0.62);
+  --shadow-sheet: 0 2px 4px rgba(0, 0, 0, 0.5), 0 36px 90px -20px rgba(0, 0, 0, 0.75);
+}
+
+/* ── Ambient background: the colour the glass refracts ───────────────────────────────────────────────────────────── */
+body {
+  background:
+    radial-gradient(880px 620px at 6% -8%, rgba(99, 102, 241, 0.26), transparent 62%),
+    radial-gradient(760px 560px at 98% 0%, rgba(236, 72, 153, 0.18), transparent 60%),
+    radial-gradient(940px 720px at 74% 108%, rgba(20, 184, 166, 0.2), transparent 60%),
+    radial-gradient(700px 520px at -4% 96%, rgba(59, 130, 246, 0.2), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+.dark body {
+  background:
+    radial-gradient(880px 620px at 6% -8%, rgba(99, 102, 241, 0.34), transparent 62%),
+    radial-gradient(760px 560px at 98% 0%, rgba(217, 70, 239, 0.22), transparent 60%),
+    radial-gradient(940px 720px at 74% 108%, rgba(20, 184, 166, 0.2), transparent 60%),
+    radial-gradient(700px 520px at -4% 96%, rgba(37, 99, 235, 0.26), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* ── The material: fill + sheen + specular rim, on every glass surface ──────────────────────────────────────────── */
+/* `bg-[var(--surface-solid)]` is how the app already paints a panel, so matching it re-skins all of them at once.
+   The rim is an inset shadow; the element's own Tailwind shadow / ring is kept (they are variables, re-composed here).
+   Print slides (.jb-pdf) stay flat white. */
+.glass,
+[class*='bg-[var(--surface-solid)]']:not(.ticket-card):not(.jb-pdf *) {
+  background-image: var(--glass-sheen);
+  box-shadow:
+    inset 0 1px 0 var(--spec),
+    inset 0 0 0 1px var(--spec-soft),
+    var(--tw-ring-offset-shadow, 0 0 #0000),
+    var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow, 0 0 #0000);
+}
+.card-shadow {
+  box-shadow:
+    inset 0 1px 0 var(--spec),
+    inset 0 0 0 1px var(--spec-soft),
+    var(--shadow);
+}
+
+/* Board cards paint their own shadow inline (motion), so their rim is a pseudo-element: static, under the content. */
+.ticket-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: var(--glass-sheen);
+  box-shadow:
+    inset 0 1px 0 var(--spec),
+    inset 0 0 0 1px var(--spec-soft);
+}
+
+/* ── Blur: only where glass sits over content ──────────────────────────────────────────────────────────────────── */
+header.sticky,
+footer.fixed,
+.jb-dialog-panel,
+.jb-sheet,
+.glass,
+.glass-blur,
+[role='tooltip'],
+[role='menu'],
+[role='listbox'],
+[class*='bg-[var(--surface-solid)]'][class*='z-']:not(.ticket-card *):not(.jb-pdf *) {
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+}
+
+/* Popovers (dropdown menus) float over busy content, so their fill is the denser sheet tone rather than the card tone. */
+[class*='bg-[var(--surface-solid)]'][class*='absolute'][class*='shadow']:not(.ticket-card *):not(.jb-pdf *),
+[role='tooltip'],
+[role='menu'],
+[role='listbox'] {
+  background-color: var(--sheet);
+}
+
+/* Dialogs and drawers were opaque (`bg-[var(--bg)]`), which defeats the translucency — they become sheets. */
+.jb-dialog-panel,
+.jb-sheet {
+  background-color: var(--sheet);
+  background-image: var(--glass-sheen);
+  border-color: var(--spec-soft);
+  box-shadow:
+    inset 0 1px 0 var(--spec),
+    inset 0 0 0 1px var(--spec-soft),
+    var(--shadow-sheet);
+}
+
+/* Bars: the floating header and footer, and the sticky bars inside sheets (every `bg-[var(--bg)]/NN` is such a bar). */
+header.sticky,
+footer.fixed,
+[class*='bg-[var(--bg)]/'] {
+  background-color: var(--bar);
+}
+header.sticky,
+footer.fixed {
+  background-image: var(--glass-sheen);
+  border-color: var(--spec-soft);
+  box-shadow:
+    inset 0 1px 0 var(--spec),
+    inset 0 0 0 1px var(--spec-soft),
+    var(--shadow);
+}
+
+/* Wells (inputs, selects): a slightly recessed glass, so a field reads as sunk into the sheet, not pasted on it. */
+.jb-field {
+  background-color: var(--field);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+.jb-field:focus,
+.jb-field:focus-visible {
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.08),
+    0 0 0 3px rgba(168, 85, 247, 0.16);
+}
+
+/* ── Interactive glass: a specular highlight that follows the pointer ───────────────────────────────────────────── */
+/* --mx / --my are published by lib/glassPointer.ts. Without them the light sits at the top edge. */
+.glass-interactive {
+  position: relative;
+  transition:
+    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+.glass-interactive:active {
+  transform: scale(0.985);
+}
+.glass-interactive::after,
+.ticket-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0%), var(--pointer-spec), transparent 65%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.glass-interactive:hover::after,
+.ticket-card:hover::after {
+  opacity: 1;
+}
+.jb-no-anim .glass-interactive::after,
+.jb-no-anim .ticket-card::after {
+  display: none;
+}
+.jb-no-anim .glass-interactive:active {
+  transform: none;
+}
+
+/* ── Fallbacks: opaque, never unreadable ───────────────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root,
+  .light {
+    --surface-solid: #ffffff;
+    --surface-2: #eef1f7;
+    --sheet: #f4f6fb;
+    --bar: #f4f6fb;
+    --field: #ffffff;
+    --glass-sheen: none;
+    --line: rgba(20, 28, 48, 0.28);
+  }
+  .dark {
+    --surface-solid: #1d222b;
+    --surface-2: #272d38;
+    --sheet: #181c23;
+    --bar: #181c23;
+    --field: #11141a;
+    --glass-sheen: none;
+    --line: rgba(255, 255, 255, 0.34);
+  }
+  *,
+  *::before,
+  *::after {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .glass-interactive::after,
+  .ticket-card::after {
+    display: none;
+  }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root,
+  .light {
+    --surface-solid: rgba(255, 255, 255, 0.92);
+    --sheet: #f4f6fb;
+    --bar: rgba(244, 246, 251, 0.96);
+  }
+  .dark {
+    --surface-solid: rgba(29, 34, 43, 0.94);
+    --sheet: #181c23;
+    --bar: rgba(24, 28, 35, 0.96);
+  }
+}
+
+/* Paper: no tint, no glass. */
+@media print {
+  body {
+    background: #fff !important;
+  }
+  *,
+  *::before,
+  *::after {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}

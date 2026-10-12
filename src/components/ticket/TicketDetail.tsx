@@ -208,7 +208,7 @@ export function TicketDetail({
       <motion.aside
         ref={asideRef}
         tabIndex={-1}
-        className="fixed right-0 top-0 flex h-full w-full max-w-5xl flex-col bg-[var(--bg)] shadow-2xl outline-none"
+        className="jb-sheet fixed right-0 top-0 flex h-full w-full max-w-5xl flex-col border-l border-[var(--line)] shadow-2xl outline-none"
         style={{ zIndex: 50 + depth }}
         initial={{ x: '100%' }}
         animate={{ x: -(Math.min(fromTop, 5) * 40) }}

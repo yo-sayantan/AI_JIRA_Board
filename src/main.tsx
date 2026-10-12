@@ -5,9 +5,12 @@ import App from './App'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { applySettings, loadSettings } from './lib/settings'
 import './styles/index.css'
+import './styles/glass.css'
+import { installGlassPointer } from './lib/glassPointer'
 
 // Apply the same central-default + saved-override settings path before React mounts.
 applySettings(loadSettings())
+installGlassPointer()
 
 // IMPORTANT (file://): the production bundle is a CLASSIC script injected into <head>, so it runs
 // BEFORE <div id="root"> is parsed. Wait for the DOM before mounting, or createRoot would get null.

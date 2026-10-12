@@ -155,6 +155,15 @@ ticket's branches, and that has its own status words):
   indigo · Next Sprint pink. States (`prMeta`): merged `#9a63ff` · approved `#17c47a` · open `#ff9f1c` ·
   changes `#ff4466` · declined `#e11d48`. Cards carry their column's tint at rest — except the `quiet` columns (To Do, QA), which only whisper; badges are gradients (`Pill`).
   Never monochrome; keep gradients, the freshness pill, the sprint block, and animations.
+- **Liquid Glass** (`src/styles/glass.css`, the web translation of `ecc:liquid-glass-design`): panels are translucent frosted
+  glass with a bright top rim and a diagonal sheen, over a coloured ambient background. It is applied through the TOKENS
+  (`--surface-solid`, `--surface-2`, `--sheet`, `--bar`, `--field`) and one attribute selector on `bg-[var(--surface-solid)]`,
+  so a new panel needs nothing but that class. Rules: **blur only where glass sits over content** (header, footer,
+  `.jb-dialog-panel` / `.jb-sheet`, menus, tooltips) — never on cards or list rows (stacked backdrop-filters wreck scrolling);
+  dialogs and drawers are `.jb-dialog-panel` / `.jb-sheet`, never an opaque `bg-[var(--bg)]` (opaque behind glass defeats it);
+  an interactive surface gets `.glass-interactive` (pointer-following highlight, `lib/glassPointer.ts`); text on glass must stay
+  readable without the blur — the three fallbacks (prefers-reduced-transparency, prefers-contrast: more, no backdrop-filter) go opaque.
+  Print slides (`.jb-pdf`) stay flat. Keep the column colours, gradients and animations — glass is the material, not a monochrome.
 - Drag and drop: a zone must arm on `dragenter` as well as `dragover`, columns overlap their gap by 6px so
   hit areas touch, widths do not animate while a drag is in flight (`jb-dragging`), and the carried card is a
   translucent clone (`DRAG_GHOST_OPACITY`) so the drop zone shows through it. The board stays "calm"

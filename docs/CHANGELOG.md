@@ -5,6 +5,14 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Liquid Glass UI.** The whole board is re-skinned as Apple-style Liquid Glass (`src/styles/glass.css`, following the
+  `liquid-glass-design` skill's rules for the web): translucent frosted panels and cards with a bright specular rim and
+  sheen over a vivid ambient background; a floating rounded header and footer; dialogs and the ticket drawer as blurred
+  sheets; recessed glass fields; rounder corners; and a highlight that follows the pointer over board cards and the Settings
+  switches. Blur is used only over content (header, footer, dialogs, menus, tooltips), not on every card. It goes opaque for
+  *reduce transparency*, *increase contrast* and browsers without `backdrop-filter`, switches off with Motion & animations,
+  and print is untouched. Colours, gradients and animations are unchanged. To undo it, delete `glass.css` and its import.
+
 - **Settings: one AI dial, and two master switches.** Settings → AI now has just **Low · Medium · High · Max** (`None` is
   gone; the old Effort dropdown is gone — the level sets the effort). The level also decides which cloud models can be picked,
   by output price per 1M tokens: Low ≤ $1 · Medium ≤ $5 · High < $10 · Max everything (costly ≥ $10 included); models outside
