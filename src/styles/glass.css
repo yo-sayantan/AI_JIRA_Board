@@ -1,104 +1,101 @@
 /* ── Liquid Glass ───────────────────────────────────────────────────────────────────────────────────────────────────
-   Apple's Liquid Glass (ecc:liquid-glass-design) translated to CSS. The rules it teaches, and where they land here:
+   Apple's Liquid Glass (ecc:liquid-glass-design) translated to CSS. The material is CLEAR and NEUTRAL: the colour on
+   screen comes from the content (column hues, badges, chips), never from the glass itself — so no tint on panels, a
+   near-white (light) / near-black (dark) page with only a faint ambient hint, and a neutral dim behind dialogs.
 
-   · a material, not a colour — translucent frosted fill + bright specular rim on the lit edge + a diagonal sheen
-       → tokens below; every `bg-[var(--surface-solid)]` panel and card picks it up with no per-component class
-   · glass needs something behind it — a vivid, content-aware ambient background (the orbs on <body>)
-   · blur only where glass sits over content (header, footer, dialogs, drawers, menus, tooltips). NOT on every card and list
-     row: stacked backdrop-filters are the anti-pattern the skill warns about, and hundreds of them make scrolling heavy
-   · interactive glass reacts — a specular highlight follows the pointer over `.glass-interactive` and cards
-   · text on glass stays readable — alphas are high enough to read without the blur, and three fallbacks go OPAQUE:
-     prefers-reduced-transparency, prefers-contrast: more, and a browser without backdrop-filter
-   · the Settings "Motion & animations" switch (`jb-no-anim`) also switches the pointer highlight off
+   · material — translucent fill, light falling from the top (--glass-sheen), a 1px gradient rim on the lit edge
+     (bright top-left, fading round the sides) inside a faint hairline. Every `bg-[var(--surface-solid)]` panel and card
+     picks the fill, sheen and inner highlight up with no per-component class
+   · blur only where glass sits over content — header, footer, dialogs, drawers, menus, tooltips. Not on cards or list
+     rows: stacked backdrop-filters are the anti-pattern the skill names, and hundreds of them make scrolling heavy
+   · popovers are near-opaque (--pop): the header they open from is itself a backdrop-filter, and a blur inside a
+     blurred parent only sees that parent, so a menu there cannot use blur to keep the board behind it out of the way
+   · interactive glass reacts — a soft highlight follows the pointer over `.glass-interactive` and cards
+   · readable without the blur — three fallbacks go OPAQUE (prefers-reduced-transparency, prefers-contrast: more, no
+     backdrop-filter); the Motion & animations switch (`jb-no-anim`) turns the pointer highlight off; print is flat
 
-   Revert: delete this file and its import in main.tsx (plus the few `jb-sheet` / `glass-interactive` classes) — nothing else
-   depends on it. Tokens are redefined, never renamed, so every component keeps working unchanged. */
+   Revert: delete this file and its import in main.tsx (plus the few `jb-sheet` / `glass-interactive` classes). Tokens are
+   redefined, never renamed, so every component keeps working unchanged. */
 
 /* ── Tokens ─────────────────────────────────────────────────────────────────────────────────────────────────────── */
-/* Glass is never neutral grey: every fill carries a faint indigo → pink → teal tint (--glass-tint), the page base is
-   lavender / deep indigo rather than grey, and the ambient orbs behind it are saturated. Popovers (--pop) are near-opaque:
-   the header they open from is itself a backdrop-filter, and a blur inside a blurred parent only sees that parent — so a
-   menu there cannot rely on blur to keep the board behind it out of the way. */
 :root,
 .light {
-  --bg: #eceafb;
-  --bg-2: #e4e3fa;
-  --glass-blur: 26px;
-  --glass-sat: 190%;
-  --surface-solid: rgba(255, 255, 255, 0.7);
-  --surface-2: rgba(255, 255, 255, 0.5);
-  --sheet: rgba(250, 249, 255, 0.94);
-  --pop: rgba(252, 251, 255, 0.98);
-  --bar: rgba(250, 249, 255, 0.72);
-  --field: rgba(255, 255, 255, 0.75);
-  --line: rgba(76, 70, 160, 0.14);
-  --line-strong: rgba(76, 70, 160, 0.24);
-  --spec: rgba(255, 255, 255, 0.95);
-  --spec-soft: rgba(255, 255, 255, 0.45);
-  --glass-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.12) 36%, rgba(255, 255, 255, 0) 62%);
-  --glass-tint: linear-gradient(135deg, rgba(99, 102, 241, 0.11) 0%, rgba(236, 72, 153, 0.07) 48%, rgba(20, 184, 166, 0.1) 100%);
-  --pointer-spec: rgba(255, 255, 255, 0.6);
-  --shadow: 0 1px 1px rgba(40, 30, 110, 0.05), 0 12px 32px -10px rgba(60, 40, 160, 0.2);
-  --shadow-sheet: 0 2px 4px rgba(40, 30, 110, 0.08), 0 32px 80px -20px rgba(60, 40, 160, 0.45);
-  --scrim: rgba(36, 28, 96, 0.38);
+  --bg: #f4f5f8;
+  --bg-2: #eceef3;
+  --glass-blur: 28px;
+  --glass-sat: 160%;
+  --surface-solid: rgba(255, 255, 255, 0.72);
+  --surface-2: rgba(255, 255, 255, 0.55);
+  --sheet: rgba(255, 255, 255, 0.82);
+  --pop: rgba(255, 255, 255, 0.97);
+  --bar: rgba(255, 255, 255, 0.62);
+  --field: rgba(255, 255, 255, 0.85);
+  --line: rgba(15, 23, 42, 0.08);
+  --line-strong: rgba(15, 23, 42, 0.15);
+  --spec: rgba(255, 255, 255, 0.9);
+  --spec-soft: rgba(255, 255, 255, 0.35);
+  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 42%);
+  --rim: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.4) 30%, rgba(255, 255, 255, 0.1) 62%, rgba(255, 255, 255, 0.55) 100%);
+  --pointer-spec: rgba(255, 255, 255, 0.7);
+  --shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 30px -12px rgba(15, 23, 42, 0.16);
+  --shadow-sheet: 0 2px 6px rgba(15, 23, 42, 0.06), 0 30px 80px -24px rgba(15, 23, 42, 0.32);
+  --scrim: rgba(17, 20, 28, 0.3);
   --close: #dc2626;
-  --close-soft: rgba(239, 68, 68, 0.12);
-  --close-line: rgba(239, 68, 68, 0.5);
+  --close-soft: rgba(239, 68, 68, 0.1);
+  --close-line: rgba(239, 68, 68, 0.45);
 }
 
 .dark {
-  --bg: #0e0f22;
-  --bg-2: #15163a;
-  --surface-solid: rgba(56, 54, 112, 0.5);
-  --surface-2: rgba(72, 70, 140, 0.32);
-  --sheet: rgba(24, 24, 54, 0.95);
-  --pop: rgba(28, 28, 62, 0.98);
-  --bar: rgba(22, 22, 50, 0.74);
-  --field: rgba(8, 8, 26, 0.5);
-  --line: rgba(170, 170, 255, 0.16);
-  --line-strong: rgba(170, 170, 255, 0.28);
-  --spec: rgba(255, 255, 255, 0.3);
-  --spec-soft: rgba(255, 255, 255, 0.09);
-  --glass-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 36%, rgba(255, 255, 255, 0) 62%);
-  --glass-tint: linear-gradient(135deg, rgba(129, 140, 248, 0.16) 0%, rgba(217, 70, 239, 0.1) 48%, rgba(45, 212, 191, 0.1) 100%);
-  --pointer-spec: rgba(255, 255, 255, 0.17);
-  --shadow: 0 1px 1px rgba(0, 0, 0, 0.4), 0 16px 40px -12px rgba(0, 0, 0, 0.62);
-  --shadow-sheet: 0 2px 4px rgba(0, 0, 0, 0.5), 0 36px 90px -20px rgba(0, 0, 0, 0.75);
-  --scrim: rgba(6, 6, 30, 0.55);
+  --bg: #0e1014;
+  --bg-2: #15181e;
+  --surface-solid: rgba(255, 255, 255, 0.065);
+  --surface-2: rgba(255, 255, 255, 0.045);
+  --sheet: rgba(28, 30, 36, 0.84);
+  --pop: rgba(30, 32, 38, 0.98);
+  --bar: rgba(22, 24, 30, 0.66);
+  --field: rgba(0, 0, 0, 0.32);
+  --line: rgba(255, 255, 255, 0.1);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --spec: rgba(255, 255, 255, 0.2);
+  --spec-soft: rgba(255, 255, 255, 0.05);
+  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0) 42%);
+  --rim: linear-gradient(135deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.1) 30%, rgba(255, 255, 255, 0.03) 62%, rgba(255, 255, 255, 0.16) 100%);
+  --pointer-spec: rgba(255, 255, 255, 0.1);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 36px -14px rgba(0, 0, 0, 0.6);
+  --shadow-sheet: 0 2px 6px rgba(0, 0, 0, 0.45), 0 34px 90px -24px rgba(0, 0, 0, 0.7);
+  --scrim: rgba(0, 0, 0, 0.5);
   --close: #f87171;
-  --close-soft: rgba(248, 113, 113, 0.16);
-  --close-line: rgba(248, 113, 113, 0.55);
+  --close-soft: rgba(248, 113, 113, 0.12);
+  --close-line: rgba(248, 113, 113, 0.5);
 }
 
-/* ── Ambient background: the colour the glass refracts ───────────────────────────────────────────────────────────── */
+/* ── Ambient background: a faint hint of colour for the glass to pick up — mostly white / near-black ─────────────── */
 body {
   background:
-    radial-gradient(900px 640px at 6% -8%, rgba(99, 102, 241, 0.38), transparent 62%),
-    radial-gradient(780px 580px at 98% 0%, rgba(236, 72, 153, 0.26), transparent 60%),
-    radial-gradient(960px 740px at 74% 108%, rgba(20, 184, 166, 0.3), transparent 60%),
-    radial-gradient(720px 540px at -4% 96%, rgba(59, 130, 246, 0.3), transparent 60%),
-    radial-gradient(600px 460px at 46% 46%, rgba(168, 85, 247, 0.12), transparent 65%),
+    radial-gradient(900px 640px at 4% -10%, rgba(99, 102, 241, 0.09), transparent 62%),
+    radial-gradient(780px 560px at 100% 0%, rgba(236, 72, 153, 0.05), transparent 60%),
+    radial-gradient(960px 720px at 76% 110%, rgba(20, 184, 166, 0.07), transparent 60%),
+    radial-gradient(720px 540px at -6% 96%, rgba(59, 130, 246, 0.06), transparent 60%),
     var(--bg);
   background-attachment: fixed;
 }
 .dark body {
   background:
-    radial-gradient(900px 640px at 6% -8%, rgba(99, 102, 241, 0.42), transparent 62%),
-    radial-gradient(780px 580px at 98% 0%, rgba(217, 70, 239, 0.3), transparent 60%),
-    radial-gradient(960px 740px at 74% 108%, rgba(20, 184, 166, 0.28), transparent 60%),
-    radial-gradient(720px 540px at -4% 96%, rgba(37, 99, 235, 0.34), transparent 60%),
-    radial-gradient(600px 460px at 46% 46%, rgba(168, 85, 247, 0.14), transparent 65%),
+    radial-gradient(900px 640px at 4% -10%, rgba(99, 102, 241, 0.14), transparent 62%),
+    radial-gradient(780px 560px at 100% 0%, rgba(217, 70, 239, 0.07), transparent 60%),
+    radial-gradient(960px 720px at 76% 110%, rgba(20, 184, 166, 0.08), transparent 60%),
+    radial-gradient(720px 540px at -6% 96%, rgba(37, 99, 235, 0.1), transparent 60%),
     var(--bg);
   background-attachment: fixed;
 }
 
-/* ── The material: fill + sheen + specular rim, on every glass surface ──────────────────────────────────────────── */
+/* ── The material: fill + top light + inner highlight, on every glass surface ───────────────────────────────────── */
 /* `bg-[var(--surface-solid)]` is how the app already paints a panel, so matching it re-skins all of them at once.
-   The rim is an inset shadow; the element's own Tailwind shadow / ring is kept (they are variables, re-composed here).
-   Print slides (.jb-pdf) stay flat white. */
+   The highlight is an inset shadow; the element's own Tailwind shadow / ring is kept (they are variables, re-composed
+   here). Print slides (.jb-pdf) stay flat white. */
 .glass,
 [class*='bg-[var(--surface-solid)]']:not(.ticket-card):not(.jb-pdf *) {
-  background-image: var(--glass-sheen), var(--glass-tint);
+  background-image: var(--glass-sheen);
   box-shadow:
     inset 0 1px 0 var(--spec),
     inset 0 0 0 1px var(--spec-soft),
@@ -113,7 +110,7 @@ body {
     var(--shadow);
 }
 
-/* Board cards paint their own shadow inline (motion), so their rim is a pseudo-element: static, under the content. */
+/* Board cards paint their own shadow inline (motion), so their highlight is a pseudo-element under the content. */
 .ticket-card::before {
   content: '';
   position: absolute;
@@ -126,11 +123,12 @@ body {
     inset 0 0 0 1px var(--spec-soft);
 }
 
-/* ── Blur: only where glass sits over content ──────────────────────────────────────────────────────────────────── */
+/* ── Chrome: the floating bars, sheets and menus ───────────────────────────────────────────────────────────────── */
 header.sticky,
 footer.fixed,
 .jb-dialog-panel,
 .jb-sheet,
+.jb-float,
 .glass,
 .glass-blur,
 [role='tooltip'],
@@ -141,29 +139,7 @@ footer.fixed,
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
 }
 
-/* Popovers (dropdown menus, tooltips) float over busy content: near-opaque, so nothing behind them shows through. */
-[class*='bg-[var(--surface-solid)]'][class*='absolute'][class*='shadow']:not(.ticket-card *):not(.jb-pdf *),
-[role='tooltip'],
-[role='menu'],
-[role='listbox'] {
-  background-color: var(--pop) !important;
-  background-image: var(--glass-tint);
-  border-color: var(--line-strong);
-}
-
-/* Dialogs and drawers were opaque (`bg-[var(--bg)]`), which defeats the translucency — they become sheets. */
-.jb-dialog-panel,
-.jb-sheet {
-  background-color: var(--sheet);
-  background-image: var(--glass-sheen), var(--glass-tint);
-  border-color: var(--spec-soft);
-  box-shadow:
-    inset 0 1px 0 var(--spec),
-    inset 0 0 0 1px var(--spec-soft),
-    var(--shadow-sheet);
-}
-
-/* Bars: the floating header and footer, and the sticky bars inside sheets (every `bg-[var(--bg)]/NN` is such a bar). */
+/* Bars: the floating header and footer, and every sticky bar inside a sheet (`bg-[var(--bg)]/NN`). */
 header.sticky,
 footer.fixed,
 [class*='bg-[var(--bg)]/'] {
@@ -171,33 +147,73 @@ footer.fixed,
 }
 header.sticky,
 footer.fixed {
-  background-image: var(--glass-sheen), var(--glass-tint);
-  border-color: var(--spec-soft);
-  box-shadow:
-    inset 0 1px 0 var(--spec),
-    inset 0 0 0 1px var(--spec-soft),
-    var(--shadow);
+  background-image: var(--glass-sheen);
+  border-color: var(--line);
+  box-shadow: var(--shadow);
 }
 
-/* Wells (inputs, selects): a slightly recessed glass, so a field reads as sunk into the sheet, not pasted on it. */
+/* Dialogs and drawers were opaque (`bg-[var(--bg)]`), which defeats the translucency — they become sheets. */
+.jb-dialog-panel,
+.jb-sheet {
+  background-color: var(--sheet);
+  background-image: var(--glass-sheen);
+  border-color: var(--line);
+  box-shadow: var(--shadow-sheet);
+}
+.jb-dialog-panel {
+  position: relative;
+}
+
+/* Popovers (dropdown menus, tooltips) and floating notices (.jb-float: toasts, the notices dock) sit over busy content:
+   near-opaque, so nothing behind them shows through. */
+.jb-float,
+[class*='bg-[var(--surface-solid)]'][class*='absolute'][class*='shadow']:not(.ticket-card *):not(.jb-pdf *),
+[role='tooltip'],
+[role='menu'],
+[role='listbox'] {
+  background-color: var(--pop) !important;
+  background-image: var(--glass-sheen);
+  border-color: var(--line-strong);
+}
+
+/* The glass edge: a 1px gradient ring, bright where the light hits (top-left) and fading round the sides, drawn just
+   inside the hairline border. A masked pseudo-element, so it follows the corner radius and never takes a click. */
+header.sticky::before,
+footer.fixed::before,
+.jb-dialog-panel::before,
+.jb-sheet::before,
+[role='menu']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--rim);
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Wells (inputs, selects): a slightly recessed glass, so a field reads as set into the sheet, not pasted on it. */
 .jb-field {
   background-color: var(--field);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.07);
 }
 .jb-field:focus,
 .jb-field:focus-visible {
   box-shadow:
-    inset 0 1px 2px rgba(0, 0, 0, 0.08),
+    inset 0 1px 2px rgba(0, 0, 0, 0.06),
     0 0 0 3px rgba(168, 85, 247, 0.16);
 }
 
-/* Dialog scrims: a coloured dim (indigo, with violet and sky glows), not flat black — the sheets above it pick that up. */
+/* Dialog dims: neutral, light — the sheet above stays the brightest thing on screen. */
 [class*='bg-black/60'],
 [class*='bg-black/55'] {
   background-color: var(--scrim);
-  background-image:
-    radial-gradient(1200px 800px at 18% 0%, rgba(124, 58, 237, 0.28), transparent 60%),
-    radial-gradient(1000px 700px at 100% 100%, rgba(14, 165, 233, 0.22), transparent 60%);
 }
 
 /* Close buttons (every dialog, drawer and report): red, so they are found at a glance on any glass. */
@@ -220,12 +236,8 @@ button[aria-label^='Close' i]:hover {
 button[aria-label^='Close' i]:active {
   transform: scale(0.94);
 }
-button[aria-label^='Close' i] svg {
-  color: inherit;
-  stroke: currentColor;
-}
 
-/* ── Interactive glass: a specular highlight that follows the pointer ───────────────────────────────────────────── */
+/* ── Interactive glass: a soft highlight that follows the pointer ───────────────────────────────────────────────── */
 /* --mx / --my are published by lib/glassPointer.ts. Without them the light sits at the top edge. */
 .glass-interactive {
   position: relative;
@@ -244,7 +256,7 @@ button[aria-label^='Close' i] svg {
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0%), var(--pointer-spec), transparent 65%);
+  background: radial-gradient(240px circle at var(--mx, 50%) var(--my, 0%), var(--pointer-spec), transparent 65%);
   opacity: 0;
   transition: opacity 0.25s ease;
 }
@@ -265,25 +277,25 @@ button[aria-label^='Close' i] svg {
   :root,
   .light {
     --surface-solid: #ffffff;
-    --surface-2: #eef1f7;
-    --sheet: #f4f6fb;
+    --surface-2: #f1f3f7;
+    --sheet: #ffffff;
     --pop: #ffffff;
-    --bar: #f4f6fb;
+    --bar: #ffffff;
     --field: #ffffff;
     --glass-sheen: none;
-    --glass-tint: none;
-    --line: rgba(20, 28, 48, 0.28);
+    --rim: none;
+    --line: rgba(15, 23, 42, 0.26);
   }
   .dark {
-    --surface-solid: #1d222b;
-    --surface-2: #272d38;
-    --sheet: #181c23;
-    --pop: #1d222b;
-    --bar: #181c23;
-    --field: #11141a;
+    --surface-solid: #1d2027;
+    --surface-2: #262a32;
+    --sheet: #181b21;
+    --pop: #1d2027;
+    --bar: #181b21;
+    --field: #111318;
     --glass-sheen: none;
-    --glass-tint: none;
-    --line: rgba(255, 255, 255, 0.34);
+    --rim: none;
+    --line: rgba(255, 255, 255, 0.3);
   }
   *,
   *::before,
@@ -299,14 +311,14 @@ button[aria-label^='Close' i] svg {
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   :root,
   .light {
-    --surface-solid: rgba(255, 255, 255, 0.92);
-    --sheet: #f4f6fb;
-    --bar: rgba(244, 246, 251, 0.96);
+    --surface-solid: rgba(255, 255, 255, 0.94);
+    --sheet: #ffffff;
+    --bar: rgba(255, 255, 255, 0.96);
   }
   .dark {
-    --surface-solid: rgba(29, 34, 43, 0.94);
-    --sheet: #181c23;
-    --bar: rgba(24, 28, 35, 0.96);
+    --surface-solid: rgba(29, 32, 39, 0.96);
+    --sheet: #181b21;
+    --bar: rgba(24, 27, 33, 0.97);
   }
 }
 

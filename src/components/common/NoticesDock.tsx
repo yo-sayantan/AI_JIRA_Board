@@ -31,7 +31,7 @@ export function NoticesDock({ notes, seconds = 10 }: { notes: string[]; seconds?
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 14, scale: 0.96 }}
             transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-            className="overflow-hidden rounded-xl border bg-[var(--surface-solid)] card-shadow"
+            className="jb-float overflow-hidden rounded-xl border bg-[var(--surface-solid)] card-shadow"
             style={{ borderColor: 'rgba(245,158,11,0.4)' }}
           >
             <div className="flex items-center gap-2 px-3 py-2" style={{ background: 'rgba(245,158,11,0.1)' }}>
@@ -72,7 +72,7 @@ export function NoticesDock({ notes, seconds = 10 }: { notes: string[]; seconds?
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.96 }}
               onClick={() => setOpen(true)}
-              className="flex items-center gap-2 rounded-full border bg-[var(--surface-solid)] px-3 py-1.5 text-[12px] font-semibold card-shadow"
+              className="jb-float flex items-center gap-2 rounded-full border bg-[var(--surface-solid)] px-3 py-1.5 text-[12px] font-semibold card-shadow"
               style={{ borderColor: 'rgba(245,158,11,0.5)', color: AMBER }}
             >
               <span className="relative flex h-2 w-2">
@@ -85,7 +85,7 @@ export function NoticesDock({ notes, seconds = 10 }: { notes: string[]; seconds?
             <button
               type="button"
               onClick={() => setHidden(true)}
-              className="grid h-6 w-6 place-items-center rounded-full border bg-[var(--surface-solid)] text-[14px] leading-none text-[var(--muted)] card-shadow hover:text-[var(--ink)]"
+              className="jb-float grid h-6 w-6 place-items-center rounded-full border bg-[var(--surface-solid)] text-[14px] leading-none text-[var(--muted)] card-shadow hover:text-[var(--ink)]"
               style={{ borderColor: 'rgba(245,158,11,0.5)' }}
               aria-label="Dismiss notices"
               title="Dismiss"

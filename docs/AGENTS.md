@@ -155,9 +155,12 @@ ticket's branches, and that has its own status words):
   indigo · Next Sprint pink. States (`prMeta`): merged `#9a63ff` · approved `#17c47a` · open `#ff9f1c` ·
   changes `#ff4466` · declined `#e11d48`. Cards carry their column's tint at rest — except the `quiet` columns (To Do, QA), which only whisper; badges are gradients (`Pill`).
   Never monochrome; keep gradients, the freshness pill, the sprint block, and animations.
-- **Liquid Glass** (`src/styles/glass.css`, the web translation of `ecc:liquid-glass-design`): panels are translucent frosted
-  glass with a bright top rim and a diagonal sheen, over a coloured ambient background. It is applied through the TOKENS
-  (`--surface-solid`, `--surface-2`, `--sheet`, `--bar`, `--field`) and one attribute selector on `bg-[var(--surface-solid)]`,
+- **Liquid Glass** (`src/styles/glass.css`, the web translation of `ecc:liquid-glass-design`): panels are CLEAR, NEUTRAL
+  frosted glass — light from the top, a 1px gradient rim on bars / sheets / menus — over a near-white (dark: near-black) page
+  with only a faint ambient hint. Never tint the glass itself (tried: lavender page, coloured dims — rejected as too strong);
+  colour comes from the content. Anything floating over the board without its own blur (menus inside the blurred header,
+  toasts: `.jb-float`) uses the near-opaque `--pop` fill. It is applied through the TOKENS
+  (`--surface-solid`, `--surface-2`, `--sheet`, `--bar`, `--pop`, `--field`) and one attribute selector on `bg-[var(--surface-solid)]`,
   so a new panel needs nothing but that class. Rules: **blur only where glass sits over content** (header, footer,
   `.jb-dialog-panel` / `.jb-sheet`, menus, tooltips) — never on cards or list rows (stacked backdrop-filters wreck scrolling);
   dialogs and drawers are `.jb-dialog-panel` / `.jb-sheet`, never an opaque `bg-[var(--bg)]` (opaque behind glass defeats it);
