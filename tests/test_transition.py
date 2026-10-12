@@ -50,6 +50,30 @@ class Gates(unittest.TestCase):
         self.assertIn("blocked", COLUMNS)
 
 
+class SupportTickets(unittest.TestCase):
+    """Support tickets are worked without a pull request, yet must reach In Review."""
+
+    def test_a_support_ticket_needs_no_pr_for_review(self):
+        self.assertEqual(evaluate("rev", [], [], pr_optional=True), (None, []))
+
+    def test_other_types_still_do(self):
+        self.assertIn("no pull request raised", evaluate("rev", [], [], pr_optional=False)[0])
+
+    def test_the_exemption_is_only_for_in_review(self):
+        self.assertIn("no pull request raised", evaluate("done", [], [QA_DONE], pr_optional=True)[0])
+
+    def test_a_declined_pr_does_not_block_a_support_ticket(self):
+        self.assertEqual(evaluate("rev", [DECLINED_PR], [], pr_optional=True), (None, []))
+
+    def test_the_type_list_is_the_shared_file_and_case_insensitive(self):
+        import transition
+
+        self.assertTrue(transition.pr_optional("Support"))
+        self.assertTrue(transition.pr_optional("support"))
+        self.assertFalse(transition.pr_optional("Story"))
+        self.assertFalse(transition.pr_optional(None))
+
+
 class Helpers(unittest.TestCase):
     def test_is_qa_by_type_or_title(self):
         self.assertTrue(is_qa({"type": "QA Task", "title": "x"}))

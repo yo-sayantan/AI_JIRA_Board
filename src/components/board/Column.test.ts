@@ -183,6 +183,27 @@ describe('Column — empty columns and the On Hold space', () => {
     expect(onMove).toHaveBeenLastCalledWith('D-1', 'rev', true)
   })
 
+  it('answers "copy" while ⌥ is held (macOS limits an Option-drag to a copy) and "move" otherwise', () => {
+    const dev = { key: 'D-1', title: 'Build it', type: 'Story', status: 'In Progress', column: 'prog' as const }
+    const s = render({ meta: COLUMN_META.rev, onMove: () => {}, dragActive: true, dragged: dev })
+    const over = (altKey: boolean) => {
+      const ev = new Event('dragover', { bubbles: true, cancelable: true })
+      const dt = { types: [DRAG_MIME], dropEffect: '' }
+      Object.defineProperty(ev, 'altKey', { value: altKey })
+      Object.defineProperty(ev, 'dataTransfer', { value: dt })
+      act(() => { s.dispatchEvent(ev) })
+      return { armed: ev.defaultPrevented, effect: dt.dropEffect }
+    }
+    expect(over(true)).toEqual({ armed: true, effect: 'copy' }) // a gate + ⌥: armed, as a copy
+    expect(over(false)).toEqual({ armed: false, effect: '' }) // a gate without ⌥: not armed
+    const free = render({ meta: COLUMN_META.todo, onMove: () => {}, dragActive: true, dragged: dev })
+    const ev = new Event('dragover', { bubbles: true, cancelable: true })
+    const dt = { types: [DRAG_MIME], dropEffect: '' }
+    Object.defineProperty(ev, 'dataTransfer', { value: dt })
+    act(() => { free.dispatchEvent(ev) })
+    expect(dt.dropEffect).toBe('move') // a free move stays a move
+  })
+
   it('a lane refusal is named and never forced, ⌥ or not', () => {
     const onMove = vi.fn()
     const qaTicket = { key: 'Q-2', title: 'QA: check', type: 'QA Task', status: 'Ready for QA', column: 'qa' as const }

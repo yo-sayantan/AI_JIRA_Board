@@ -317,6 +317,9 @@ deployed from** (see `docs/DEPLOYMENT.md` → "the data mount follows the deploy
 - Drag targets live in ONE file, `jira-intern/move_targets.json`, read by `src/lib/columns.ts`,
   `server/jobs.mjs` and `transition.py` (whose `PREFERRED` must have an entry per target — a test
   checks). Adding a target means that file plus a `PREFERRED` row, nothing else.
+- Which issue types need no PR for In Review is ONE shared file, `jira-intern/move_rules.json` (`prOptionalTypes`, default
+  `["Support"]`, case-insensitive), read by `moveRules.ts::isPrOptional` and `transition.py::pr_optional`. Only the In Review
+  gate honours it — Done still needs its PR and QA ticket.
 - Every move rule exists twice: `src/lib/moveRules.ts` (the board, on the cached dump: zone reasons, readiness
   dots, demo mode, the move hook's pre-check) and `jira-intern/transition.py` (the server, on live Jira:
   `is_qa_ticket`, `lane_blocker`, `evaluate`). `isQaTicket` / `is_qa_ticket` (type QA/Test, a `QA_LABEL`
@@ -336,7 +339,8 @@ deployed from** (see `docs/DEPLOYMENT.md` → "the data mount follows the deploy
   `help-data.js` matches its sources — after editing `docs/*.md` or the model JSONs, run `npm run build` (or
   `npm run help:data`). A new page: next free number, plain lowercase name, add it to every page's nav (the test says where).
 - Native drag with ⌥ held asks the browser for a COPY: cards set `effectAllowed = 'copyMove'` and zones set
-  `dropEffect = 'move'`, or an Option-drop is refused before the board sees it.
+  `dropEffect = 'move'` — except while ⌥ is held, when they answer `'copy'` (macOS narrows an Option-drag to a copy and
+  can refuse a zone that still says "move"; `Column.tsx::arm`) — or an Option-drop is refused before the board sees it.
 - `.dockerignore` patterns only match at the root unless prefixed `**/` (unlike `.gitignore`) — `setup/.env`
   stays out of the image only because of the `**/.env`, `**/.env.*`, `**/*.env` rules. Likewise the static
   allowlist (`server/config.mjs::STATIC_ALLOW`) must never match a dotfile; `server/http.mjs` also refuses any

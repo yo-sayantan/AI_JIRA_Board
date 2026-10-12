@@ -1,6 +1,7 @@
 import type { LinkRef, PullRequest, Ticket } from '../types'
 import { isNextSprint, prListOf } from './format'
 import { isQaInProgress, targetLabel, type MoveTarget } from './columns'
+import rules from '../../jira-intern/move_rules.json'
 
 // Every rule a drag-and-drop move answers to, in one place: the drop zones (dimmed, with the reason),
 // the readiness dots on cards, demo mode and the move hook all ask here. MIRRORED server-side in
@@ -14,7 +15,8 @@ import { isQaInProgress, targetLabel, type MoveTarget } from './columns'
 //    and On Hold tickets can be moved into it (Jira: the nearest dated future sprint, else READY, else
 //    REFINEMENT; status To Do); a ticket in it can only move back to To Do (Jira: the active sprint).
 //    Nothing else. Overrides the QA lane for that one hop.
-//  • In Review — needs a pull request (open or merged), or for a sub-ticket an OPEN PR on its parent.
+//  • In Review — needs a pull request (open or merged), or for a sub-ticket an OPEN PR on its parent —
+//    except for the issue types in jira-intern/move_rules.json (Support): those are worked without a PR.
 //  • Done — needs no PR still open (each merged or declined), at least one PR (a sub-ticket may have
 //    none of its own), and a QA ticket raised (a sub-ticket's parent's QA ticket counts). QA tickets
 //    themselves close freely.
@@ -26,6 +28,10 @@ const QA_LANE: ReadonlySet<MoveTarget> = new Set<MoveTarget>(['qa', 'qaip', 'blo
 /** Where a ticket must be sitting to be moved into Next Sprint. */
 const NEXT_FROM: ReadonlySet<MoveTarget> = new Set<MoveTarget>(['todo', 'blocked', 'qa', 'hold'])
 const LANE_NAMES = 'QA, QA In Progress, Blocked, On Hold, Next Sprint or Done'
+
+/** Issue types that need no pull request to reach In Review (jira-intern/move_rules.json, shared with the server). */
+export const isPrOptional = (type: string | null | undefined): boolean =>
+  !!type && rules.prOptionalTypes.some((x) => x.toLowerCase() === type.trim().toLowerCase())
 
 /** Loose guess for LINKED issues, whose type is often unknown: the title mentions QA / test / verify. */
 export function looksLikeQa(type: string | null | undefined, title: string | null | undefined): boolean {
@@ -149,7 +155,7 @@ export function checkMove(t: Ticket, to: MoveTarget, lookup?: TicketLookup): Mov
   }
 
   if (to === 'rev') {
-    if (prs.some((p) => !isDeclined(p) && p.state !== 'none')) return { ...OK, warnings }
+    if (prs.some((p) => !isDeclined(p) && p.state !== 'none') || isPrOptional(t.type)) return { ...OK, warnings }
     if (t.parentKey) {
       // Unknown parent: the server reads it live.
       if (!parent || prListOf(parent).some(isOpenPr)) return { ...OK, warnings }

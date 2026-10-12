@@ -187,7 +187,16 @@ def _names(prs):
     return ", ".join(f"#{p['id']}" if p.get("id") else "a PR" for p in prs)
 
 
-def evaluate(target, prs, qa_issues, is_subtask=False, parent_prs=None, parent_qa=None):
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "move_rules.json"), encoding="utf-8") as _f:
+    PR_OPTIONAL_TYPES = {str(t).strip().lower() for t in json.load(_f).get("prOptionalTypes", [])}
+
+
+def pr_optional(issue_type):
+    """Issue types that need no pull request to reach In Review (move_rules.json, shared with the board)."""
+    return bool(issue_type) and str(issue_type).strip().lower() in PR_OPTIONAL_TYPES
+
+
+def evaluate(target, prs, qa_issues, is_subtask=False, parent_prs=None, parent_qa=None, pr_optional=False):
     """Gate verdict for a move: (blocker or None, [warnings]). Pure, so it is unit-tested.
 
     `parent_prs` / `parent_qa`: a sub-ticket's parent's PRs and QA tickets; None = unknown (could not be
@@ -198,7 +207,7 @@ def evaluate(target, prs, qa_issues, is_subtask=False, parent_prs=None, parent_q
     if target == "hold" and open_prs:
         warnings.append(f"{_names(open_prs)} is still open — it will wait unreviewed while the ticket is on hold.")
 
-    if target == "rev" and not live:
+    if target == "rev" and not live and not pr_optional:
         if not is_subtask:
             return "Can't move to In Review: no pull request raised yet.", warnings
         if parent_prs is not None and not any(_is_open(p) for p in parent_prs):
@@ -325,7 +334,7 @@ def move(key, target, mode="normal"):
             parent = fields.get("parent") or None
             is_sub = bool(parent) or bool((fields.get("issuetype") or {}).get("subtask"))
             parent_prs, parent_qa = parent_facts(parent) if is_sub and target in ("rev", "done") else (None, None)
-            blocker, warnings = evaluate(target, live_prs(issue["id"], key, parent), qa_issues_of(fields), is_sub, parent_prs, parent_qa)
+            blocker, warnings = evaluate(target, live_prs(issue["id"], key, parent), qa_issues_of(fields), is_sub, parent_prs, parent_qa, pr_optional((fields.get("issuetype") or {}).get("name")))
             if blocker:
                 return {"ok": False, "blocked": True, "forcible": True, "reason": blocker}
 
