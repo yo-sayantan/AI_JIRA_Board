@@ -471,6 +471,12 @@ function checkmarxUrls(s, cfg) {
   return { base, auth }
 }
 
+/** Atlassian's own reason for a refused login (X-Seraph-LoginReason), allowlisted so nothing odd is echoed. */
+function loginReason(headers) {
+  const v = String(headers?.['x-seraph-loginreason'] || '').toUpperCase()
+  return /^[A-Z_]{3,40}$/.test(v) ? v : ''
+}
+
 function statusFor(code) {
   if (code === 401) return { status: 'auth-failed', detail: 'Key rejected' }
   if (code === 403) return { status: 'forbidden', detail: 'Key accepted but not allowed to read this' }
@@ -526,15 +532,19 @@ export function createKeyChecker({ loadSettings, config, request = httpRequest, 
     return tls
   }
 
-  /** Retry an Atlassian "who am I" through the gateway; the display name on success, else null. */
+  /**
+   * Retry an Atlassian "who am I" through the gateway → { name } on success, else { status, reason } of the
+   * attempt that failed (reason = Atlassian's X-Seraph-LoginReason when it sent one), or null when no cloud id.
+   */
   async function tryGateway(plan, tls) {
     try {
       const info = await request({ method: 'GET', url: plan.gateway.tenantInfo, headers: { Accept: 'application/json' }, timeoutMs, maxBytes, tls })
       const cloudId = Number(info.status) === 200 ? str(parseJson(info)?.cloudId) : ''
       if (!cloudId || !/^[\w-]{8,64}$/.test(cloudId)) return null
       const res = await request({ ...plan.request, url: plan.gateway.myself(cloudId), timeoutMs, maxBytes, tls })
-      if (Number(res.status) < 200 || Number(res.status) >= 300) return null
-      return plan.onOk(parseJson(res))
+      const code = Number(res.status)
+      if (code >= 200 && code < 300) return { name: plan.onOk(parseJson(res)) }
+      return { status: code, reason: loginReason(res.headers) }
     } catch {
       return null
     }
@@ -614,10 +624,13 @@ export function createKeyChecker({ loadSettings, config, request = httpRequest, 
     // id is public (anonymous tenant_info), so look it up and retry the same call there before giving up.
     if (code === 401 && plan.gateway) {
       const viaGateway = await tryGateway(plan, tls)
-      if (viaGateway) return done({ status: 'ok', httpStatus: 200, detail: `${viaGateway} · scoped token, via api.atlassian.com` })
-      const mapped401 = statusFor(401)
-      mapped401.detail = `${plan.hints?.[401] ?? mapped401.detail} · also tried the scoped-token gateway`
-      return done({ ...mapped401, httpStatus: 401 })
+      if (viaGateway?.name) return done({ status: 'ok', httpStatus: 200, detail: `${viaGateway.name} · scoped token, via api.atlassian.com` })
+      // A scoped token that is valid but lacks read:jira-user gets 403 from the gateway: not a rejected key.
+      if (viaGateway?.status === 403)
+        return done({ status: 'forbidden', httpStatus: 403, detail: 'Token accepted but it lacks the scope read:jira-user (a scoped token) — add it, or create a token without scopes' })
+      const why = [`site 401${loginReason(res.headers) ? ` (${loginReason(res.headers)})` : ''}`]
+      if (viaGateway) why.push(`gateway ${viaGateway.status}${viaGateway.reason ? ` (${viaGateway.reason})` : ''}`)
+      return done({ status: 'auth-failed', httpStatus: 401, detail: `Rejected — ${why.join(' · ')}. Check the email matches the token's account, the token has not expired, and the org allows API tokens` })
     }
     const mapped = statusFor(code)
     // A probe may explain a refusal better than the generic text (e.g. Atlassian's usual 403 causes).
