@@ -1,0 +1,384 @@
+/* ── PR Readiness Report deck — Google presentation look ────────────────────────────────────────────────────────────
+   The PDF deck (PrReportPrint.tsx, `.jb-pdf`) is paper: flat, static, high-contrast. It is deliberately NOT Liquid Glass
+   (blur and translucency have nothing to show through on a page, and a pointer highlight cannot exist in a PDF). It
+   follows Google's own slide language instead — Material 3 / Google Slides:
+
+   · white pages, one idea per slide, left-aligned titles, generous space
+   · Google's palette: blue #1a73e8 · red #d93025 · green #1e8e3e · amber #c26401 · grey #5f6368 (see DECK_TONE in the TSX)
+   · TONAL containers (a 10% tint of the status colour, no outline) for the verdict, next step, KPIs and callouts
+   · outlined cards (1px #dadce0, 14px corners), pill chips, Material data tables (grey header, hairline rows, no zebra)
+   · Google's four-colour accent bar as the only decoration; sentence-case labels instead of tracked capitals
+   · type: Google Sans where the machine has it, else Roboto, else the system sans — nothing is downloaded, so the deck
+     still exports offline (a licensed Google Sans is not bundled)
+
+   Scoped to `.jb-pdf`, loaded after index.css so it wins on order alone. Revert: delete this file and its import. */
+
+.jb-pdf {
+  font-family: 'Google Sans', 'Google Sans Text', 'Product Sans', Roboto, 'Helvetica Neue', Arial, system-ui, sans-serif;
+  color: #202124;
+  --ink: #202124;
+  --ink-soft: #3c4043;
+  --muted: #5f6368;
+  --line: #dadce0;
+  --line-strong: #bdc1c6;
+  --surface-2: #f8f9fa;
+  --link: #1a73e8;
+  --g-blue: #4285f4;
+  --g-red: #ea4335;
+  --g-yellow: #fbbc04;
+  --g-green: #34a853;
+  --g-bar: linear-gradient(90deg, var(--g-blue) 0 25%, var(--g-red) 25% 50%, var(--g-yellow) 50% 75%, var(--g-green) 75% 100%);
+
+  a {
+    color: #1a73e8;
+  }
+
+  /* ── Slide frame ──────────────────────────────────────────────────────────────────────────────────────────────── */
+  .jb-slide {
+    padding: 0.62in 0.8in 0.46in 0.8in;
+    background: #fff;
+  }
+  /* The old coloured side band becomes Google's four-colour accent, top-left. */
+  .jb-slide-band {
+    inset: 0.34in auto auto 0.8in;
+    width: 0.62in;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--g-bar);
+  }
+  .jb-slide-head {
+    padding-bottom: 0.17in;
+    margin-bottom: 0.26in;
+    background: linear-gradient(#dadce0, #dadce0) bottom / 100% 1px no-repeat;
+  }
+  .jb-slide-eyebrow {
+    padding: 4px 12px;
+    background: color-mix(in srgb, var(--sec) 10%, #fff);
+    color: var(--sec);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-transform: none;
+  }
+  .jb-slide-title {
+    margin-top: 9px;
+    font-size: 32px;
+    line-height: 1.15;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: #202124;
+  }
+  .jb-subhead {
+    border-top: 1px solid #dadce0;
+    padding: 10px 0 6px;
+    font-size: 19px;
+    font-weight: 600;
+    color: #202124;
+  }
+  .jb-subhead span {
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-transform: none;
+  }
+
+  /* ── Title slide: white, big type, Google's accent bar and one soft shape ─────────────────────────────────────── */
+  .jb-slide-cover {
+    background: #fff;
+    color: #202124;
+  }
+  .jb-cover {
+    padding: 0.9in 0.85in 0.55in 0.9in;
+  }
+  .jb-cover-band {
+    inset: 0.58in auto auto 0.9in;
+    width: 1.05in;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--g-bar);
+  }
+  .jb-cover-glow {
+    right: -1.7in;
+    top: -2.3in;
+    width: 7in;
+    height: 7in;
+    background: color-mix(in srgb, var(--tone) 9%, #fff);
+  }
+  .jb-cover-top {
+    margin-left: 1.35in;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    color: #5f6368;
+  }
+  .jb-cover-main {
+    gap: 0.7in;
+  }
+  .jb-cover-key {
+    padding: 3px 14px;
+    border: 1px solid #dadce0;
+    border-radius: 999px;
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    color: #1a73e8 !important;
+    background: #e8f0fe;
+    border-color: transparent;
+  }
+  .jb-cover-title {
+    margin-top: 16px;
+    font-size: 46px;
+    line-height: 1.12;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: #202124;
+  }
+  .jb-cover-title-long {
+    font-size: 36px;
+  }
+  .jb-cover-verdict {
+    margin-top: 0.34in;
+  }
+  .jb-cover-label {
+    font-size: 26px;
+    font-weight: 600;
+  }
+  .jb-cover-lead {
+    font-size: 19px;
+    color: #3c4043;
+  }
+  .jb-cover-score {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    color: #5f6368;
+  }
+  .jb-cover-foot {
+    border-top: 1px solid #dadce0;
+  }
+  .jb-cover-foot-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    color: #5f6368;
+  }
+  .jb-cover-agenda {
+    color: #3c4043;
+  }
+  .jb-cover-agenda-n {
+    font-weight: 600;
+  }
+  .jb-cover-meta {
+    color: #3c4043;
+  }
+
+  /* ── Pills and chips: tonal, no outline ───────────────────────────────────────────────────────────────────────── */
+  .jb-rag {
+    padding: 5px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-transform: none;
+  }
+  .jb-chip {
+    padding: 3px 11px;
+    border-color: transparent !important;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .jb-chip-quiet {
+    border-color: transparent !important;
+    background: #f1f3f4;
+    color: #5f6368;
+  }
+  .jb-tag {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    color: #5f6368;
+  }
+  .jb-h3 {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .jb-muted {
+    color: #5f6368 !important;
+  }
+  .jb-strong {
+    font-weight: 600;
+    color: #202124;
+  }
+
+  /* ── Summary: tonal containers ────────────────────────────────────────────────────────────────────────────────── */
+  .jb-summary-status {
+    border-width: 0 !important;
+    border-radius: 20px;
+    padding: 0.24in 0.3in;
+  }
+  .jb-summary-label {
+    font-size: 30px;
+    font-weight: 600;
+  }
+  .jb-summary-lead {
+    font-weight: 500;
+    color: #202124;
+  }
+  .jb-summary-why {
+    color: #3c4043;
+  }
+  .jb-next {
+    border-width: 1px;
+    border-radius: 16px;
+    padding: 0.19in 0.23in;
+  }
+  .jb-next-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    color: #5f6368;
+  }
+  .jb-next-action {
+    font-weight: 600;
+    color: #202124;
+  }
+  .jb-next-meta {
+    color: #3c4043;
+  }
+  .jb-next-meta b {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    color: #5f6368;
+  }
+  .jb-facts dt {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    color: #5f6368;
+  }
+  .jb-facts dd {
+    font-weight: 500;
+    color: #202124;
+  }
+
+  /* ── KPI tiles ────────────────────────────────────────────────────────────────────────────────────────────────── */
+  .jb-kpi {
+    border-top-width: 0 !important;
+    border-radius: 16px;
+    background: #f1f3f4;
+    padding: 14px 16px 15px;
+  }
+  .jb-kpi-label {
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    color: #5f6368;
+  }
+  .jb-kpi-value {
+    margin-top: 6px;
+    font-size: 26px;
+    font-weight: 600;
+    color: #202124;
+  }
+  .jb-kpi-hint {
+    color: #5f6368;
+  }
+
+  /* ── Gate bar: Material linear progress ───────────────────────────────────────────────────────────────────────── */
+  .jb-gatebar-track {
+    height: 10px;
+    background: #e8eaed;
+  }
+  .jb-gatebar-legend {
+    font-weight: 500;
+    color: #3c4043;
+  }
+
+  /* ── Data tables ──────────────────────────────────────────────────────────────────────────────────────────────── */
+  .jb-table th {
+    padding: 10px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    color: #5f6368;
+    background: transparent;
+    border-bottom: 1px solid #bdc1c6;
+  }
+  .jb-table th:first-child,
+  .jb-table th:last-child {
+    border-radius: 0;
+  }
+  .jb-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e8eaed;
+    color: #3c4043;
+  }
+  .jb-table tbody tr:nth-child(even) td {
+    background: transparent;
+  }
+  .jb-table td.jb-td-lead {
+    font-weight: 600;
+    color: #202124;
+  }
+
+  /* ── Callouts, actions, cards, timeline, links ────────────────────────────────────────────────────────────────── */
+  .jb-callout {
+    border-left-width: 0 !important;
+    border-radius: 16px;
+    padding: 14px 18px;
+  }
+  .jb-callout-title {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-transform: none;
+  }
+  .jb-actions li {
+    color: #202124;
+  }
+  .jb-action-n {
+    font-weight: 600;
+  }
+  .jb-card {
+    border: 1px solid #dadce0;
+    border-top-width: 1px;
+    border-top-color: #dadce0 !important;
+    border-radius: 14px;
+    padding: 13px 15px;
+  }
+  .jb-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #202124;
+  }
+  .jb-card-detail {
+    color: #5f6368;
+  }
+  .jb-timeline {
+    border-left-color: #dadce0;
+  }
+  .jb-tl-when {
+    color: #5f6368;
+  }
+  .jb-links li {
+    border-bottom-color: #e8eaed;
+  }
+  .jb-links b {
+    font-weight: 600;
+    color: #202124;
+  }
+  .jb-links span {
+    color: #1a73e8;
+  }
+}

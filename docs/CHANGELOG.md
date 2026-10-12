@@ -5,6 +5,13 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **PR report PDF deck in Google's presentation style.** The slide deck (separate from the on-screen report, and flat on
+  purpose — no glass on paper) now follows Material / Google Slides: a white title slide with big type and Google's
+  four-colour accent bar, tonal containers for the verdict, next step, KPIs and callouts, outlined 14px cards, pill chips,
+  Material data tables (grey header, hairline rows), sentence-case labels, Google's palette and Google Sans → Roboto →
+  system sans (no font is downloaded or bundled). `src/styles/slides-google.css`, scoped to `.jb-pdf`; layout, pagination
+  and fitting are unchanged.
+
 - **"Try demo mode" on the empty board.** The *Nothing to show… yet* screen (no data yet) now has a **Try demo mode** button next to Run the intern / API keys. It turns the Demo mode feature on, so a new install — served or opened from `file://`, with or without keys — can look around the sample board at once; the demo banner's **Exit demo** brings the empty screen back.
 
 - **Liquid Glass UI.** The whole board is re-skinned as Apple-style Liquid Glass (`src/styles/glass.css`, following the

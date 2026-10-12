@@ -14,7 +14,6 @@ import type {
   ReportTimelineBlock,
   ReportTone,
 } from '../../lib/reportTypes'
-import { toneColor } from '../../lib/reportTypes'
 import { fmtDate, fmtDateTime, fmtReportMetadata } from '../../lib/format'
 import { APP_CONFIG } from '../../lib/appConfig'
 import { hrefForKey, shareableLinks } from '../../lib/reportLinks'
@@ -52,20 +51,35 @@ const RAG: Record<ReportTone, string> = {
   neutral: 'Grey',
 }
 
-/** Each section owns a hue, carried by its slide band, eyebrow, rule and table header. */
-const SECTION_COLOR: Record<string, string> = {
-  'Executive summary': '#4f46e5',
-  'Delivery gates': '#0d9488',
-  'Open items': '#ea580c',
-  'Code review': '#7c3aed',
-  Evidence: '#2563eb',
-  'Quality and security': '#16a34a',
-  'Technical assessment': '#0891b2',
-  Risk: '#dc2626',
-  'Additional detail': '#64748b',
-  Appendix: '#475569',
+/**
+ * The deck's palette is Google's (Material / Google Slides): blue #1a73e8, red #d93025, green #1e8e3e, amber #c26401,
+ * purple #9334e6, grey #5f6368. It is the deck's own — the board's `toneColor` keeps its colours — and every value is a
+ * 6-digit hex because the slide markup appends an alpha pair (`${c}14`) to make Material's tonal containers.
+ */
+const DECK_TONE: Record<ReportTone, string> = {
+  success: '#1e8e3e',
+  warning: '#c26401',
+  danger: '#d93025',
+  info: '#1a73e8',
+  violet: '#9334e6',
+  neutral: '#5f6368',
 }
-const sectionColor = (s: string) => SECTION_COLOR[s] ?? '#475569'
+const deckTone = (t?: ReportTone | null): string => DECK_TONE[t ?? 'neutral'] ?? DECK_TONE.neutral
+
+/** Each section owns a hue, carried by its eyebrow, rule and table accents. */
+const SECTION_COLOR: Record<string, string> = {
+  'Executive summary': '#1a73e8',
+  'Delivery gates': '#1e8e3e',
+  'Open items': '#c26401',
+  'Code review': '#9334e6',
+  Evidence: '#1967d2',
+  'Quality and security': '#188038',
+  'Technical assessment': '#098591',
+  Risk: '#d93025',
+  'Additional detail': '#5f6368',
+  Appendix: '#5f6368',
+}
+const sectionColor = (s: string) => SECTION_COLOR[s] ?? '#5f6368'
 
 /** One block of a section. Items are table rows, rows of cards, or list entries; atoms never split. */
 interface BlockDef {
@@ -570,7 +584,7 @@ function listDef(id: string, block: ReportListBlock, report: PrReport, title?: s
         <ol className="jb-actions">
           {block.items.slice(from, to).map((it, i) => (
             <li key={i} data-item>
-              <span className="jb-action-n" style={{ background: toneColor(it.tone) }}>
+              <span className="jb-action-n" style={{ background: deckTone(it.tone) }}>
                 {from + i + 1}
               </span>
               <span>
@@ -601,7 +615,7 @@ function timelineDef(id: string, block: ReportTimelineBlock, report: PrReport): 
         <ol className="jb-timeline">
           {items.slice(from, to).map((e, i) => (
             <li key={i} data-item>
-              <span className="jb-tl-dot" style={{ background: toneColor(e.tone) }} />
+              <span className="jb-tl-dot" style={{ background: deckTone(e.tone) }} />
               <span className="jb-tl-when">{fmtWhen(e.when, zone)}</span>
               <span className="jb-tl-what">
                 <b>
@@ -680,7 +694,7 @@ function genericDef(id: string, block: ReportBlock, report: PrReport, heading: s
 function CoverSlide({ report, sections }: { report: PrReport; sections: SectionDef[] }) {
   const v = report.verdict
   const tone = v?.tone ?? 'neutral'
-  const c = toneColor(tone)
+  const c = deckTone(tone)
   const zone = report.timeZone ?? APP_CONFIG.timeZone
   const ticketHref = safeHref(hrefForKey(report, report.key))
   const agenda = ['Executive summary', ...new Set(sections.map((s) => s.section))]
@@ -717,7 +731,7 @@ function CoverSlide({ report, sections }: { report: PrReport; sections: SectionD
         </div>
         {typeof v?.score === 'number' && (
           <div className="jb-cover-score">
-            <ScoreRing score={v.score} color={c} size={170} dark />
+            <ScoreRing score={v.score} color={c} size={170} />
             <span>Readiness score</span>
           </div>
         )}
@@ -765,7 +779,7 @@ function SummarySlide({
 }) {
   const v = report.verdict
   const tone = v?.tone ?? 'neutral'
-  const c = toneColor(tone)
+  const c = deckTone(tone)
   const next = v?.next
   const impact = decision && decision.kind === 'callout' ? italicLine(decision.body) : null
   const kpis: ReportStat[] = [
@@ -807,7 +821,7 @@ function SummarySlide({
       </div>
 
       <div className="jb-summary-side">
-        <div className="jb-next" style={{ borderColor: next ? c : toneColor('success'), background: `${next ? c : toneColor('success')}0f` }}>
+        <div className="jb-next" style={{ borderColor: next ? c : deckTone('success'), background: `${next ? c : deckTone('success')}0f` }}>
           <div className="jb-next-label">Next step</div>
           {next?.action ? (
             <>
@@ -911,9 +925,9 @@ function Kpis({ stats }: { stats: ReportStat[] }) {
     <div className="jb-kpis" style={{ gridTemplateColumns: `repeat(${kpiColumns(stats.length)}, minmax(0, 1fr))` }}>
       {stats.map((s, i) => {
         const toned = s.tone && s.tone !== 'neutral'
-        const c = toneColor(s.tone)
+        const c = deckTone(s.tone)
         return (
-          <div key={i} className="jb-kpi" style={{ borderTopColor: toned ? c : '#cbd2de', background: toned ? `${c}10` : undefined }}>
+          <div key={i} className="jb-kpi" style={{ borderTopColor: toned ? c : '#dadce0', background: toned ? `${c}10` : undefined }}>
             <div className="jb-kpi-label">{s.label}</div>
             <div className={`jb-kpi-value${String(s.value ?? '').length <= 14 ? ' jb-nowrap' : ''}`} style={toned ? { color: c } : undefined}>
               <Segments text={sentenceCase(String(s.value ?? ''))} />
@@ -938,19 +952,19 @@ function GateBar({ tally }: { tally: GateTally }) {
   return (
     <div className="jb-gatebar">
       <div className="jb-gatebar-track">
-        <span style={{ width: pct(tally.pass), background: toneColor('success') }} />
-        <span style={{ width: pct(tally.warn), background: toneColor('warning') }} />
-        <span style={{ width: pct(tally.fail), background: toneColor('danger') }} />
+        <span style={{ width: pct(tally.pass), background: deckTone('success') }} />
+        <span style={{ width: pct(tally.warn), background: deckTone('warning') }} />
+        <span style={{ width: pct(tally.fail), background: deckTone('danger') }} />
       </div>
       <div className="jb-gatebar-legend">
         <span>
-          <i style={{ background: toneColor('success') }} /> {tally.pass} passed
+          <i style={{ background: deckTone('success') }} /> {tally.pass} passed
         </span>
         <span>
-          <i style={{ background: toneColor('warning') }} /> {tally.warn} not verified
+          <i style={{ background: deckTone('warning') }} /> {tally.warn} not verified
         </span>
         <span>
-          <i style={{ background: toneColor('danger') }} /> {tally.fail} failing
+          <i style={{ background: deckTone('danger') }} /> {tally.fail} failing
         </span>
       </div>
     </div>
@@ -1001,11 +1015,11 @@ function TableBlock({
           {block.rows.slice(from, to).map((row, i) => {
             const t = status ? rowTone(row, stateCol) : row.tone && row.tone !== 'neutral' ? row.tone : null
             return (
-              <tr key={i} data-item style={t ? { boxShadow: `inset 4px 0 0 ${toneColor(t)}` } : undefined}>
+              <tr key={i} data-item style={t ? { boxShadow: `inset 4px 0 0 ${deckTone(t)}` } : undefined}>
                 {row.cells.map((cell, j) => (
                   <td key={j} className={j === 0 ? 'jb-td-lead' : undefined}>
                     {j === stateCol && t ? (
-                      <span className="jb-chip" style={{ color: toneColor(t), borderColor: toneColor(t), background: `${toneColor(t)}14` }}>
+                      <span className="jb-chip" style={{ color: deckTone(t), borderColor: deckTone(t), background: `${deckTone(t)}14` }}>
                         {plain(cell)}
                       </span>
                     ) : j === blockCol ? (
@@ -1025,7 +1039,7 @@ function TableBlock({
 }
 
 function Callout({ title, tone, html, report }: { title: string; tone?: ReportTone; html: string; report: PrReport }) {
-  const c = toneColor(tone)
+  const c = deckTone(tone)
   return (
     <section className="jb-callout" style={{ borderLeftColor: c, background: `${c}10` }}>
       <div className="jb-callout-title" style={{ color: c }}>
@@ -1045,7 +1059,7 @@ function KvCard({ block, report }: { block: ReportKvBlock; report: PrReport }) {
         {block.items.map((kv, i) => (
           <div key={i}>
             <dt>{kv.label}</dt>
-            <dd style={kv.tone && kv.tone !== 'neutral' ? { color: toneColor(kv.tone) } : undefined}>
+            <dd style={kv.tone && kv.tone !== 'neutral' ? { color: deckTone(kv.tone) } : undefined}>
               {safeHref(kv.href) ? <a href={safeHref(kv.href)}>{kv.value}</a> : <ReportHtml html={fmtReportMetadata(kv.label, kv.value, zone)} report={report} inline />}
             </dd>
           </div>
@@ -1056,7 +1070,7 @@ function KvCard({ block, report }: { block: ReportKvBlock; report: PrReport }) {
 }
 
 function Card({ card, report, compact }: { card: ReportCard; report: PrReport; compact?: boolean }) {
-  const c = toneColor(card.badgeTone)
+  const c = deckTone(card.badgeTone)
   const inner = (
     <>
       <div className="jb-card-head">
@@ -1097,7 +1111,7 @@ function ScoreRing({ score, color, size, dark }: { score: number; color: string;
   const circ = 2 * Math.PI * r
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="jb-ring">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={dark ? 'rgba(255,255,255,0.14)' : '#e6e9ef'} strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={dark ? 'rgba(255,255,255,0.14)' : '#e8eaed'} strokeWidth={stroke} />
       <circle
         cx={size / 2}
         cy={size / 2}
@@ -1109,7 +1123,7 @@ function ScoreRing({ score, color, size, dark }: { score: number; color: string;
         strokeDasharray={`${(pct / 100) * circ} ${circ}`}
         transform={`rotate(-90 ${size / 2} ${size / 2})`}
       />
-      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize={size * 0.3} fontWeight={800} fill={dark ? '#fff' : '#10151f'}>
+      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fontSize={size * 0.3} fontWeight={600} fill={dark ? '#fff' : '#202124'}>
         {pct}
       </text>
     </svg>
