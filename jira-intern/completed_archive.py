@@ -9,6 +9,9 @@ We deliberately do NOT fetch the parent's OTHER children. A sibling sub-ticket a
 delivered, that I never touched, is not my work — fetching it wasted Jira/Bitbucket calls and
 buried my own tickets in team noise. `mine` still distinguishes my tickets from the context
 parents so the UI can tint the latter.
+The one exception is QA: a parent's QA / test sub-tasks (qa_rules.is_qa_ticket) are nested too,
+as `mine: false`, because the closure report asks "is the QA sub-task done?" and a tester usually
+owns it. Without them every closed ticket reads "no QA sub-task on the ticket".
 
 Branches, pull requests and review state come from Jira's dev-status index via devinfo.py —
 see that module for why repo-guessing was removed.
@@ -46,6 +49,7 @@ from _jira import (  # noqa: E402
 from _sprint import apply_sprint  # noqa: E402
 from datafile import atomic_write, data_lock, dumps, prepend_status, read_json, write_outputs  # noqa: E402
 from progress import clear_progress, set_progress  # noqa: E402
+from qa_rules import is_qa_ticket  # noqa: E402
 from raised import refresh_raised_in_place  # noqa: E402
 
 INTERN = os.path.dirname(os.path.abspath(__file__))
@@ -59,7 +63,9 @@ DATA_JSON = os.path.join(INTERN, "data.json")
 # 3: a master's subtasks[] now nests ONLY my sub-tickets, never team-mates'.
 # 4: `mine` = ever-assigned-to-me (membership in the mine-search), not the current assignee,
 #    so work I finished and handed off stays mine instead of flipping to a context parent.
-SCHEMA = 4
+# 5: a master's subtasks[] also nests the parent's QA sub-tasks (mine=False); older rows get
+#    them on the next archive rebuild.
+SCHEMA = 5
 
 MAX_FETCH = int(os.environ.get("COMPLETED_MAX_FETCH", "999"))
 WORKERS = int(os.environ.get("COMPLETED_WORKERS", "6"))
@@ -128,8 +134,8 @@ def dev_fields(key, dev_map, prior, parent_key=None):
 
 def build_subtask(si, parent_key, dev_map, pr_overrides, mine=True):
     """Compact child row shown under its parent. Carries owner + review state so a master
-    ticket's delivery is readable without opening Jira. Only my sub-tickets are ever nested,
-    so `mine` defaults True."""
+    ticket's delivery is readable without opening Jira. My sub-tickets are nested (`mine` True)
+    and so are the parent's QA sub-tasks, whoever owns them (`mine` False)."""
     sf = si.get("fields") or {}
     sk = si["key"]
     status = (sf.get("status") or {}).get("name")
@@ -156,7 +162,7 @@ def build_subtask(si, parent_key, dev_map, pr_overrides, mine=True):
     return sub
 
 
-def build_completed(issue, prior, dev_map, children, pr_overrides, mine, inherit_details=True):
+def build_completed(issue, prior, dev_map, children, pr_overrides, mine, inherit_details=True, qa_children=None):
     """`mine` = was this ever assigned to me (membership in the mine-search set), NOT the
     current assignee — a ticket I finished and handed off is still my work. Only pure context
     parents (pulled in solely because I own a sub-ticket under them) are mine=False.
@@ -191,8 +197,16 @@ def build_completed(issue, prior, dev_map, children, pr_overrides, mine, inherit
     else:
         epic = (details or {}).get("epic")
 
-    # Nested children are drawn only from my own sub-tickets, so they are all mine.
+    # Nested children: my own sub-tickets, plus the parent's QA sub-tasks whoever owns them.
     subtasks = [build_subtask(si, key, dev_map, pr_overrides, mine=True) for si in children]
+    have = {s["key"] for s in subtasks}
+    if qa_children is None:
+        # The QA lookup failed — "could not fetch" is not "there is none": keep the QA sub-tasks
+        # the cached row already had instead of dropping them.
+        subtasks += [s for s in (prior or {}).get("subtasks") or []
+                     if isinstance(s, dict) and s.get("mine") is False and s.get("key") and s["key"] not in have]
+    else:
+        subtasks += [build_subtask(si, key, dev_map, pr_overrides, mine=False) for si in qa_children if si["key"] not in have]
     subtasks.sort(key=lambda s: s["key"])
 
     ticket = {
@@ -411,6 +425,29 @@ def main():
         clear_progress()
 
 
+def fetch_qa_children(parent_keys):
+    """{parent key: [QA sub-task issues]} for these parents — one `parent in (…)` search per 100.
+    A parent whose chunk failed is left OUT of the map (not mapped to []), so the caller can tell
+    "no QA sub-task" from "could not look"."""
+    found = {}
+    keys = sorted(k for k in parent_keys if k)
+    for i in range(0, len(keys), 100):
+        chunk = keys[i : i + 100]
+        try:
+            issues = search_jira("parent in (" + ",".join(chunk) + ") ORDER BY key ASC", expand="changelog")
+        except Exception as e:
+            sys.stderr.write(f"WARN QA sub-task search failed for {len(chunk)} parents, earlier ones kept: {e}\n")
+            continue
+        for k in chunk:
+            found[k] = []
+        for si in issues:
+            f = si.get("fields") or {}
+            pk = (f.get("parent") or {}).get("key")
+            if pk in found and is_qa_ticket((f.get("issuetype") or {}).get("name"), f.get("summary"), f.get("labels")):
+                found[pk].append(si)
+    return found
+
+
 def _main(ts):
     if not os.environ.get("JIRA_PERSONAL_TOKEN"):
         prepend_status(f"**{ts}** — Jira unavailable (no token). Left data.json + cache unchanged.")
@@ -493,6 +530,12 @@ def _main(ts):
     stale = done_keys[:MAX_FETCH]
     priors = {key: _read_cache(key) for key in stale}
     total = len(stale) or 1
+    # A parent's QA sub-tasks, whoever owns them — for the closure gates (see the module docstring).
+    # Only top-level tickets can have sub-tasks, so a sub-ticket row is not asked.
+    set_progress("archive", done=0, total=total, phase="qa", pct=5)
+    qa_by_parent = fetch_qa_children(
+        k for k in stale if not ((issues[k].get("fields") or {}).get("parent") or {}).get("key")
+    )
     # `mine` per rebuilt key — the scoped search result is not a membership set (see mine_flags).
     set_progress("archive", done=0, total=total, phase="membership", pct=5)
     mine_by_key = mine_flags(stale, priors, mine_keys, scoped)
@@ -540,6 +583,7 @@ def _main(ts):
                 issues[key], priors.get(key), dev_map, children_by_parent.get(key, []),
                 pr_overrides, mine_by_key.get(key, key in mine_keys),
                 inherit_details=not clean_rebuild,
+                qa_children=qa_by_parent.get(key),
             )
             carry_vuln_fixes(ticket, priors.get(key), vuln_known)
             atomic_write(os.path.join(CACHE, f"{key}.json"), dumps(ticket))

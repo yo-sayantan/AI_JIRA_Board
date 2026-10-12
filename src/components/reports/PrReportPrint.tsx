@@ -1014,6 +1014,8 @@ interface GateTally {
   pass: number
   fail: number
   warn: number
+  /** Gates that do not apply to this ticket ("Not required"). Left out of `total`, so they never lower the count. */
+  na: number
   total: number
 }
 
@@ -1036,6 +1038,11 @@ function GateBar({ tally }: { tally: GateTally }) {
         <span>
           <i style={{ background: deckTone('danger') }} /> {tally.fail} failing
         </span>
+        {tally.na > 0 && (
+          <span>
+            <i style={{ background: deckTone('neutral') }} /> {tally.na} not required
+          </span>
+        )}
       </div>
     </div>
   )
@@ -1235,11 +1242,17 @@ function deliveryFacts(report: PrReport, evidence: ReportTableBlock | null, prCa
   return facts
 }
 
-function tallyGates(gates: ReportTableBlock | null): GateTally | null {
+/** "Gates passed X of Y": a gate that does not apply ("Not required") is not part of Y. */
+export function tallyGates(gates: ReportTableBlock | null): GateTally | null {
   if (!gates || !gates.rows.length) return null
   const col = gates.headers.findIndex((h) => /^(state|status|result)$/i.test(h.trim()))
-  const tally = { pass: 0, fail: 0, warn: 0, total: gates.rows.length }
+  const tally = { pass: 0, fail: 0, warn: 0, na: 0, total: 0 }
   for (const r of gates.rows) {
+    if (isNotRequired(r, col)) {
+      tally.na++
+      continue
+    }
+    tally.total++
     const t = rowTone(r, col)
     if (t === 'success') tally.pass++
     else if (t === 'danger') tally.fail++
@@ -1248,9 +1261,16 @@ function tallyGates(gates: ReportTableBlock | null): GateTally | null {
   return tally
 }
 
-function rowTone(r: ReportTableRow, stateCol: number): ReportTone {
+const NOT_REQUIRED = /^(not required|not applicable)\b/
+
+function isNotRequired(r: ReportTableRow, stateCol: number): boolean {
+  return stateCol >= 0 && NOT_REQUIRED.test(plain(r.cells[stateCol] ?? '').trim().toLowerCase())
+}
+
+export function rowTone(r: ReportTableRow, stateCol: number): ReportTone {
   const s = stateCol >= 0 ? plain(r.cells[stateCol] ?? '').toLowerCase() : ''
   if (s) {
+    if (NOT_REQUIRED.test(s.trim())) return 'neutral' // grey: the check does not apply — neither a pass nor a gap
     if (/^(pass|passed|done|merged|approved|ok|green|scan read|success)/.test(s)) return 'success'
     if (/(not verified|unknown|pending|n\/a|skipped|not run)/.test(s)) return 'warning'
     if (/(fail|block|still open|declined|changes|missing|open)/.test(s)) return 'danger'

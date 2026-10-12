@@ -68,6 +68,8 @@ may do — nothing else:
      ALREADY filled "Security scan (Checkmarx) clean" from them — Pass only when every target the ticket names is
      fixed, Fail when any is still open, Not verified otherwise — with one "Checkmarx · <kind>" evidence row per
      target. Keep both as they are. Judge only the targets the ticket names, never the scan's other findings.
+     A ticket that is not a vulnerability fix has the base report's "Not required" (grey) on the security gate:
+     leave it — never turn it into Pass or Not verified.
   3. APPEND rows to the Evidence chain table (after the derived rows): diff-level evidence, CI, Confluence
      acceptance-criteria match, telemetry. Never edit or reorder existing rows.
   4. APPEND rows to the Open scope table with "Blocks closure?" = "No" (e.g. "Acceptance criterion X not evidenced").

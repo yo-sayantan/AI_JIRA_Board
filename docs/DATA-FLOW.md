@@ -77,6 +77,14 @@ search: assignee = currentUser() AND (not Done OR resolved >= -10d)   [expand=ch
 The 10-day Done window is wider than the board's 3-day display window **on purpose**: a ticket
 must never leave `tickets[]` before the weekly archive has captured it.
 
+**QA sub-tasks in `completed[]`.** The archive nests a closed ticket's own sub-tickets (`mine: true`) and, in
+addition, the parent's QA / test sub-tasks whoever owns them (`mine: false`, `qa_rules.is_qa_ticket`): the
+closure report's "QA / test sub-task done" gate reads `subtasks[]`, and a tester usually owns the QA ticket, so
+without it every closed ticket read "no QA sub-task on the ticket". One batched `parent in (…)` search per 100
+parents (`completed_archive.fetch_qa_children`); a failed search keeps the QA sub-tasks the cached row had. Active
+tickets never had this gap — the daily fetch's `parent in (…)` search takes every sub-task. Older archive rows get
+their QA sub-tasks on the next archive rebuild.
+
 **`Ticket.builds`** (Jenkins, `src/types.ts::JenkinsBuild`) is written ONLY here and by the per-ticket
 refresh below — `daily_fetch.apply_builds` for every fully built ticket (mine, my sub-tasks, QA extras;
 never a team-mate's basic sub-task). Every other writer carries it untouched: the archive never rewrites

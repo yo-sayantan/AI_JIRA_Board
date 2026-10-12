@@ -716,9 +716,12 @@ class ReportSecurityGate(unittest.TestCase):
         self.assertIn("names no CVE", row["cells"][2])
 
     def test_not_a_vulnerability_fix(self):
+        # Nothing to scan is "Not required" (grey, left out of the gate count) — not an amber "Not verified" gap.
         row = gate_row(self.base(vticket(title="Refactor", description="<p>x</p>", labels=[], comments=[])))
-        self.assertEqual(row["cells"][1], "Not verified")
+        self.assertEqual((row["cells"][1], row["tone"]), ("Not required", "neutral"))
+        self.assertEqual(row["cells"][3], "No")
         self.assertIn("Not a vulnerability-fix ticket", row["cells"][2])
+        self.assertEqual(pr_report.NOT_REQUIRED, "Not required")
 
     def test_the_verdict_and_score_do_not_move(self):
         a = self.base(vticket(vulnFixes=vf(FIXED_CVE)))["verdict"]

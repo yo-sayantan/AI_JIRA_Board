@@ -171,8 +171,9 @@ enrichment. The gate never blocks closure and never moves the verdict or score.
 fetch), judged by `pr_report.vuln_gate` in the deterministic base report — AI level None included: only the
 targets the ticket names count (the generic "N critical / N high still open" summary is gone). **Pass** when every
 target is fixed, **Fail** when any is still open on the branch (evidence names them), **Not verified** otherwise —
-with the reason: not a vulnerability-fix ticket, nothing named, Checkmarx not read yet, N not found in either scan,
-N unknown, or the result's note (no project, branch not scanned yet). One evidence row per target ("Checkmarx · CVE ·
+with the reason: nothing named, Checkmarx not read yet, N not found in either scan, N unknown, or the result's note
+(no project, branch not scanned yet). A ticket that is not a vulnerability fix has nothing to scan: **Not required**
+(grey, left out of the "gates passed" count — see `pr_report.NOT_REQUIRED`). One evidence row per target ("Checkmarx · CVE ·
 `CVE-2021-44228` · CRITICAL · `log4j-core 2.14.1` → Fixed — gone on feature/x (scan …) · was CRITICAL on develop
 (scan …)"). The worker's "Proof · vulnerability fix" table lists the same targets (`pr_report.vuln_proof_rows`) and
 sets the gate with the same function, so the enriched row equals the base row. Only when the dump has no results for

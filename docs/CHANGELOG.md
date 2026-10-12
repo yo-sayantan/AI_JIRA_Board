@@ -5,6 +5,14 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Closed tickets now show their QA sub-task, and "Not required" is no longer a gap.** The Completed archive nested only
+  *my* sub-tickets, so a QA sub-task owned by a tester never reached `subtasks[]` and every closed ticket's report said
+  "no QA sub-task on the ticket" (and the drawer, readiness and reports all missed it). The archive now also nests the
+  parent's QA / test sub-tasks as `mine: false` (`completed_archive.fetch_qa_children`, one batched search per 100 parents;
+  a failed search keeps the QA sub-tasks the cached row had). Run **Update completed** once to refill existing rows.
+  Active tickets were never affected. Separately, the "Security scan (Checkmarx) clean" gate of a ticket that is not a
+  vulnerability fix reads **Not required** — grey, and left out of "gates passed X of Y" and the gate bar — instead of an
+  amber "Not verified" that counted against the ticket (`pr_report.NOT_REQUIRED`).
 - **Light PDF deck, more Google.** The Light deck now follows Material 3 / Google Slides throughout: Google's colour families in
   tonal pairs (a 50-shade container behind dark ink of the same family — never yellow text; the 600 fill only for bars, dots and
   the score ring), Google's greys, the M3 type scale (headline 32/40, title 22/28, body 15/22, labels 13/16) with sentence case — headings, key numbers,

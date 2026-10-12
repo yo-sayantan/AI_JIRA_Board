@@ -5,7 +5,8 @@ This is the weekly job. Be accurate; NEVER invent data.
 
 SCOPE RULE (read twice): track only work assigned to me, plus the parents of my sub-tickets for context.
 Do NOT pull in a parent's OTHER children — a sibling sub-ticket a team-mate delivered, that I never touched,
-is not my work and must NOT appear. No team-wide fetch, no clones.
+is not my work and must NOT appear. No team-wide fetch, no clones. The ONE exception: a parent's QA / test
+sub-tasks (see below), nested under it as `mine: false` so the closure report can see them.
 
 The fast path is completed_archive.py; you are the fallback. Read that script before improvising — it is the
 executable version of everything below.
@@ -45,8 +46,13 @@ MY WORK + PARENTS FOR CONTEXT — build the universe like this:
      both my standalone tickets AND my sub-tickets.
   2. The PARENT of each of my sub-tickets (batch `key in (…)`), even if it belongs to someone else —
      kept ONLY so my sub-tickets have a home and lineage. Tag it `mine: false`.
-  DO NOT run `parent in (…)` to pull a parent's other children. A team-mate's sibling sub-ticket that I
-  never touched is out of scope — it wastes Jira/Bitbucket calls and buries my work in team noise.
+  DO NOT pull a parent's other children — a team-mate's sibling sub-ticket that I never touched is out of
+  scope; it wastes Jira/Bitbucket calls and buries my work in team noise. EXCEPT its QA sub-tasks: run ONE
+  batched `parent in (…)` search per 100 closed parents and keep only the children whose issue type says QA /
+  Test, that carry a QA label (qa, qa-ticket, qa-task, qa-test, testing…), or whose title leads with "QA:" /
+  "[QA]" (`qa_rules.is_qa_ticket`). Whoever owns them, they are nested under their parent as `mine: false`
+  (never as rows of their own). If that search FAILS keep the QA sub-tasks the previous row had — "could not
+  look" is not "there is none". Without them the closure report says "no QA sub-task on the ticket".
   Tag each row `mine: true|false` (assignee == me), set from the assignee, never guessed. The UI counts
   only `mine` rows toward my totals and tints the context parents apart.
 
@@ -54,8 +60,9 @@ completed[] therefore holds:
   • Every closed ticket assigned to me as its OWN row — including sub-tickets, with `parentKey` and
     `parentTitle`. A sub-ticket I delivered under someone else's master must never be reachable only
     from inside the parent; it needs its own searchable row.
-  • Each closed PARENT of one of my sub-tickets, as a `mine: false` row, carrying ONLY my sub-tickets
-    nested under `subtasks[]` (+ subtaskCount) — never a team-mate's. Each nested child is compact but
+  • Each closed PARENT of one of my sub-tickets, as a `mine: false` row, carrying my sub-tickets and the
+    parent's QA sub-tasks (`mine: false`) nested under `subtasks[]` (+ subtaskCount) — never any other
+    team-mate's. Every closed ticket of mine that has sub-tasks gets its QA sub-tasks the same way. Each nested child is compact but
     complete enough to judge: key, title, status, column, type, priority, url, `assignee`, `mine`,
     created/resolved, and its real pr/prs[]/branches[].
   Full comments are worth an extra request for my own tickets; for a context parent the inline comment
