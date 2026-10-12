@@ -5,6 +5,8 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **"Try demo mode" on the empty board.** The *Nothing to show… yet* screen (no data yet) now has a **Try demo mode** button next to Run the intern / API keys. It turns the Demo mode feature on, so a new install — served or opened from `file://`, with or without keys — can look around the sample board at once; the demo banner's **Exit demo** brings the empty screen back.
+
 - **Liquid Glass UI.** The whole board is re-skinned as Apple-style Liquid Glass (`src/styles/glass.css`, following the
   `liquid-glass-design` skill's rules for the web): translucent frosted panels and cards with a bright specular rim and
   sheen over a vivid ambient background; a floating rounded header and footer; dialogs and the ticket drawer as blurred

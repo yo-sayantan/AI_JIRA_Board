@@ -63,6 +63,7 @@ export default function App() {
   const { data, source, userArchived, reload, archive, restoreArchived, resetDemo } = useBoardData(served, (m) => toast(m, 'error'), demo)
   const jobs = useInternJobs({ served, toast, dismiss, reload, demo })
   const moves = useTicketMoves({ served, toast, refreshTicket: jobs.refreshTicket, demo })
+  const enterDemo = useCallback(() => setSettings((s) => ({ ...s, features: { ...s.features, demoMode: true } })), [setSettings])
   const exitDemo = useCallback(() => setSettings((s) => ({ ...s, features: { ...s.features, demoMode: false } })), [setSettings])
   // Moves made on one board mean nothing on the other: entering or leaving Demo mode starts clean.
   const resetMoves = moves.reset
@@ -222,6 +223,7 @@ export default function App() {
           runCommand={RUN_COMMAND}
           onOpenKeys={served ? openKeys : undefined}
           keysMissing={keysMissing}
+          onTryDemo={enterDemo}
         />
         {keysDialog}
         <Footer />
