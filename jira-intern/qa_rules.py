@@ -22,3 +22,13 @@ def is_qa_ticket(type_name, title, labels=()):
         or _QA_TITLE_LEAD.search(title)
         or _QA_TITLE_PREFIX.search(title)
     )
+
+
+def qa_column(column, type_name, title, labels=()):
+    """The board column of a ticket whose status mapped to `column`. A QA ticket (is_qa_ticket) never sits among the
+    dev stages: one the QA team is working under its own status ("In validation", "In Progress", "In Review") is QA
+    In Progress, so those columns become `qa`. To Do / Blocked / On Hold / Done keep their meaning. Mirror of
+    `qaColumn` in src/lib/moveRules.ts: change one, change the other."""
+    if column in ("prog", "rev") and is_qa_ticket(type_name, title, labels):
+        return "qa"
+    return column

@@ -6,6 +6,7 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "jira-intern"))
 from _jira import status_column  # noqa: E402
+from qa_rules import qa_column  # noqa: E402
 from transition import COLUMNS, evaluate, is_next_sprint, is_qa, is_qa_in_progress, is_qa_ticket, lane_blocker, pick_active_sprint, pick_future_sprint, pick_transition  # noqa: E402
 
 OPEN_PR = {"id": 7, "state": "comments", "merged": False}
@@ -231,6 +232,19 @@ class QaLane(unittest.TestCase):
         self.assertFalse(is_qa_ticket("Story", "Verify the fix"))
         self.assertFalse(is_qa_ticket("Story", "Add unit tests for export"))
         self.assertFalse(is_qa_ticket("Bug", "Squash a bug", ["qa-failed", "needs-qa", "aqua"]))
+
+    def test_a_qa_ticket_in_a_dev_stage_is_shown_in_the_qa_lane(self):
+        # Mirror of qaColumn in moveRules.ts. "In validation" is a QA team status the board has no alias for.
+        for column in ("prog", "rev"):
+            self.assertEqual(qa_column(column, "Sub-task", "QA: verify the flow"), "qa", column)
+        self.assertEqual(qa_column("prog", "Task", "Smoke test", ["qa"]), "qa")
+        self.assertEqual(qa_column("prog", "QA Task", "x"), "qa")
+
+    def test_qa_column_leaves_everything_else_alone(self):
+        for column in ("todo", "blocked", "hold", "done", "qa"):
+            self.assertEqual(qa_column(column, "Sub-task", "QA: verify the flow"), column, column)
+        self.assertEqual(qa_column("prog", "Story", "Verify the fix"), "prog")          # a dev ticket that says "verify"
+        self.assertEqual(qa_column("rev", "Bug", "Squash", ["qa-failed", "needs-qa"]), "rev")
 
     def test_qa_versus_qa_in_progress_statuses(self):
         for ready in ("QA", "Ready for QA", "Ready4QA", "Awaiting QA", "Ready for Testing"):

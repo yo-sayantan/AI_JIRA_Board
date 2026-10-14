@@ -315,3 +315,29 @@ class QaTicketsOnTheBoard(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class QaTicketLane(unittest.TestCase):
+    """A QA ticket the QA team is working under a status the board has no alias for ("In validation") is shown
+    as QA In Progress — not as an In Progress dev ticket. Mirror of `qaColumn` in src/lib/moveRules.ts."""
+
+    def sub(self, title, itype="Sub-task", status="In validation", labels=()):
+        si = {"key": "PROJ-9", "fields": {
+            "summary": title, "status": {"name": status}, "issuetype": {"name": itype}, "labels": list(labels),
+            "created": CREATED, "updated": CREATED, "assignee": {"displayName": "Tess Tester", "name": "tess"},
+            "parent": {"key": "PROJ-1"},
+        }}
+        with mock.patch.object(daily_fetch, "DEV", {}), mock.patch.object(daily_fetch, "BB_OK", False):
+            return daily_fetch.build_basic_subtask(si, "PROJ-1")
+
+    def test_a_qa_subtask_in_an_unknown_status_goes_to_the_qa_column(self):
+        self.assertEqual(status_column("In validation"), "prog")  # the fallback the rule corrects
+        self.assertEqual(self.sub("QA: verify the flow")["column"], "qa")
+        self.assertEqual(self.sub("Check it on staging", labels=["qa"])["column"], "qa")
+
+    def test_a_dev_subtask_with_the_same_status_stays_in_progress(self):
+        self.assertEqual(self.sub("Implement the flow")["column"], "prog")
+
+    def test_a_qa_subtask_not_started_or_finished_keeps_its_column(self):
+        self.assertEqual(self.sub("QA: verify the flow", status="To Do")["column"], "todo")
+        self.assertEqual(self.sub("QA: verify the flow", status="Done")["column"], "done")

@@ -1,5 +1,6 @@
 import type { CompletedTicket, JiraData, Ticket } from './types'
 import { COLUMN_META, mapStatusToColumn } from './lib/columns'
+import { qaColumn } from './lib/moveRules'
 import { projectOf } from './lib/format'
 import { fixture } from './fixtures'
 import { DONE_BOARD_DAYS } from './lib/appConfig'
@@ -23,6 +24,8 @@ function normalizeTicket(t: Ticket): Ticket {
   let column = typeof t.column === 'string' && Object.prototype.hasOwnProperty.call(COLUMN_META, t.column) ? t.column : mapStatusToColumn(t.status)
   // Dumps written before the Blocked column existed filed Blocked / Impeded under On Hold.
   if (column === 'hold' && mapStatusToColumn(t.status) === 'blocked') column = 'blocked'
+  // A QA ticket (raised by me, worked by the QA team) lives in QA / QA In Progress, not among the dev stages.
+  column = qaColumn({ column, type: t.type, title: t.title, labels: t.labels })
   return {
     ...t,
     title: typeof t.title === 'string' ? t.title : '',
