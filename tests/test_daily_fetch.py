@@ -96,6 +96,13 @@ class StatusColumns(unittest.TestCase):
         self.assertEqual(status_column("On Hold"), "hold")
         self.assertEqual(status_column(None), "prog")
 
+    def test_validation_is_a_qa_status_like_verification(self):
+        # The QA team's working status. Mirror: mapStatusToColumn in src/lib/columns.ts.
+        self.assertEqual(status_column("In validation"), "qa")
+        self.assertEqual(status_column("Validation"), "qa")
+        self.assertEqual(status_column("Pending validation"), "qa")
+        self.assertEqual(status_column("In Progress"), "prog")
+
 
 class BitbucketHints(unittest.TestCase):
     def test_no_hints_means_no_scan(self):
@@ -315,3 +322,29 @@ class QaTicketsOnTheBoard(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class QaTicketLane(unittest.TestCase):
+    """A QA ticket the QA team is working under a dev-style status ("In Progress", "In Review") is shown
+    as QA In Progress — not as an In Progress dev ticket. Mirror of `qaColumn` in src/lib/moveRules.ts."""
+
+    def sub(self, title, itype="Sub-task", status="In Progress", labels=()):
+        si = {"key": "PROJ-9", "fields": {
+            "summary": title, "status": {"name": status}, "issuetype": {"name": itype}, "labels": list(labels),
+            "created": CREATED, "updated": CREATED, "assignee": {"displayName": "Tess Tester", "name": "tess"},
+            "parent": {"key": "PROJ-1"},
+        }}
+        with mock.patch.object(daily_fetch, "DEV", {}), mock.patch.object(daily_fetch, "BB_OK", False):
+            return daily_fetch.build_basic_subtask(si, "PROJ-1")
+
+    def test_a_qa_subtask_in_an_unknown_status_goes_to_the_qa_column(self):
+        self.assertEqual(status_column("In Progress"), "prog")  # the dev stage the rule corrects
+        self.assertEqual(self.sub("QA: verify the flow")["column"], "qa")
+        self.assertEqual(self.sub("Check it on staging", labels=["qa"])["column"], "qa")
+
+    def test_a_dev_subtask_with_the_same_status_stays_in_progress(self):
+        self.assertEqual(self.sub("Implement the flow")["column"], "prog")
+
+    def test_a_qa_subtask_not_started_or_finished_keeps_its_column(self):
+        self.assertEqual(self.sub("QA: verify the flow", status="To Do")["column"], "todo")
+        self.assertEqual(self.sub("QA: verify the flow", status="Done")["column"], "done")

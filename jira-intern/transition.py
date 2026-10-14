@@ -53,7 +53,7 @@ PREFERRED = {
     "prog": ("in progress", "dev in progress", "in development"),
     "rev": ("in review", "code review", "ready for review", "ready4review"),
     "qa": ("ready for qa", "ready4qa", "qa", "awaiting qa", "ready for testing", "in qa", "testing", "in testing"),
-    "qaip": ("qa in progress", "in qa", "under qa", "in testing", "testing", "in test"),
+    "qaip": ("qa in progress", "in qa", "under qa", "in validation", "in testing", "testing", "in test"),
     "done": ("done", "closed", "resolved", "completed"),
     # Next Sprint is not a status: the ticket is made To Do (when it is not already) and its sprint changes.
     "next": ("to do", "open", "reopened", "backlog"),

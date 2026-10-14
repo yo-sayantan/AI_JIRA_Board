@@ -6,6 +6,7 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "jira-intern"))
 from _jira import status_column  # noqa: E402
+from qa_rules import qa_column  # noqa: E402
 from transition import COLUMNS, evaluate, is_next_sprint, is_qa, is_qa_in_progress, is_qa_ticket, lane_blocker, pick_active_sprint, pick_future_sprint, pick_transition  # noqa: E402
 
 OPEN_PR = {"id": 7, "state": "comments", "merged": False}
@@ -99,6 +100,16 @@ class Helpers(unittest.TestCase):
         self.assertEqual(pick_transition(transitions, "qa")["id"], "2")
         # A workflow with only in-progress QA statuses still gets a QA move.
         self.assertEqual(pick_transition(transitions[:1], "qa")["id"], "1")
+
+    def test_a_qa_ticket_in_a_workflow_with_in_validation_can_be_moved_through_its_lane(self):
+        # What Jira offers on a QA sub-ticket in a dev-style workflow: the QA team's working status is "In validation".
+        transitions = [{"id": str(i), "to": {"name": n}} for i, n in enumerate(
+            ["Blocked", "To Do", "Done", "In Progress", "In validation", "Cancelled", "Ready for Deployment", "Ready for QA", "In Review"])]
+        pick = lambda target: pick_transition(transitions, target)["to"]["name"]  # noqa: E731
+        self.assertEqual(pick("qaip"), "In validation")   # was refused: nothing in the workflow looked like QA In Progress
+        self.assertEqual(pick("qa"), "Ready for QA")      # the ready shelf, never the working status
+        self.assertEqual(pick("done"), "Done")
+        self.assertEqual(pick("blocked"), "Blocked")
 
     def test_blocked_transition_is_found(self):
         transitions = [{"id": "9", "to": {"name": "Blocked"}}, {"id": "2", "to": {"name": "In Progress"}}]
@@ -231,6 +242,19 @@ class QaLane(unittest.TestCase):
         self.assertFalse(is_qa_ticket("Story", "Verify the fix"))
         self.assertFalse(is_qa_ticket("Story", "Add unit tests for export"))
         self.assertFalse(is_qa_ticket("Bug", "Squash a bug", ["qa-failed", "needs-qa", "aqua"]))
+
+    def test_a_qa_ticket_in_a_dev_stage_is_shown_in_the_qa_lane(self):
+        # Mirror of qaColumn in moveRules.ts.
+        for column in ("prog", "rev"):
+            self.assertEqual(qa_column(column, "Sub-task", "QA: verify the flow"), "qa", column)
+        self.assertEqual(qa_column("prog", "Task", "Smoke test", ["qa"]), "qa")
+        self.assertEqual(qa_column("prog", "QA Task", "x"), "qa")
+
+    def test_qa_column_leaves_everything_else_alone(self):
+        for column in ("todo", "blocked", "hold", "done", "qa"):
+            self.assertEqual(qa_column(column, "Sub-task", "QA: verify the flow"), column, column)
+        self.assertEqual(qa_column("prog", "Story", "Verify the fix"), "prog")          # a dev ticket that says "verify"
+        self.assertEqual(qa_column("rev", "Bug", "Squash", ["qa-failed", "needs-qa"]), "rev")
 
     def test_qa_versus_qa_in_progress_statuses(self):
         for ready in ("QA", "Ready for QA", "Ready4QA", "Awaiting QA", "Ready for Testing"):

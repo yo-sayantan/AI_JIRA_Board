@@ -1,7 +1,7 @@
 import rules from '../../jira-intern/move_rules.json'
 import { describe, expect, it } from 'vitest'
 import type { Ticket } from '../types'
-import { checkMove, isQaTicket, laneBlocker, looksLikeQa, moveTargetOf, qaIssuesOf, readinessOf } from './moveRules'
+import { checkMove, isQaTicket, laneBlocker, looksLikeQa, moveTargetOf, qaColumn, qaIssuesOf, readinessOf } from './moveRules'
 
 const dev: Ticket = { key: 'T-1', title: 'Build the export', type: 'Story', status: 'In Progress', column: 'prog' }
 const qaReady: Ticket = { key: 'Q-1', title: 'QA: verify the export', type: 'QA Task', status: 'Ready for QA', column: 'qa' }
@@ -28,6 +28,22 @@ describe('isQaTicket', () => {
   it('looksLikeQa stays loose for linked issues', () => {
     expect(looksLikeQa('Story', 'Verify the fix')).toBe(true)
     expect(looksLikeQa('Story', 'Build the export')).toBe(false)
+  })
+})
+
+describe('qaColumn (where a QA ticket is displayed)', () => {
+  const qa = (column: Ticket['column']) => ({ column, type: 'Sub-task', title: 'QA: verify the flow', labels: [] as string[] })
+  it('puts a QA ticket in a dev stage (In Progress / In Review) into QA', () => {
+    expect(qaColumn(qa('prog'))).toBe('qa')
+    expect(qaColumn(qa('rev'))).toBe('qa')
+    expect(qaColumn({ column: 'prog', type: 'Task', title: 'Smoke test', labels: ['qa'] })).toBe('qa')
+  })
+  it('leaves To Do, Blocked, On Hold, Done and QA alone', () => {
+    for (const c of ['todo', 'blocked', 'hold', 'done', 'qa'] as const) expect(qaColumn(qa(c))).toBe(c)
+  })
+  it('leaves a dev ticket alone, even one that says "verify" or carries a QA-state label', () => {
+    expect(qaColumn({ column: 'prog', type: 'Story', title: 'Verify the fix', labels: [] })).toBe('prog')
+    expect(qaColumn({ column: 'rev', type: 'Bug', title: 'Squash', labels: ['qa-failed', 'needs-qa'] })).toBe('rev')
   })
 })
 

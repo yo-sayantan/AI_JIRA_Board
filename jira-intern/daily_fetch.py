@@ -47,7 +47,7 @@ from _jira import bb_get as _bb_get  # noqa: E402
 from _sprint import apply_sprint  # noqa: E402
 from datafile import atomic_dump, data_lock, prepend_status, read_json, write_outputs  # noqa: E402
 from progress import clear_progress, set_progress  # noqa: E402
-from qa_rules import is_qa_ticket  # noqa: E402
+from qa_rules import is_qa_ticket, qa_column  # noqa: E402
 from raised import build_raised_row, fetch_raised  # noqa: E402
 
 INTERN = os.path.dirname(os.path.abspath(__file__))
@@ -549,7 +549,7 @@ def build_basic_subtask(si, parent_key, prior=None):
     sf = si.get("fields") or {}
     sk = si["key"]
     status = (sf.get("status") or {}).get("name")
-    col = status_column(status)
+    col = qa_column(status_column(status), (sf.get("issuetype") or {}).get("name"), sf.get("summary"), sf.get("labels"))
     sub = {
         "key": sk,
         "title": sf.get("summary"),
@@ -589,8 +589,8 @@ def build_ticket(issue, prior, state_entry, force_refresh=False):
     f = issue.get("fields") or {}
     key = issue["key"]
     status = (f.get("status") or {}).get("name")
-    column = status_column(status)
     itype = (f.get("issuetype") or {}).get("name")
+    column = qa_column(status_column(status), itype, f.get("summary"), f.get("labels"))
     resolved = iso(f.get("resolutiondate")) or (changelog_done_date(issue.get("changelog")) if column == "done" else None)
 
     # ── Unchanged short-circuit — skips the expensive Jira side (comments, links, changelog).
@@ -613,6 +613,7 @@ def build_ticket(issue, prior, state_entry, force_refresh=False):
         and prev.get("last_update") == iso(f.get("updated"))
     ):
         ticket = copy.deepcopy(prior)
+        ticket["column"] = column  # the status → column rules can change between runs (e.g. a QA ticket's lane)
         if ticket.get("resolved") and column != "done":
             ticket["resolved"] = None  # self-heal: a reopened ticket must not keep a resolved date
         apply_sprint(ticket, f.get("customfield_10404"))

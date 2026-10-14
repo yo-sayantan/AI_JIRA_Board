@@ -82,6 +82,16 @@ export function moveTargetOf(t: LaneTicket, now: number = Date.now()): MoveTarge
 /** Anything sitting in QA / QA In Progress is the lane's, whatever its type or title says. */
 export const inQaLane = (t: LaneTicket) => t.column === 'qa' || isQaTicket(t)
 
+/**
+ * The column a ticket is DISPLAYED in. A QA ticket never sits among the dev stages: one the QA team is working
+ * under a dev-style status ("In Progress", "In Review") is QA In Progress, so In Progress / In Review
+ * become QA. To Do, Blocked, On Hold and Done keep their meaning. Mirror: qa_rules.py::qa_column — also applied
+ * when the board loads a dump, so rows written before the rule existed are placed correctly too.
+ */
+export function qaColumn(t: Pick<LaneTicket, 'column' | 'type' | 'title' | 'labels'>): Ticket['column'] {
+  return (t.column === 'prog' || t.column === 'rev') && isQaTicket(t) ? 'qa' : t.column
+}
+
 export const DONE_LOCKED = 'A Done ticket stays in Done — it can’t be moved to another column.'
 
 /** Why the QA lane or the Next Sprint rule forbids moving `t` to `to` — null when it allows it. */

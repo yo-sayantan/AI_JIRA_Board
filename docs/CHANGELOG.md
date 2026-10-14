@@ -5,6 +5,13 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **A QA sub-ticket you raised now lands in QA / QA In Progress, and can be moved there.** The QA team's working status
+  "In validation" had no alias, so it fell through to In Progress (among the dev tickets) and a drop on QA In Progress found
+  no transition to take. "validation" / "In validation" now map to the QA column (QA In Progress shelf) on both sides
+  (`_jira.py::_STATUS_COLUMNS` ↔ `columns.ts`), and `transition.py` prefers it for a QA In Progress drop. Also, a QA ticket
+  (type QA/Test, a `QA` label, or a "QA:" title) that a QA member works under a dev-style status (In Progress / In Review) is
+  placed in QA In Progress too (`qa_rules.qa_column` in the fetch, `moveRules.qaColumn` when the board loads a dump — existing
+  data is corrected without a refresh). To Do, Blocked, On Hold and Done keep their meaning; dev tickets are unchanged.
 - **Closed tickets now show their QA sub-task, and "Not required" is no longer a gap.** The Completed archive nested only
   *my* sub-tickets, so a QA sub-task owned by a tester never reached `subtasks[]` and every closed ticket's report said
   "no QA sub-task on the ticket" (and the drawer, readiness and reports all missed it). The archive now also nests the
