@@ -6,6 +6,8 @@ import { CalendarIcon, GearIcon, KeyIcon, QuestionIcon, RefreshIcon, SearchIcon,
 import { guideUrl, type ArchiveScope } from '../../lib/runner'
 import { ReportsMenu, type ReportsMenuProps } from './ReportsMenu'
 import { ArchiveMenu } from './ArchiveMenu'
+import { flushSync } from 'react-dom'
+import { switchTheme } from '../../lib/themeTransition'
 
 export type RunProgress = {
   done: number
@@ -375,7 +377,15 @@ export const Header = memo(function Header({
             whileHover={{ scale: 1.08, rotate: dark ? -8 : 8 }}
             whileTap={{ scale: 0.9, rotate: -15 }}
             transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-            onClick={toggleTheme}
+            onClick={(e) => {
+              // The reveal snapshots the page before and after `apply`, so the theme must change synchronously in it:
+              // flushSync renders the new setting, and the class is set right here too (applySettings repeats it).
+              const toDark = !dark
+              switchTheme(e.currentTarget, toDark, () => {
+                flushSync(toggleTheme)
+                document.documentElement.classList.toggle('dark', toDark)
+              })
+            }}
             aria-label="Toggle theme"
             aria-pressed={dark}
             className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] card-shadow hover:border-[var(--muted)]"

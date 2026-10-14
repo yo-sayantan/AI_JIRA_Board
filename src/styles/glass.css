@@ -12,7 +12,8 @@
      blurred parent only sees that parent, so a menu there cannot use blur to keep the board behind it out of the way
    · interactive glass reacts — a soft highlight follows the pointer over `.glass-interactive` and cards
    · readable without the blur — three fallbacks go OPAQUE (prefers-reduced-transparency, prefers-contrast: more, no
-     backdrop-filter); the Motion & animations switch (`jb-no-anim`) turns the pointer highlight off; print is flat
+     backdrop-filter); the Motion & animations switch (`jb-no-anim`) turns ALL of it off (see that block); print is flat
+   · matte finish — a fine grain and one soft reflection on sheets and bars (--glass-grain / --glass-reflect)
 
    Revert: delete this file and its import in main.tsx (plus the few `jb-sheet` / `glass-interactive` classes). Tokens are
    redefined, never renamed, so every component keeps working unchanged. */
@@ -37,6 +38,9 @@
   --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 42%);
   --rim: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.4) 30%, rgba(255, 255, 255, 0.1) 62%, rgba(255, 255, 255, 0.55) 100%);
   --pointer-spec: rgba(255, 255, 255, 0.7);
+  /* Matte finish: a very fine grain (frosted, not polished) and one soft diagonal reflection, on sheets and bars only. */
+  --glass-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .05 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  --glass-reflect: linear-gradient(115deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 26%);
   --shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 30px -12px rgba(15, 23, 42, 0.16);
   --shadow-sheet: 0 2px 6px rgba(15, 23, 42, 0.06), 0 30px 80px -24px rgba(15, 23, 42, 0.32);
   --scrim: rgba(17, 20, 28, 0.3);
@@ -61,6 +65,8 @@
   --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0) 42%);
   --rim: linear-gradient(135deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.1) 30%, rgba(255, 255, 255, 0.03) 62%, rgba(255, 255, 255, 0.16) 100%);
   --pointer-spec: rgba(255, 255, 255, 0.1);
+  --glass-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .045 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  --glass-reflect: linear-gradient(115deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 26%);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 36px -14px rgba(0, 0, 0, 0.6);
   --shadow-sheet: 0 2px 6px rgba(0, 0, 0, 0.45), 0 34px 90px -24px rgba(0, 0, 0, 0.7);
   --scrim: rgba(0, 0, 0, 0.5);
@@ -147,7 +153,7 @@ footer.fixed,
 }
 header.sticky,
 footer.fixed {
-  background-image: var(--glass-sheen);
+  background-image: var(--glass-sheen), var(--glass-grain);
   border-color: var(--line);
   box-shadow: var(--shadow);
 }
@@ -156,7 +162,7 @@ footer.fixed {
 .jb-dialog-panel,
 .jb-sheet {
   background-color: var(--sheet);
-  background-image: var(--glass-sheen);
+  background-image: var(--glass-reflect), var(--glass-sheen), var(--glass-grain);
   border-color: var(--line);
   box-shadow: var(--shadow-sheet);
 }
@@ -283,6 +289,8 @@ button[aria-label^='Close' i]:active {
     --bar: #ffffff;
     --field: #ffffff;
     --glass-sheen: none;
+    --glass-grain: none;
+    --glass-reflect: none;
     --rim: none;
     --line: rgba(15, 23, 42, 0.26);
   }
@@ -294,6 +302,8 @@ button[aria-label^='Close' i]:active {
     --bar: #181b21;
     --field: #111318;
     --glass-sheen: none;
+    --glass-grain: none;
+    --glass-reflect: none;
     --rim: none;
     --line: rgba(255, 255, 255, 0.3);
   }
@@ -320,6 +330,103 @@ button[aria-label^='Close' i]:active {
     --sheet: #181b21;
     --bar: rgba(24, 27, 33, 0.97);
   }
+}
+
+/* ── Settings → "Motion & animations" OFF: a calm, flat, still board ───────────────────────────────────────────────
+   The switch owns every decorative effect, not only movement: the glass (blur, sheen, rim, grain, reflection), the
+   ambient gradient behind the page, the pointer light and every hover / tap lift. What stays is the CONTENT's colour —
+   columns, badges, states — on plain opaque surfaces, exactly as readable. CSS transitions and animations are stopped by
+   the `jb-no-anim` rule in index.css, framer-motion by motionPolicy.ts; the theme switch skips its reveal
+   (lib/themeTransition.ts). Selectors carry `html` so they outrank the `:root` / `.dark` token blocks above. */
+html.jb-no-anim {
+  --surface-solid: #ffffff;
+  --surface-2: #f3f4f7;
+  --sheet: #ffffff;
+  --pop: #ffffff;
+  --bar: #ffffff;
+  --field: #ffffff;
+  --glass-sheen: none;
+  --glass-grain: none;
+  --glass-reflect: none;
+  --rim: none;
+  --spec: transparent;
+  --spec-soft: transparent;
+}
+html.dark.jb-no-anim {
+  --surface-solid: #1b1e24;
+  --surface-2: #23262d;
+  --sheet: #17191e;
+  --pop: #1d2027;
+  --bar: #17191e;
+  --field: #111318;
+}
+html.jb-no-anim body {
+  background: var(--bg);
+}
+html.jb-no-anim *,
+html.jb-no-anim *::before,
+html.jb-no-anim *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html.jb-no-anim .ticket-card::before,
+html.jb-no-anim .ticket-card::after,
+html.jb-no-anim .glass-interactive::after {
+  display: none;
+}
+/* framer-motion writes hover / tap lifts as an inline `transform`; with animations skipped they would still SNAP on hover.
+   Interactive elements never use transform for layout, so a still board simply drops it. (Layout and drawer slides
+   finish on their first frame, so nothing else is caught here.) */
+html.jb-no-anim :is(button, a, [role='button'])[style*='transform'] {
+  transform: none !important;
+}
+html.jb-no-anim [class*='hover:-translate']:hover,
+html.jb-no-anim [class*='hover:translate']:hover {
+  translate: none !important;
+}
+html.jb-no-anim [class*='hover:scale']:hover {
+  scale: none !important;
+}
+html.jb-no-anim [class*='hover:brightness']:hover {
+  filter: none !important;
+}
+
+/* ── Theme switch: the new theme spreads out of the header's sun / moon button (to dark), or the old one folds back into
+   it (to light), through a soft radial gradient edge. lib/themeTransition.ts sets the classes and the --jb-vt-* values and
+   animates --jb-vt-r; without the View Transitions API it falls back to a short colour fade (.jb-theme-fade). ─────── */
+@property --jb-vt-r {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+:root.jb-theme-vt::view-transition-old(root),
+:root.jb-theme-vt::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+:root.jb-theme-vt-in::view-transition-new(root),
+:root.jb-theme-vt-out::view-transition-old(root) {
+  -webkit-mask-image: radial-gradient(circle at var(--jb-vt-x, 100%) var(--jb-vt-y, 0%), #000 calc(var(--jb-vt-r) - var(--jb-vt-feather, 120px)), transparent var(--jb-vt-r));
+  mask-image: radial-gradient(circle at var(--jb-vt-x, 100%) var(--jb-vt-y, 0%), #000 calc(var(--jb-vt-r) - var(--jb-vt-feather, 120px)), transparent var(--jb-vt-r));
+}
+:root.jb-theme-vt-in::view-transition-new(root),
+:root.jb-theme-vt-out::view-transition-old(root) {
+  z-index: 2;
+}
+/* Folding back: the old theme covers everything until its radius starts shrinking — no one-frame flash of the new one. */
+:root.jb-theme-vt-out::view-transition-old(root) {
+  --jb-vt-r: var(--jb-vt-max, 300vmax);
+}
+.jb-theme-fade,
+.jb-theme-fade *,
+.jb-theme-fade *::before,
+.jb-theme-fade *::after {
+  transition:
+    background-color 0.4s ease,
+    color 0.4s ease,
+    border-color 0.4s ease,
+    fill 0.4s ease,
+    stroke 0.4s ease !important;
 }
 
 /* Paper: no tint, no glass. */

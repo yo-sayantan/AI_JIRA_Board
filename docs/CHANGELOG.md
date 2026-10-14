@@ -5,6 +5,16 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Drawer: branch cards, Copy link, a small refresh, more glass.** Branches are small glass cards — click one to copy its
+  name — coloured by PR state (indigo when there is no PR), replacing the long dark bars. **Copy link** copies the ticket's Jira
+  URL (Copy ID when a row has none); the long gradient "Refresh status" is a small round refresh button. The quick actions, the
+  PR Readiness button and the AI brief are on glass with only a faint wash of colour, sub-task rows get the pointer light, and
+  sheets and bars get a matte finish (fine grain, one soft reflection) — none on the readable fallbacks.
+- **Light / dark switch is animated from its button.** The dark theme spreads out of the sun / moon button, and folds back into
+  it going light, through a soft radial gradient edge (View Transitions API; a colour cross-fade where it is missing).
+- **Motion & animations now controls all of it.** Off was only skipping animations, so hover lifts still snapped and every bit
+  of glass stayed. Off is now a calm, flat, still board: opaque surfaces, no blur / sheen / grain / gradients / pointer light,
+  no hover lifts, no theme reveal — colours for columns, badges and states unchanged.
 - **A QA sub-ticket you raised now lands in QA / QA In Progress, and can be moved there.** The QA team's working status
   "In validation" had no alias, so it fell through to In Progress (among the dev tickets) and a drop on QA In Progress found
   no transition to take. "validation" / "In validation" now map to the QA column (QA In Progress shelf) on both sides

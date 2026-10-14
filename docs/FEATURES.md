@@ -140,6 +140,15 @@ with breadcrumb depth and Esc closing only the top layer).
 `src/components/ticket/TicketDetail.tsx`, stack in `hooks/useDrawerStack.ts`; archive/raised rows
 are adapted via `completedToTicket` / `raisedToTicket` so one component renders all three.
 
+- **Quick actions** (under the pipeline): a small round **refresh** button (re-fetches just this ticket in the background;
+  it spins while it runs), **Copy link** (the ticket's Jira URL — pasted anywhere it opens the ticket; a row with no URL
+  offers Copy ID instead), Open in Jira, one chip per PR, and Move to Completed on a Done ticket. All are glass chips: the
+  neutral material with a faint wash of their colour (`glassChip` in `TicketDetail.tsx`).
+- **Branches** are small glass cards (`ticket/BranchCards.tsx`) — click one to copy the branch name ("Copied" confirms it;
+  a refused clipboard says so and shows the name to copy by hand). The card's top edge, icon chip and caption take the PR
+  state colour (open PR · approved · changes · merged · declined), indigo for a branch with no PR of its own; the glass
+  itself stays clear and cards are not blurred (they sit on the drawer's own glass).
+
 ## Jenkins builds (cards, drawer, CI gate)
 
 For every branch of my tickets, the **latest build in each environment's Jenkins pipelines** — the
@@ -294,7 +303,10 @@ rewritten when the evidence changes even though Jira's `updated` did not (`aiSum
   Stop. **Reports menu** — bulk PR-report generation with scope.
 - **API keys** (key button beside Settings; a dot on it: **red** when a saved key was rejected or denied, else **orange** when a service needs attention, else amber while the required Jira token is missing — hover or the aria-label says how many) → the API keys
   dialog, below.
-- Settings gear, help (?) → the help guide (`help/00-start-here.html`; plain pages, also open from disk), theme toggle.
+- Settings gear, help (?) → the help guide (`help/00-start-here.html`; plain pages, also open from disk), theme toggle. Switching
+  theme is animated from that button: going dark, the dark theme spreads out of it; going light, the dark folds back into it —
+  through a soft radial gradient edge (View Transitions API, `lib/themeTransition.ts` + "Theme switch" in `styles/glass.css`).
+  Without the API the colours cross-fade; with Motion & animations off, or the OS asking for reduced motion, it just switches.
 - `src/components/header/Header.tsx`, `ArchiveMenu.tsx`, `ReportsMenu.tsx`.
 
 ## API keys
@@ -343,6 +355,11 @@ Overlay with three areas (`src/components/settings/Settings.tsx`):
 - **Features** — a switch per *behaviour* (drag to change status, demo mode, PR reports, AI briefs,
   shortcuts, refresh on open, auto-refresh, motion & animations, the AI-Ollama container), generated from
   `src/lib/settings.ts::FEATURES` (entry + colour/icon in `FEATURE_STYLE`; TypeScript enforces both).
+  **Motion & animations** owns every decorative effect, not only movement. Off = a calm, flat, still board: opaque
+  surfaces (no blur, sheen, rim, matte grain or reflection), no ambient background gradient, no pointer light, no hover / tap
+  lifts, no card entrances or drawer slides, spinners run once, and the theme switch has no reveal. Column, badge and state
+  colours stay. The CSS half is the "Motion & animations OFF" block in `styles/glass.css` plus the `jb-no-anim` rule in
+  `styles/index.css`; framer-motion's half is `lib/motionPolicy.ts`.
 - **AI** — one level, Low · Medium · High · Max, that sets timeout, cloud effort and which cloud models are selectable
   (output price per 1M: Low ≤ $1 · Medium ≤ $5 · High < $10 · Max all; the rest greyed out — see AI-PIPELINE.md), backend
   local (Ollama tag dropdown, host-Ollama checkbox, model pulls with live progress) or cloud (provider / model — the models

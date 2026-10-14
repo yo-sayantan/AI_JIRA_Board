@@ -125,9 +125,9 @@ export const FEATURES = [
     key: 'animations',
     default: true,
     label: 'Motion & animations',
-    hint: 'Transitions, spinners and hover effects',
+    hint: 'Glass, gradients, transitions and hover effects',
     detail:
-      'Card entrance transitions, drawer slides, spinners and hover lifts. Turning this off stops all of them at once — CSS and JavaScript animations alike, regardless of the system reduce-motion setting — which also helps on a slow or remote display.',
+      'Every decorative effect: the Liquid Glass finish (blur, sheen, matte grain, reflections), the ambient background gradient, card entrances, drawer slides, the light / dark reveal, spinners, the pointer light and hover lifts. Turning this off gives a calm, flat, still board at once — plain opaque surfaces with the same colours for columns, badges and states, CSS and JavaScript animations alike, regardless of the system reduce-motion setting — which also helps on a slow or remote display.',
   },
   {
     key: 'shortcuts',
