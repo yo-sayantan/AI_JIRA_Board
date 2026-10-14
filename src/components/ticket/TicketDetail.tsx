@@ -1,9 +1,10 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { Ticket, LinkRef, Comment, PullRequest } from '../../types'
 import { COLUMN_META } from '../../lib/columns'
 import { fmtDate, fmtDateTime, relTime, prMeta, isMergedPr, isClosedPr, prListOf, primaryPrOf, prCommentStats, branchesOf, branchStatusOf, typeMeta, effectiveType, isAssignedToMe, hexToRgba, cycleTime, fmtDays, unwrapBrief } from '../../lib/format'
-import { Pill, StatusBadge, PriorityBadge, TypeBadge, PrBadge, BranchStatusPill, Approvals, PointsTag, CopyButton, SafeHtml, ExternalLink, safeHref } from '../common/ui'
+import { Pill, StatusBadge, PriorityBadge, TypeBadge, PrBadge, Approvals, PointsTag, CopyButton, SafeHtml, ExternalLink, safeHref } from '../common/ui'
+import { BranchCards } from './BranchCards'
 import { Pipeline } from './Pipeline'
 import { ProofPanel, proofCount } from './Proof'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
@@ -35,6 +36,14 @@ import {
  * (button coloured by verdict → opens the overlay), one is being generated (spinner — the app polls
  * and this flips to the button when it lands), none yet (offer to generate; on file:// show how).
  */
+/**
+ * A drawer action on glass: the neutral material (`bg-[var(--surface-solid)]` on the element) with only a faint wash of
+ * its colour under the sheen, and a coloured rim — colour comes from the content, the glass itself stays clear.
+ */
+function glassChip(color: string): CSSProperties {
+  return { borderColor: hexToRgba(color, 0.45), backgroundImage: `var(--glass-sheen), linear-gradient(${hexToRgba(color, 0.07)}, ${hexToRgba(color, 0.07)})` }
+}
+
 function PrReportButton({
   ticketKey,
   report,
@@ -80,8 +89,8 @@ function PrReportButton({
           type="button"
           onClick={() => onOpen?.(ticketKey)}
           disabled={loading}
-          className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left transition-[transform,filter] hover:-translate-y-px hover:brightness-105 disabled:opacity-70"
-          style={{ borderColor: hexToRgba(c, 0.5), background: `linear-gradient(135deg, ${hexToRgba(c, 0.16)}, ${hexToRgba(c, 0.04)})` }}
+          className="glass-interactive flex min-w-0 flex-1 flex-wrap items-center gap-2.5 rounded-xl border bg-[var(--surface-solid)] px-3.5 py-2.5 text-left card-shadow disabled:opacity-70"
+          style={{ borderColor: hexToRgba(c, 0.45), backgroundImage: `var(--glass-sheen), linear-gradient(135deg, ${hexToRgba(c, 0.1)}, ${hexToRgba(c, 0.02)})` }}
           title={v?.headline ?? 'Open the PR readiness report'}
         >
           <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: c }} />
@@ -263,37 +272,46 @@ export function TicketDetail({
           {/* quick actions */}
           <div className="mb-4 flex flex-wrap items-center gap-2">
             {onRefreshTicket && ticket.column !== 'done' && (
-              <button
+              <motion.button
+                type="button"
+                whileHover={refreshing ? undefined : { rotate: 30 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => !refreshing && onRefreshTicket(ticket.key)}
                 disabled={refreshing}
-                className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm disabled:opacity-70"
-                style={{ background: 'linear-gradient(135deg, #6d5bd0, #2684ff)', borderColor: 'transparent' }}
-                title="Fetch the latest status of just this ticket (background)"
+                aria-label={refreshing ? 'Refreshing this ticket' : 'Refresh this ticket'}
+                aria-busy={refreshing}
+                className="glass-interactive grid h-7 w-7 place-items-center rounded-full border bg-[var(--surface-solid)] disabled:cursor-progress"
+                style={glassChip('#2684ff')}
+                title={refreshing ? 'Refreshing…' : 'Fetch the latest status of just this ticket (background)'}
               >
                 <motion.span className="inline-flex" animate={refreshing ? { rotate: 360 } : { rotate: 0 }} transition={refreshing ? { repeat: Infinity, duration: 0.8, ease: 'linear' } : { duration: 0.2 }}>
-                  <RefreshIcon size={12} color="#fff" />
+                  <RefreshIcon size={13} color="#2684ff" />
                 </motion.span>
-                {refreshing ? 'Refreshing…' : 'Refresh status'}
-              </button>
+              </motion.button>
             )}
             {onArchive && ticket.column === 'done' && (
               <button
                 onClick={() => onArchive(ticket.key)}
-                className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-[filter,transform] hover:-translate-y-px hover:brightness-110"
-                style={{ color: '#b45309', borderColor: hexToRgba('#f59e0b', 0.55), background: hexToRgba('#f59e0b', 0.12) }}
+                className="glass-interactive inline-flex items-center gap-1.5 rounded-lg border bg-[var(--surface-solid)] px-2.5 py-1 text-[11px] font-bold"
+                style={{ ...glassChip('#f59e0b'), color: '#b45309' }}
                 title="Move this ticket to the Completed archive now (removes it from the board)"
               >
                 <TrophyIcon size={12} /> Move to Completed
               </button>
             )}
-            <CopyButton text={ticket.key} label="Copy ID" />
+            {/* The link, not the bare key: pasted into chat, mail or a PR it opens the ticket. No URL in the dump → the key. */}
+            {jiraHref ? (
+              <CopyButton text={jiraHref} label="Copy link" icon={<LinkIcon size={12} />} title={`Copy ${jiraHref}`} />
+            ) : (
+              <CopyButton text={ticket.key} label="Copy ID" />
+            )}
             {jiraHref && (
               <a
                 href={jiraHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-[filter,transform] hover:-translate-y-px hover:brightness-110"
-                style={{ color: 'var(--link)', borderColor: hexToRgba('#2684ff', 0.55), background: hexToRgba('#2684ff', 0.12) }}
+                className="glass-interactive inline-flex items-center gap-1 rounded-lg border bg-[var(--surface-solid)] px-2.5 py-1 text-[11px] font-bold"
+                style={{ ...glassChip('#2684ff'), color: 'var(--link)' }}
               >
                 Open in Jira ↗
               </a>
@@ -307,8 +325,8 @@ export function TicketDetail({
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-[filter,transform] hover:-translate-y-px hover:brightness-110"
-                  style={{ color: 'var(--pr-link)', borderColor: hexToRgba('#a855f7', 0.55), background: hexToRgba('#a855f7', 0.12) }}
+                  className="glass-interactive inline-flex items-center gap-1 rounded-lg border bg-[var(--surface-solid)] px-2.5 py-1 text-[11px] font-bold"
+                  style={{ ...glassChip('#a855f7'), color: 'var(--pr-link)' }}
                   title={prMeta(p.state).label}
                 >
                   PR{p.id ? ` #${p.id}` : ''} ↗
@@ -337,7 +355,10 @@ export function TicketDetail({
               DEEP brief (light HTML: linked docs, related tickets, PR/code state, attachments);
               others a short plain paragraph. SafeHtml renders both (and sanitizes). */}
           {briefsEnabled !== false && ticket.aiSummary && ticket.column !== 'done' && (
-            <div className="mb-4 overflow-hidden rounded-xl border border-[#7c3aed]/35 bg-gradient-to-br from-[#7c3aed]/[0.09] to-[#6366f1]/[0.05]">
+            <div
+              className="mb-4 overflow-hidden rounded-xl border border-[#7c3aed]/30 bg-[var(--surface-solid)] card-shadow"
+              style={{ backgroundImage: `var(--glass-sheen), linear-gradient(135deg, ${hexToRgba('#7c3aed', 0.07)}, ${hexToRgba('#6366f1', 0.025)})` }}
+            >
               <div className="flex items-center gap-2 border-b border-[#7c3aed]/20 px-3.5 py-2">
                 <SparkleIcon color="#a855f7" size={14} />
                 <span className="text-[12px] font-bold text-[#a855f7]">
@@ -396,15 +417,7 @@ export function TicketDetail({
               accent={accent}
               count={branches.length > 1 ? branches.length : undefined}
             >
-              <div className="flex flex-col gap-1.5">
-                {branches.map((b, i) => (
-                  <div key={i} className="flex items-center gap-2 rounded-lg bg-[#0b1020] px-3 py-2">
-                    <code className="min-w-0 flex-1 break-all font-mono text-[12px] text-[#cfe0ff]">{b}</code>
-                    <BranchStatusPill state={branchStatusOf(b, ticket)} />
-                    <CopyButton text={b} />
-                  </div>
-                ))}
-              </div>
+              <BranchCards branches={branches} stateOf={(b) => branchStatusOf(b, ticket)} />
             </Section>
           )}
 
@@ -973,7 +986,7 @@ function TreeRow({ node, onOpen, isRoot = false, user }: { node: Ticket; onOpen?
           for the ticket itself rather than one big button wrapping everything. */}
       <div
         className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 ${
-          isRoot ? 'bg-[var(--surface-2)]' : 'border border-[var(--line)] bg-[var(--surface-2)] transition-colors hover:border-[var(--muted)]'
+          isRoot ? 'bg-[var(--surface-2)]' : 'glass-interactive border border-[var(--line)] bg-[var(--surface-2)] transition-colors hover:border-[var(--muted)]'
         }`}
       >
         {isRoot ? (

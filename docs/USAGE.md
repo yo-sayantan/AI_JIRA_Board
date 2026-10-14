@@ -160,7 +160,9 @@ findings.
 
 A slide-in with every section expanded: status pipeline, overview (sprint/people/epic/labels),
 PR card, description, an interactive acceptance-criteria checklist, comments, related issues,
-Confluence/docs, proposed solution, effort, open questions, a copy-able branch, and sources.
+Confluence/docs, proposed solution, effort, open questions, the branches, and sources. Under the pipeline: a small round
+refresh button for just this ticket, **Copy link** (the Jira URL), Open in Jira and the PR links. Each branch is a small card —
+click it to copy the branch name.
 **Proof → Builds** lists each environment's latest Jenkins build of the ticket's branches: result,
 `#number ↗` (opens the build in Jenkins), branch, when, duration, tests passed / failed / skipped with
 up to five failing test names, the stage that failed and the deploy target. **Proof → Vulnerabilities ·

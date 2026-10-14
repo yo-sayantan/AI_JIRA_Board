@@ -165,7 +165,7 @@ export async function copyText(text: string): Promise<boolean> {
   return legacyCopy(text)
 }
 
-export function CopyButton({ text, label = 'Copy', className = '' }: { text: string; label?: string; className?: string }) {
+export function CopyButton({ text, label = 'Copy', className = '', icon, title }: { text: string; label?: string; className?: string; icon?: ReactNode; title?: string }) {
   const [state, setState] = useState<'idle' | 'done' | 'failed'>('idle')
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => () => clearTimeout(timer.current), [])
@@ -184,11 +184,11 @@ export function CopyButton({ text, label = 'Copy', className = '' }: { text: str
           timer.current = setTimeout(() => setState('idle'), ok ? 1300 : 2200)
         })
       }}
-      title={failed ? `Copy failed — select and copy by hand: ${text}` : undefined}
+      title={failed ? `Copy failed — select and copy by hand: ${text}` : title}
       aria-live="polite"
-      className={`inline-flex items-center gap-1.5 rounded-lg border border-[var(--line-strong)] bg-[var(--surface-2)] px-2.5 py-1 text-[11px] font-medium text-[var(--ink-soft)] transition-colors hover:border-[var(--muted)] hover:text-[var(--ink)] ${className}`}
+      className={`glass-interactive inline-flex items-center gap-1.5 rounded-lg border border-[var(--line-strong)] bg-[var(--surface-solid)] px-2.5 py-1 text-[11px] font-medium text-[var(--ink-soft)] transition-colors hover:border-[var(--muted)] hover:text-[var(--ink)] ${className}`}
     >
-      {done ? <CheckIcon size={12} color="#22c55e" /> : <CopyIcon size={12} color={failed ? '#ef4444' : undefined} />}
+      {done ? <CheckIcon size={12} color="#22c55e" /> : failed ? <CopyIcon size={12} color="#ef4444" /> : (icon ?? <CopyIcon size={12} />)}
       {done ? 'Copied' : failed ? 'Copy failed' : label}
       {failed && <span className="select-all font-mono text-[10px] text-[var(--muted)]">{text}</span>}
     </motion.button>

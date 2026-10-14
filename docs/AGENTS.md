@@ -309,10 +309,14 @@ deployed from** (see `docs/DEPLOYMENT.md` → "the data mount follows the deploy
 - A sub-task of yours is stored TWICE (own card + nested under parent); `_merge_ticket` must
   replace every copy. `indexByKey` prefers standalone rows.
 - PR numbers are per-repository — identity is `(project, repo, id)` (`_pr_identity`), never id alone.
-- The "Motion & animations" switch has TWO halves: the `jb-no-anim` class on `<html>` (tames CSS
-  animations/transitions) and `MotionGlobalConfig.skipAnimations` (`src/lib/motionPolicy.ts`, set from
-  `applySettings`) for framer-motion, whose JS animations ignore CSS and otherwise follow only the OS
-  reduce-motion setting. New motion code needs no extra wiring — but a CSS "off" rule must also set
+- The "Motion & animations" switch owns EVERY decorative effect, in three parts: the `jb-no-anim` class on `<html>` (tames CSS
+  animations/transitions — `styles/index.css`), the "Motion & animations OFF" block in `styles/glass.css` (opaque surfaces, no
+  blur / sheen / rim / grain / reflection / ambient gradient / pointer light, and no hover lifts: framer-motion's `whileHover` /
+  `whileTap` would otherwise still SNAP, so an inline `transform` on a button, link or `role=button` is dropped), and
+  `MotionGlobalConfig.skipAnimations` (`src/lib/motionPolicy.ts`, set from `applySettings`) for framer-motion, whose JS animations
+  ignore CSS and otherwise follow only the OS reduce-motion setting. New motion or glass code needs no extra wiring (a new
+  decorative token must be set to `none` in that block — `tests/test_styles.py` pins it), and a JS effect that is not
+  framer-motion asks `themeMotionAllowed()` (`lib/themeTransition.ts`). A CSS "off" rule must also set
   `animation-iteration-count: 1`, or a 0.001 ms infinite loop becomes a strobe.
 - Drag targets live in ONE file, `jira-intern/move_targets.json`, read by `src/lib/columns.ts`,
   `server/jobs.mjs` and `transition.py` (whose `PREFERRED` must have an entry per target — a test
