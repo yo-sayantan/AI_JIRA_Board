@@ -101,6 +101,16 @@ class Helpers(unittest.TestCase):
         # A workflow with only in-progress QA statuses still gets a QA move.
         self.assertEqual(pick_transition(transitions[:1], "qa")["id"], "1")
 
+    def test_a_qa_ticket_in_a_workflow_with_in_validation_can_be_moved_through_its_lane(self):
+        # What Jira offers on a QA sub-ticket in a dev-style workflow: the QA team's working status is "In validation".
+        transitions = [{"id": str(i), "to": {"name": n}} for i, n in enumerate(
+            ["Blocked", "To Do", "Done", "In Progress", "In validation", "Cancelled", "Ready for Deployment", "Ready for QA", "In Review"])]
+        pick = lambda target: pick_transition(transitions, target)["to"]["name"]  # noqa: E731
+        self.assertEqual(pick("qaip"), "In validation")   # was refused: nothing in the workflow looked like QA In Progress
+        self.assertEqual(pick("qa"), "Ready for QA")      # the ready shelf, never the working status
+        self.assertEqual(pick("done"), "Done")
+        self.assertEqual(pick("blocked"), "Blocked")
+
     def test_blocked_transition_is_found(self):
         transitions = [{"id": "9", "to": {"name": "Blocked"}}, {"id": "2", "to": {"name": "In Progress"}}]
         self.assertEqual(pick_transition(transitions, "blocked")["id"], "9")
@@ -234,7 +244,7 @@ class QaLane(unittest.TestCase):
         self.assertFalse(is_qa_ticket("Bug", "Squash a bug", ["qa-failed", "needs-qa", "aqua"]))
 
     def test_a_qa_ticket_in_a_dev_stage_is_shown_in_the_qa_lane(self):
-        # Mirror of qaColumn in moveRules.ts. "In validation" is a QA team status the board has no alias for.
+        # Mirror of qaColumn in moveRules.ts.
         for column in ("prog", "rev"):
             self.assertEqual(qa_column(column, "Sub-task", "QA: verify the flow"), "qa", column)
         self.assertEqual(qa_column("prog", "Task", "Smoke test", ["qa"]), "qa")

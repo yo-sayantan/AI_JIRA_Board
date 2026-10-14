@@ -290,7 +290,7 @@ _STATUS_COLUMNS = (
     (("in progress", "dev in progress", "work in progress", "in development", "development", "implementing"), "prog"),
     (("in review", "code review", "ready4review", "ready for review", "review", "peer review", "pr review"), "rev"),
     (("qa", "in qa", "under qa", "ready for qa", "ready4qa", "awaiting qa",
-      "testing", "in test", "in testing", "test", "verification", "verify"), "qa"),
+      "testing", "in test", "in testing", "test", "verification", "verify", "validation", "in validation"), "qa"),
     (("done", "completed", "closed", "resolved", "released", "shipped",
       "won't fix", "wont fix", "won’t fix", "cancelled", "canceled", "rejected"), "done"),
     (("blocked", "impeded", "blocker", "stuck"), "blocked"),
@@ -308,7 +308,7 @@ def status_column(name):
     tokens = set(re.findall(r"[a-z0-9]+", n))
     if tokens & {"blocked", "impeded"}:
         return "blocked"
-    if tokens & {"qa", "testing", "verification"}:
+    if tokens & {"qa", "testing", "verification", "validation"}:
         return "qa"
     if "review" in tokens:
         return "rev"

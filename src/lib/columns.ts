@@ -79,6 +79,8 @@ export const BOARD_COLUMNS: ColumnMeta[] = [
       'test',
       'verification',
       'verify',
+      'validation',
+      'in validation',
     ],
   },
   {

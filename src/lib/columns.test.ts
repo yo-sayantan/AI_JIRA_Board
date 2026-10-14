@@ -26,6 +26,17 @@ describe('mapStatusToColumn', () => {
   })
 })
 
+describe('QA team statuses', () => {
+  it('files In validation with QA, on the working shelf (mirror of _jira.py::status_column)', () => {
+    expect(mapStatusToColumn('In validation')).toBe('qa')
+    expect(mapStatusToColumn('Validation')).toBe('qa')
+    expect(mapStatusToColumn('Pending validation')).toBe('qa')
+    expect(mapStatusToColumn('In Progress')).toBe('prog')
+    expect(isQaInProgress('In validation')).toBe(true)
+    expect(isQaInProgress('Pending validation')).toBe(false)
+  })
+})
+
 describe('QA shelves', () => {
   it('ready-for-QA statuses sit on the top shelf', () => {
     for (const s of ['QA', 'Ready for QA', 'Ready4QA', 'Awaiting QA', 'Ready for Testing']) expect(isQaInProgress(s)).toBe(false)

@@ -84,7 +84,7 @@ export const inQaLane = (t: LaneTicket) => t.column === 'qa' || isQaTicket(t)
 
 /**
  * The column a ticket is DISPLAYED in. A QA ticket never sits among the dev stages: one the QA team is working
- * under its own status ("In validation", "In Progress", "In Review") is QA In Progress, so In Progress / In Review
+ * under a dev-style status ("In Progress", "In Review") is QA In Progress, so In Progress / In Review
  * become QA. To Do, Blocked, On Hold and Done keep their meaning. Mirror: qa_rules.py::qa_column — also applied
  * when the board loads a dump, so rows written before the rule existed are placed correctly too.
  */

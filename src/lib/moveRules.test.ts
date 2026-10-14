@@ -33,7 +33,7 @@ describe('isQaTicket', () => {
 
 describe('qaColumn (where a QA ticket is displayed)', () => {
   const qa = (column: Ticket['column']) => ({ column, type: 'Sub-task', title: 'QA: verify the flow', labels: [] as string[] })
-  it('puts a QA ticket in a dev stage into QA (In validation is a QA team status the board has no alias for)', () => {
+  it('puts a QA ticket in a dev stage (In Progress / In Review) into QA', () => {
     expect(qaColumn(qa('prog'))).toBe('qa')
     expect(qaColumn(qa('rev'))).toBe('qa')
     expect(qaColumn({ column: 'prog', type: 'Task', title: 'Smoke test', labels: ['qa'] })).toBe('qa')
