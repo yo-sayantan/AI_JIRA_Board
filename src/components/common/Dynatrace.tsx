@@ -1,6 +1,7 @@
 import type { DynatraceItem } from '../../types'
-import { dynatraceKindLabel, dynatraceStaleLine, dynatraceStatusMeta, dynatraceWindowLabel, fmtDateTime, hexToRgba } from '../../lib/format'
+import { dynatraceKindLabel, dynatraceStaleLine, dynatraceStatusMeta, dynatraceWindowLabel, fmtDateTime } from '../../lib/format'
 import { Pill, safeHref } from './ui'
+import { lift, tint } from '../../lib/tone'
 
 const STALE_COLOR = '#ff8a1f'
 
@@ -34,7 +35,7 @@ export function DynatraceRow({ item, now, timeZone }: { item: DynatraceItem; now
         </Pill>
         <span
           className="rounded-md border px-1.5 py-0.5 text-[10.5px] font-bold"
-          style={{ color: `color-mix(in srgb, ${m.color} 80%, var(--ink))`, borderColor: hexToRgba(m.color, 0.45), background: hexToRgba(m.color, 0.07) }}
+          style={{ color: `color-mix(in srgb, ${lift(m.color)} 80%, var(--ink))`, borderColor: tint(m.color, 0.45), background: tint(m.color, 0.07) }}
           title="What the link points at"
         >
           {kind}
@@ -82,7 +83,7 @@ export function DynatraceRow({ item, now, timeZone }: { item: DynatraceItem; now
           role="status"
           data-dynatrace-stale
           className="flex items-start gap-1.5 rounded-md border px-2 py-1 text-[10.5px] font-semibold"
-          style={{ color: `color-mix(in srgb, ${STALE_COLOR} 78%, var(--ink))`, borderColor: hexToRgba(STALE_COLOR, 0.4), background: hexToRgba(STALE_COLOR, 0.07) }}
+          style={{ color: `color-mix(in srgb, ${lift(STALE_COLOR)} 78%, var(--ink))`, borderColor: tint(STALE_COLOR, 0.4), background: tint(STALE_COLOR, 0.07) }}
           title={item.fetchedAt ? `Last read ${fmtDateTime(item.fetchedAt, timeZone)}` : undefined}
         >
           <span aria-hidden>⚠</span>

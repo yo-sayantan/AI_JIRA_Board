@@ -1,7 +1,8 @@
 import { useRef, type CSSProperties, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { hexToRgba } from '../../lib/format'
+
 import { shortReason, type MoveCheck } from '../../lib/moveRules'
+import { lift, tint } from '../../lib/tone'
 
 // Pieces every space on the board shares — a column, the On Hold space under Blocked, an empty
 // column's rail or drop zone — so they cannot drift apart in size or colour.
@@ -11,9 +12,9 @@ export const SPRING = { type: 'spring', stiffness: 300, damping: 30 } as const
 /** A dashed drop box: faint at rest, lit while a card hovers it. */
 export function dropBoxStyle(accent: string, active: boolean): CSSProperties {
   return {
-    borderColor: hexToRgba(accent, active ? 0.72 : 0.26),
-    background: hexToRgba(accent, active ? 0.13 : 0.045),
-    boxShadow: active ? `0 0 0 3px ${hexToRgba(accent, 0.18)}, 0 12px 28px -16px ${hexToRgba(accent, 0.5)}` : undefined,
+    borderColor: tint(accent, active ? 0.72 : 0.26),
+    background: tint(accent, active ? 0.13 : 0.045),
+    boxShadow: active ? `0 0 0 3px ${tint(accent, 0.18)}, 0 12px 28px -16px ${tint(accent, 0.5)}` : undefined,
   }
 }
 
@@ -21,7 +22,7 @@ export function CountPill({ accent, count }: { accent: string; count: number }) 
   return (
     <span
       className="ml-auto min-w-[22px] rounded-full px-1.5 py-0.5 text-center text-[11px] font-bold tabular-nums"
-      style={{ color: accent, background: hexToRgba(accent, 0.14) }}
+      style={{ color: lift(accent), background: tint(accent, 0.14) }}
     >
       {count}
     </span>
@@ -47,7 +48,7 @@ export function SpaceHeader({
 }) {
   return (
     <header className="mb-2 flex h-5 items-center gap-2 px-1">
-      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ background: hexToRgba(accent, 0.16) }} title={title}>
+      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ background: tint(accent, 0.16) }} title={title}>
         {icon}
       </span>
       <AnimatePresence initial={false}>
@@ -60,7 +61,7 @@ export function SpaceHeader({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
           >
-            <span className="truncate text-[11px] font-bold uppercase tracking-wider" style={{ color: accent }}>
+            <span className="truncate text-[11px] font-bold uppercase tracking-wider" style={{ color: lift(accent) }}>
               {label}
             </span>
             {count !== undefined && <CountPill accent={accent} count={count} />}
@@ -84,7 +85,7 @@ export function LandingSlot({ accent, show, label }: { accent: string; show: boo
           exit={{ opacity: 0, height: 0 }}
           transition={SPRING}
           className="flex items-center justify-center overflow-hidden rounded-xl border-2 border-dashed text-[11px] font-semibold"
-          style={{ borderColor: hexToRgba(accent, 0.55), background: hexToRgba(accent, 0.1), color: accent }}
+          style={{ borderColor: tint(accent, 0.55), background: tint(accent, 0.1), color: lift(accent) }}
         >
           {label}
         </motion.div>
@@ -140,7 +141,7 @@ export function DeniedNote({ check, alt, active, inline = false }: { check: Move
     <div
       role="note"
       className={`${inline ? '' : 'mb-1'} flex flex-col items-center gap-0.5 rounded-lg border px-2 py-1 text-center leading-tight`}
-      style={{ borderColor: hexToRgba(color, 0.4), background: hexToRgba(color, 0.08), color }}
+      style={{ borderColor: tint(color, 0.4), background: tint(color, 0.08), color: lift(color) }}
     >
       <span className="text-[10.5px] font-bold">{gate && active && alt ? 'Release to force' : shortReason(check)}</span>
       {gate && !(active && alt) && <span className="text-[9.5px] font-semibold opacity-80">⌥ + drop to force</span>}

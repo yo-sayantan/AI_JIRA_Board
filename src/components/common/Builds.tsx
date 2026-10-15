@@ -1,7 +1,8 @@
 import { motion } from 'motion/react'
 import type { JenkinsBuild } from '../../types'
-import { buildMeta, buildTestsText, buildTooltip, consoleTailLines, envLabel, fmtDateTime, fmtDuration, hexToRgba, pipelineKindMeta, relTime } from '../../lib/format'
+import { buildMeta, buildTestsText, buildTooltip, consoleTailLines, envLabel, fmtDateTime, fmtDuration, pipelineKindMeta, relTime } from '../../lib/format'
 import { Pill, safeHref } from './ui'
+import { lift, tint } from '../../lib/tone'
 
 /** The result mark: ✓ ✗ ! ⦸ ○, and a turning ring while the build is still running. */
 export function BuildGlyph({ result, color, size = 10 }: { result: JenkinsBuild['result']; color: string; size?: number }) {
@@ -10,7 +11,7 @@ export function BuildGlyph({ result, color, size = 10 }: { result: JenkinsBuild[
       <motion.span
         aria-hidden
         className="inline-block shrink-0 rounded-full"
-        style={{ width: size, height: size, border: `1.5px solid ${hexToRgba(color, 0.3)}`, borderTopColor: color }}
+        style={{ width: size, height: size, border: `1.5px solid ${tint(color, 0.3)}`, borderTopColor: color }}
         animate={{ rotate: 360 }}
         transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}
       />
@@ -35,9 +36,9 @@ export function BuildChip({ build, now, total = 1 }: { build: JenkinsBuild; now:
     <span
       className="inline-flex shrink-0 items-center gap-[3px] whitespace-nowrap rounded-md border px-1.5 text-[10px] font-bold leading-[16px]"
       style={{
-        color: m.color === '#94a3b8' ? 'var(--muted)' : `color-mix(in srgb, ${m.color} 82%, var(--ink))`,
-        borderColor: hexToRgba(m.color, 0.45),
-        background: hexToRgba(m.color, 0.07),
+        color: m.color === '#94a3b8' ? 'var(--muted)' : `color-mix(in srgb, ${lift(m.color)} 82%, var(--ink))`,
+        borderColor: tint(m.color, 0.45),
+        background: tint(m.color, 0.07),
       }}
       title={tip}
     >
@@ -89,12 +90,12 @@ export function BuildRow({ build, now, timeZone }: { build: JenkinsBuild; now: n
     <div className="flex flex-col gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2">
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[11px]">
         <Pill color={m.color} filled title={`Latest ${envLabel(build.env)} build: ${m.label}`}>
-          <BuildGlyph result={build.result} color="#fff" />
+          <BuildGlyph result={build.result} color="currentColor" />
           {m.label}
         </Pill>
         <span
           className="rounded-md border px-1.5 py-0.5 text-[10.5px] font-bold"
-          style={{ color: `color-mix(in srgb, ${m.color} 80%, var(--ink))`, borderColor: hexToRgba(m.color, 0.45), background: hexToRgba(m.color, 0.07) }}
+          style={{ color: `color-mix(in srgb, ${lift(m.color)} 80%, var(--ink))`, borderColor: tint(m.color, 0.45), background: tint(m.color, 0.07) }}
           title="Environment (jenkins.jobs, or labelled from the pipeline's names)"
         >
           {envLabel(build.env)}
@@ -107,7 +108,7 @@ export function BuildRow({ build, now, timeZone }: { build: JenkinsBuild; now: n
         {kind && (
           <span
             className="rounded-md border px-1.5 py-0.5 text-[10px] font-bold"
-            style={{ color: `color-mix(in srgb, ${kind.color} 80%, var(--ink))`, borderColor: hexToRgba(kind.color, 0.45), background: hexToRgba(kind.color, 0.07) }}
+            style={{ color: `color-mix(in srgb, ${lift(kind.color)} 80%, var(--ink))`, borderColor: tint(kind.color, 0.45), background: tint(kind.color, 0.07) }}
             title="What this pipeline does"
           >
             {kind.label}
@@ -142,7 +143,7 @@ export function BuildRow({ build, now, timeZone }: { build: JenkinsBuild; now: n
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
           {tests && <span className="text-[var(--muted)]">Tests: <b className="text-[var(--ink-soft)]">{tests}</b></span>}
           {build.failedStage && (
-            <span className="font-semibold" style={{ color: m.color }}>
+            <span className="font-semibold" style={{ color: lift(m.color) }}>
               Failed at stage “{build.failedStage}”
             </span>
           )}
