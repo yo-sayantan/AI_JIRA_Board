@@ -94,8 +94,8 @@ export function useTicketMoves({
         const c = checkMove(ticket, to, req.lookup)
         if (c.kind === 'lane') return void toast(`${key} stays where it is. ${c.reason}`, 'error')
         if (c.kind === 'gate' && mode === 'normal') {
-          const force = { label: req.forceAsk ? 'Force move' : 'Move anyway', run: () => void moveRef.current(ticket, to, { ...req, mode: 'force' }) }
-          const msg = req.forceAsk ? `Force ${key} to ${label}? ${shortReason(c)}.` : `${key} stays in ${targetLabel(from)}. ${c.reason}`
+          const force = { label: 'Move anyway', run: () => void moveRef.current(ticket, to, { ...req, mode: 'force' }) }
+          const msg = req.forceAsk ? `Move ${key} to ${label} anyway? ${shortReason(c)}.` : `${key} stays in ${targetLabel(from)}. ${c.reason}`
           return void toast(msg, req.forceAsk ? 'info' : 'error', { action: force, seconds: UNDO_SECONDS + 4 })
         }
       }

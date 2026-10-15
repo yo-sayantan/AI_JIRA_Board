@@ -188,14 +188,33 @@ describe('Column — empty columns and the On Hold space', () => {
     expect(s.querySelector('.jb-lane-head')!.textContent).toContain('1')
   })
 
-  it('a gate says ⌥ forces it, right in the header', () => {
+  it('a gate is one short line in the header; the lane under the pointer adds how to move it anyway', () => {
     const dev = { key: 'D-1', title: 'Build it', type: 'Story', status: 'In Progress', column: 'prog' as const }
     const other = { key: 'R-1', title: 'In review', status: 'In Review', column: 'rev' as const }
-    const s = render({ meta: COLUMN_META.rev, tickets: [other], onMove: () => {}, dragActive: true, dragged: dev })
-    const chip = s.querySelector('.jb-lane-head [role="note"]')!
-    expect(chip.textContent).toContain('No pull request raised yet')
-    expect(chip.querySelector('kbd')?.textContent).toBe('⌥')
-    expect(chip.getAttribute('title')).toMatch(/Hold ⌥/)
+    const calm = render({ meta: COLUMN_META.rev, tickets: [other], onMove: () => {}, dragActive: true, dragged: dev })
+    const chip = calm.querySelector('.jb-lane-head [role="note"]')!
+    expect(chip.textContent).toBe('No PR yet') // nothing about moving anyway until the pointer is on this lane
+    expect(chip.getAttribute('title')).toMatch(/Hold ⌥ \(Option\) while dropping to move it anyway/)
+    expect(chip.textContent).not.toMatch(/force/i)
+
+    // Pointer over the lane: the instruction appears; ⌥ held: it becomes the release prompt.
+    const over = (altKey: boolean) => {
+      const ev = new Event('dragover', { bubbles: true, cancelable: true })
+      Object.defineProperty(ev, 'altKey', { value: altKey })
+      Object.defineProperty(ev, 'dataTransfer', { value: { types: [DRAG_MIME], dropEffect: '' } })
+      act(() => { calm.dispatchEvent(ev) })
+      return calm.querySelector('.jb-lane-head [role="note"]')!.textContent
+    }
+    expect(over(false)).toBe('No PR yetHold ⌥ to move anyway')
+    expect(over(true)).toBe('Release to move anyway')
+  })
+
+  it('a lane that can never take the card is red-less of any "anyway" (nothing to move anyway)', () => {
+    const dev = { key: 'D-1', title: 'Build it', type: 'Story', status: 'In Progress', column: 'prog' as const }
+    const waiting = { key: 'Q-1', title: 'Waiting', status: 'Ready for QA', column: 'qa' as const }
+    const s = render({ meta: COLUMN_META.qa, tickets: [waiting], onMove: () => {}, dragActive: true, dragged: dev })
+    expect(s.querySelector('.jb-lane-head [role="note"]')!.textContent).toBe('QA tickets only')
+    expect(s.querySelector('.jb-lane-head [role="note"]')!.textContent).not.toMatch(/anyway/)
   })
 
   it('the lane title is sticky, so it stays in view while the board scrolls', () => {
@@ -222,13 +241,15 @@ describe('Column — empty columns and the On Hold space', () => {
     expect(render({ meta: COLUMN_META.qa, onMove: () => {}, dragActive: true, dragged: qaTicket }).className).toContain('jb-col-drop')
   })
 
-  it('a gated zone says what is missing, refuses a plain drop, and takes a ⌥-drop as a force', () => {
+  it('a gated zone says what is missing, refuses a plain drop, and takes a ⌥-drop as a move-anyway', () => {
     const onMove = vi.fn()
     const dev = { key: 'D-1', title: 'Build it', type: 'Story', status: 'In Progress', column: 'prog' as const }
     const s = render({ meta: COLUMN_META.rev, onMove, dragActive: true, dragged: dev })
     expect(s.className).toContain('jb-col-drop') // a gate still opens the zone, to say why
-    expect(s.textContent).toContain('No pull request raised yet')
-    expect(s.textContent).toContain('⌥ + drop to force')
+    expect(s.textContent).toContain('No PR yet')
+    expect(s.textContent).toContain('anyway') // the drop zone has room for the hint
+    expect(s.textContent).not.toMatch(/force/i)
+    expect(s.querySelector('[title*="no pull request raised yet"]')).not.toBeNull() // the full sentence is the tooltip
     drop(s, 'D-1')
     expect(onMove).not.toHaveBeenCalled()
     drop(s, 'D-1', undefined, true)
@@ -261,7 +282,7 @@ describe('Column — empty columns and the On Hold space', () => {
     const qaTicket = { key: 'Q-2', title: 'QA: check', type: 'QA Task', status: 'Ready for QA', column: 'qa' as const }
     const busy = { key: 'B-1', title: 'Busy', status: 'In Progress', column: 'prog' as const }
     const s = render({ meta: COLUMN_META.prog, tickets: [busy], onMove, dragActive: true, dragged: qaTicket })
-    expect(s.textContent).toContain('QA tickets stay in the QA lane')
+    expect(s.textContent).toContain('QA tickets stay in QA')
     drop(s, 'Q-2', undefined, true)
     expect(onMove).not.toHaveBeenCalled()
   })
@@ -316,7 +337,7 @@ describe('Column — empty columns and the On Hold space', () => {
     act(() => root!.unmount())
     // A Next Sprint card may go to To Do, but not to In Progress.
     s = render({ meta: COLUMN_META.prog, onMove, dragActive: true, dragged: queuedTicket })
-    expect(s.textContent).toContain('Next Sprint: back to To Do only')
+    expect(s.textContent).toContain('Back to To Do only')
   })
 
   it('Next Sprint names each sprint and when it starts, one caption per group', () => {

@@ -98,11 +98,11 @@ describe('gates, force and undo', () => {
     expect(last(toast)[0]).toContain('(forced)')
   })
 
-  it('⌥ on drop asks to force rather than reporting a refusal', async () => {
+  it('⌥ on drop asks to move anyway rather than reporting a refusal', async () => {
     const { moves, toast } = mountMoves()
     await act(async () => moves().moveTicket(dev, 'done', { forceAsk: true }))
-    expect(last(toast)[0]).toMatch(/^Force D-1 to Done\?/)
-    expect(lastOpts(toast)!.action!.label).toBe('Force move')
+    expect(last(toast)[0]).toMatch(/^Move D-1 to Done anyway\?/)
+    expect(lastOpts(toast)!.action!.label).toBe('Move anyway')
   })
 
   it('a lane refusal can never be forced', async () => {

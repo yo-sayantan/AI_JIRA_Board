@@ -139,6 +139,12 @@ export interface MoveCheck {
   /** `lane`: never allowed. `gate`: a PR / QA rule — ⌥ on drop forces past it. null: allowed. */
   kind: 'lane' | 'gate' | null
   reason: string | null
+  /**
+   * The same refusal in a few words, for the note on the board (one line in a ~200px lane): "No PR yet", "#412 still
+   * open", "No PR and QA ticket found". `reason` stays the full sentence — the tooltip, the toast, and the wording the
+   * server (transition.py) mirrors — so this is UI-only. Unset: `shortReason` derives one.
+   */
+  short?: string
   /** Soft notes — the move still happens. */
   warnings: string[]
 }
@@ -169,20 +175,23 @@ export function checkMove(t: Ticket, to: MoveTarget, lookup?: TicketLookup): Mov
     if (t.parentKey) {
       // Unknown parent: the server reads it live.
       if (!parent || prListOf(parent).some(isOpenPr)) return { ...OK, warnings }
-      return { kind: 'gate', reason: `Can't move to In Review: no pull request of its own, and its parent ${t.parentKey} has no open one.`, warnings }
+      return { kind: 'gate', reason: `Can't move to In Review: no pull request of its own, and its parent ${t.parentKey} has no open one.`, short: `No PR here or on ${t.parentKey}`, warnings }
     }
-    return { kind: 'gate', reason: "Can't move to In Review: no pull request raised yet.", warnings }
+    return { kind: 'gate', reason: "Can't move to In Review: no pull request raised yet.", short: 'No PR yet', warnings }
   }
 
   if (to === 'done') {
     const problems: string[] = []
-    if (open.length) problems.push(`${open.map(prName).join(', ')} still open (merge or decline it)`)
-    else if (prs.length === 0 && !t.parentKey) problems.push('no pull request raised')
+    const openNames = open.map(prName).join(', ')
+    const noPr = !open.length && prs.length === 0 && !t.parentKey
+    if (open.length) problems.push(`${openNames} still open (merge or decline it)`)
+    else if (noPr) problems.push('no pull request raised')
     const qa = qaIssuesOf(t)
     const parentQa = parent ? qaIssuesOf(parent) : []
     const qaUnknown = !!t.parentKey && !parent
-    if (qa.length === 0 && parentQa.length === 0 && !qaUnknown) problems.push(t.parentKey ? 'no QA ticket raised (on it or its parent)' : 'no QA ticket raised')
-    if (problems.length) return { kind: 'gate', reason: `Can't move to Done: ${problems.join('; ')}.`, warnings }
+    const noQa = qa.length === 0 && parentQa.length === 0 && !qaUnknown
+    if (noQa) problems.push(t.parentKey ? 'no QA ticket raised (on it or its parent)' : 'no QA ticket raised')
+    if (problems.length) return { kind: 'gate', reason: `Can't move to Done: ${problems.join('; ')}.`, short: doneShort(openNames, noPr, noQa, !!t.parentKey), warnings }
   }
   return { ...OK, warnings }
 }
@@ -197,15 +206,25 @@ export function readinessOf(t: Ticket, lookup?: TicketLookup): { rev: MoveCheck 
   return { rev: beforeReview ? checkMove(t, 'rev', lookup) : null, done: checkMove(t, 'done', lookup) }
 }
 
+/** The Done gate in a few words: what is missing, one line, no instructions (those are in the tooltip). */
+function doneShort(openNames: string, noPr: boolean, noQa: boolean, sub: boolean): string {
+  if (noPr && noQa) return 'No PR and QA ticket found'
+  if (noPr) return 'No PR found'
+  if (openNames && noQa) return `${openNames} open · no QA ticket`
+  if (openNames) return `${openNames} still open`
+  return sub ? 'No QA ticket here or on parent' : 'No QA ticket found'
+}
+
 /** A refusal in a few words, for a narrow drop zone. The full reason is the zone's tooltip. */
 export function shortReason(c: MoveCheck): string {
   if (!c.reason) return ''
+  if (c.short) return c.short
   if (c.kind === 'lane') {
     if (c.reason.startsWith('Only QA')) return 'QA tickets only'
     if (c.reason === DONE_LOCKED) return 'Done is final'
-    if (c.reason.includes('Next Sprint ticket')) return 'Next Sprint: back to To Do only'
+    if (c.reason.includes('Next Sprint ticket')) return 'Back to To Do only'
     if (c.reason.startsWith('Only To Do')) return 'Not from here'
-    return 'QA tickets stay in the QA lane'
+    return 'QA tickets stay in QA'
   }
   const s = c.reason.replace(/^Can't move to [^:]+:\s*/, '').replace(/\.$/, '')
   return s.charAt(0).toUpperCase() + s.slice(1)

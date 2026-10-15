@@ -1,7 +1,7 @@
 import rules from '../../jira-intern/move_rules.json'
 import { describe, expect, it } from 'vitest'
 import type { Ticket } from '../types'
-import { checkMove, isQaTicket, laneBlocker, looksLikeQa, moveTargetOf, qaColumn, qaIssuesOf, readinessOf } from './moveRules'
+import { checkMove, isQaTicket, laneBlocker, looksLikeQa, moveTargetOf, qaColumn, qaIssuesOf, readinessOf, shortReason } from './moveRules'
 
 const dev: Ticket = { key: 'T-1', title: 'Build the export', type: 'Story', status: 'In Progress', column: 'prog' }
 const qaReady: Ticket = { key: 'Q-1', title: 'QA: verify the export', type: 'QA Task', status: 'Ready for QA', column: 'qa' }
@@ -219,5 +219,38 @@ describe('qaIssuesOf / readinessOf', () => {
     expect(readinessOf({ ...dev, column: 'rev' })?.rev).toBeNull()
     expect(readinessOf({ ...dev, column: 'done' })).toBeNull()
     expect(readinessOf(qaReady)).toBeNull()
+  })
+})
+
+describe('shortReason — one line on the board, the full sentence in the tooltip', () => {
+  const pr = (id: string, state: string) => ({ id, state, url: '', title: '' }) as unknown as NonNullable<Ticket['prs']>[number]
+  const qaSub = { key: 'T-9', title: 'QA: verify', type: 'Sub-task', status: 'To Do' } as NonNullable<Ticket['subtasks']>[number]
+
+  it('says "No PR and QA ticket found" when Done is missing both', () => {
+    const c = checkMove(dev, 'done')
+    expect(c.reason).toBe("Can't move to Done: no pull request raised; no QA ticket raised.") // unchanged: tooltip + server wording
+    expect(shortReason(c)).toBe('No PR and QA ticket found')
+  })
+
+  it('names the open PR, and adds the missing QA ticket on the same short line', () => {
+    expect(shortReason(checkMove({ ...dev, prs: [pr('412', 'open')] }, 'done'))).toBe('#412 open · no QA ticket')
+    expect(shortReason(checkMove({ ...dev, prs: [pr('412', 'open')], subtasks: [qaSub] }, 'done'))).toBe('#412 still open')
+  })
+
+  it('names what alone is missing', () => {
+    expect(shortReason(checkMove({ ...dev, subtasks: [qaSub] }, 'done'))).toBe('No PR found')
+    expect(shortReason(checkMove({ ...dev, prs: [pr('7', 'merged')] }, 'done'))).toBe('No QA ticket found')
+    expect(shortReason(checkMove(dev, 'rev'))).toBe('No PR yet')
+  })
+
+  it('every short form fits one line of a narrow lane (≤ 28 characters for a single PR id)', () => {
+    const cases = [
+      checkMove(dev, 'done'),
+      checkMove({ ...dev, prs: [pr('412', 'open')] }, 'done'),
+      checkMove(dev, 'rev'),
+      checkMove(qaReady, 'prog'),
+      checkMove(dev, 'qa'),
+    ]
+    for (const c of cases) expect(shortReason(c).length, shortReason(c)).toBeLessThanOrEqual(28)
   })
 })
