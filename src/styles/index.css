@@ -171,16 +171,16 @@ select.jb-field:disabled {
   border-color: color-mix(in srgb, var(--card-accent) 46%, var(--line));
   background-color: color-mix(in srgb, var(--card-accent) 8%, var(--surface-solid));
 }
-/* Board columns: width eases when an empty column folds to a rail or opens to a drop zone (flex-basis/grow/min-width are
-   the animatable parts of a flex column). */
+/* Board columns: width eases when an empty column folds to a rail or opens to a drop zone (flex-basis / grow / shrink /
+   min-width are the animatable parts of a flex column). Every part that changes with the drag is listed, or the board would
+   ease some columns and snap others — that mix was the jitter. It runs DURING a drag too: the zones that open are never
+   the ones under the pointer when the drag starts (that is the card's own column), and the move is over in a quarter second. */
 .jb-col {
   transition:
-    flex-basis 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    flex-grow 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-    min-width 0.32s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.jb-dragging .jb-col {
-  transition: none;
+    flex-basis 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    flex-grow 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    flex-shrink 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    min-width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .jb-col-rail .jb-rail-zone:hover {
   filter: saturate(1.4);

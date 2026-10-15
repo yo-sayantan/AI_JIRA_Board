@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BOARD_COLUMNS, MOVE_TARGETS, PIPELINE_COLUMNS, columnMode, isQaInProgress, mapStatusToColumn, qaStage } from './columns'
+import { BOARD_COLUMNS, MOVE_TARGETS, PIPELINE_COLUMNS, columnMode, isQaInProgress, mapStatusToColumn, qaStage, columnWidth } from './columns'
 import sharedTargets from '../../jira-intern/move_targets.json'
 
 describe('board columns', () => {
@@ -95,5 +95,57 @@ describe('quiet columns', () => {
     const hex = BOARD_COLUMNS.find((c) => c.key === 'todo')!.accent
     const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
     expect(Math.max(r, g, b) - Math.min(r, g, b)).toBeLessThanOrEqual(30)
+  })
+})
+
+describe('columnWidth', () => {
+  const shrink = (w: { flex: string }) => Number(w.flex.split(' ')[1])
+  const basis = (w: { flex: string }) => parseFloat(w.flex.split(' ')[2])
+  const min = (w: { minWidth: string }) => parseFloat(w.minWidth)
+
+  it('leaves rails and drop zones fixed, whatever the drag state', () => {
+    expect(columnWidth('rail', { calm: true })).toEqual(columnWidth('rail'))
+    expect(columnWidth('drop', { calm: true })).toEqual({ flex: '0 0 7.75rem', minWidth: '7.75rem' })
+  })
+
+  it('is unchanged at rest', () => {
+    expect(columnWidth('full')).toEqual({ flex: '1.45 1 15.75rem', minWidth: '15.25rem' })
+    expect(columnWidth('full', { slim: true })).toEqual({ flex: '0.55 1 12.25rem', minWidth: '11.75rem' })
+  })
+
+  it('keeps the basis and grow while calm, so only the give changes', () => {
+    for (const slim of [false, true]) {
+      const rest = columnWidth('full', { slim })
+      const calm = columnWidth('full', { slim, calm: true })
+      expect(basis(calm)).toBe(basis(rest))
+      expect(calm.flex.split(' ')[0]).toBe(rest.flex.split(' ')[0])
+    }
+  })
+
+  it('lets the full columns give up the width a drop zone needs, which they could not at rest', () => {
+    // Two empty columns opening is 2 × (7.75 − 3.5) rem. Three full + three slim columns must cover it between them.
+    const need = 2 * (7.75 - 3.5)
+    const full = columnWidth('full', { calm: true })
+    const slim = columnWidth('full', { slim: true, calm: true })
+    const restFull = columnWidth('full')
+    const restSlim = columnWidth('full', { slim: true })
+    const give = (c: { flex: string; minWidth: string }) => basis(c) - min(c)
+    expect(3 * give(full) + 3 * give(slim)).toBeGreaterThanOrEqual(need)
+    expect(3 * give(restFull) + 3 * give(restSlim)).toBeLessThan(need)
+  })
+
+  it('takes more from the wide columns than from the narrow ones, per column and per rem', () => {
+    const full = columnWidth('full', { calm: true })
+    const slim = columnWidth('full', { slim: true, calm: true })
+    // Flex shrinks in proportion to shrink × basis: that is each column's share of the shortfall.
+    const share = (c: { flex: string }) => shrink(c) * basis(c)
+    expect(share(full)).toBeGreaterThan(share(slim) * 2)
+    // Yet the narrow ones still take a little: they are compressed too, not exempt.
+    expect(shrink(slim)).toBeGreaterThan(0)
+  })
+
+  it('never lets a column shrink below something a card can live in', () => {
+    expect(min(columnWidth('full', { calm: true }))).toBeGreaterThanOrEqual(12)
+    expect(min(columnWidth('full', { slim: true, calm: true }))).toBeGreaterThanOrEqual(10)
   })
 })

@@ -162,6 +162,43 @@ describe('Column — empty columns and the On Hold space', () => {
     expect(onMove).not.toHaveBeenCalled()
   })
 
+  it('the note saying why a zone refuses the card eases in (a closed grid row), and takes no room at rest', () => {
+    const dev = { key: 'D-1', title: 'Build it', type: 'Story', status: 'In Progress', column: 'prog' as const }
+    const waiting = { key: 'Q-1', title: 'Waiting', status: 'Ready for QA', column: 'qa' as const }
+    const slot = (el: Element) => el.querySelector('[aria-hidden][style*="grid-template-rows"]') as HTMLElement
+    const rest = render({ meta: COLUMN_META.qa, tickets: [waiting], onMove: () => {} })
+    expect(slot(rest).style.gridTemplateRows).toBe('0fr')
+    expect(slot(rest).style.marginBottom).toBe('-0.5rem') // cancels the parent's gap: no room taken
+    expect(slot(rest).querySelector('[role="note"]')).toBeNull()
+    act(() => root!.unmount())
+    const dragging = render({ meta: COLUMN_META.qa, tickets: [waiting], onMove: () => {}, dragActive: true, dragged: dev })
+    expect(slot(dragging).style.gridTemplateRows).toBe('1fr')
+    expect(slot(dragging).style.marginBottom).toBe('0px')
+    expect(slot(dragging).querySelector('[role="note"]')).not.toBeNull()
+  })
+
+  it('keeps the last note while the slot folds away, instead of emptying it mid-animation', () => {
+    const dev = { key: 'D-1', title: 'Build it', type: 'Story', status: 'In Progress', column: 'prog' as const }
+    const waiting = { key: 'Q-1', title: 'Waiting', status: 'Ready for QA', column: 'qa' as const }
+    const props = { meta: COLUMN_META.qa, tickets: [waiting], now: Date.now(), onOpen: () => {}, onMove: () => {} }
+    const s = render({ ...props, dragActive: true, dragged: dev })
+    const note = s.querySelector('[role="note"]')!.textContent
+    act(() => root!.render(createElement(Column, { ...props, dragActive: false })))
+    const slot = s.querySelector('[aria-hidden][style*="grid-template-rows"]') as HTMLElement
+    expect(slot.style.gridTemplateRows).toBe('0fr')
+    expect(slot.getAttribute('aria-hidden')).toBe('true')
+    expect(slot.textContent).toBe(note)
+  })
+
+  it('while calm the full columns may shrink further, so an empty one opening never overflows the board', () => {
+    const waiting = { key: 'Q-1', title: 'Waiting', status: 'Ready for QA', column: 'qa' as const }
+    const at = (calm: boolean) => parseFloat(render({ meta: COLUMN_META.prog, tickets: [waiting], calm }).style.minWidth)
+    const rest = at(false)
+    act(() => root!.unmount())
+    const calm = at(true)
+    expect(calm).toBeLessThan(rest)
+  })
+
   it('an empty column the dragged ticket cannot use stays folded instead of opening a drop zone', () => {
     const dev = { key: 'D-1', title: 'Build it', type: 'Story', status: 'In Progress', column: 'prog' as const }
     expect(render({ meta: COLUMN_META.qa, onMove: () => {}, dragActive: true, dragged: dev }).className).toContain('jb-col-rail')

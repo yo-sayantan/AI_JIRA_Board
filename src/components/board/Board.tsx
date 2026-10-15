@@ -93,10 +93,10 @@ export const Board = memo(function Board({
   // The ticket being carried, so each zone can tell whether it may land there (QA lane rules).
   const [dragKey, setDragKey] = useState<string | null>(null)
   const dragActive = dragKey !== null
-  // For a moment after a drag ends the board stays "calm": column widths snap back instead of easing and cards
-  // do not animate their position. Dropping a card where it already was changes nothing in Jira, but the empty
-  // columns still fold back and every card shifts with them — with springs and a width transition running on
-  // top of each other that read as stutter.
+  // For a moment after a drag ends the board stays "calm": the full columns keep their extra give (so the empty
+  // ones fold back without a second re-flow) and cards do not animate their position. Dropping a card where it
+  // already was changes nothing in Jira, but the empty columns still fold back and every card shifts with them —
+  // with card springs on top of the width easing that read as stutter.
   const [settling, setSettling] = useState(false)
   const settleTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const endDrag = () => {
@@ -115,8 +115,9 @@ export const Board = memo(function Board({
     <div
       // Columns overlap their neighbours' gap by 6px a side (Column.tsx), so drop areas touch; the
       // container's matching padding keeps the first and last from being clipped. While a drag is in
-      // flight widths change instantly (jb-dragging): zones sliding under the pointer were why a hover
-      // sometimes "missed" and the drop felt late.
+      // flight (jb-dragging) the full columns may give up more width, unevenly — the wide ones most — and
+      // every width eases (index.css `.jb-col`), so the empty columns opening to drop zones never make the
+      // board overflow or the cards jump; cards hold still (calm) while that happens.
       className={`-mx-1.5 flex items-stretch gap-3 overflow-x-auto px-1.5 pb-3 ${calm ? 'jb-dragging' : ''}`}
       onDragStart={(e) => setDragKey((e.target as HTMLElement).closest?.('[data-ticket-key]')?.getAttribute('data-ticket-key') ?? '')}
       onDragEnd={endDrag}

@@ -192,6 +192,36 @@ export function columnMode(o: { count: number; held?: number; focused?: boolean;
   return o.dragging ? 'drop' : 'rail'
 }
 
+// ── Column widths ────────────────────────────────────────────────────────────
+// Every column carries 6px of invisible padding per side (Column.tsx) so the hit areas of neighbours touch — which is why
+// each width is 0.75rem more than what is drawn. Full columns come in two weights: the slim edges (To Do · QA · Done) start
+// narrower and grow less, so spare width goes to Blocked · In Progress · In Review, whose cards carry the most.
+//
+// While a card is dragged (or just after), every empty column opens from a 3.5rem rail to a 7.75rem drop zone, and that
+// width has to come from somewhere. At rest the full columns sit within half a rem of their minimum, so they had nothing
+// to give: the board overflowed sideways, a scrollbar came and went, and the rest of the layout jumped. So while "calm" the
+// full columns may give up more — and they give it UNEVENLY: the wide ones (flex-shrink 1.6, a bigger basis) shed most of
+// it, the slim ones only a little (0.75), so the cards that have room absorb the change and the narrow ones barely re-wrap.
+// The widths are eased (index.css `.jb-col`), so the change flows instead of snapping.
+export interface ColumnWidth {
+  flex: string
+  minWidth: string
+}
+const WIDTH: Record<ColumnMode, ColumnWidth> = {
+  full: { flex: '1.45 1 15.75rem', minWidth: '15.25rem' },
+  drop: { flex: '0 0 7.75rem', minWidth: '7.75rem' },
+  rail: { flex: '0 0 3.5rem', minWidth: '3.5rem' },
+}
+const WIDTH_SLIM: ColumnWidth = { flex: '0.55 1 12.25rem', minWidth: '11.75rem' }
+const WIDTH_CALM: ColumnWidth = { flex: '1.45 1.6 15.75rem', minWidth: '12.75rem' }
+const WIDTH_SLIM_CALM: ColumnWidth = { flex: '0.55 0.75 12.25rem', minWidth: '10.75rem' }
+
+export function columnWidth(mode: ColumnMode, o: { slim?: boolean; calm?: boolean } = {}): ColumnWidth {
+  if (mode !== 'full') return WIDTH[mode]
+  if (o.calm) return o.slim ? WIDTH_SLIM_CALM : WIDTH_CALM
+  return o.slim ? WIDTH_SLIM : WIDTH.full
+}
+
 // ── Move targets ─────────────────────────────────────────────────────────────
 // The rules that decide which moves are allowed (QA lane, Next Sprint, In Review / Done gates) live in
 // lib/moveRules.ts.

@@ -5,6 +5,11 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Dragging a ticket no longer makes the board jitter.** Empty columns (a Blocked or On Hold with nothing in it) open from a
+  thin rail to a drop zone when a drag starts, and they used to snap open: the full columns were already at their minimum
+  width, so the board overflowed sideways, and the "can't drop here" note popped into every refusing zone at full height, so the
+  whole board jumped taller. Now the width and the note both ease in and back out together, and the extra room is taken
+  unevenly — the wide columns (Blocked · In Progress · In Review) give up most, the narrow ones (To Do · QA · Done) only a little.
 - **Drawer: branch cards, Copy link, a small refresh, more glass.** Branches are small glass cards — click one to copy its
   name — coloured by PR state (indigo when there is no PR), replacing the long dark bars. **Copy link** copies the ticket's Jira
   URL (Copy ID when a row has none); the long gradient "Refresh status" is a small round refresh button. The quick actions, the
@@ -158,7 +163,7 @@ code does now, so a reader can check them against the tree.
   marked ⚠ (output above $10 per 1M); it used to appear only for models that advertised an effort parameter. A model
   without one gets the effort as guidance in the prompt.
 - **Smoother no-op drops.** Dropping a card back where it started no longer stutters: the board holds still
-  (columns snap, cards skip their position animation) during the drag and for a moment after, and the card fades back in.
+  (cards skip their position animation) during the drag and for a moment after, and the card fades back in.
 - **Done is final.** A ticket in Done can't be moved to another column: its card is not draggable, every zone refuses it, and `transition.py` refuses it too (never forcible). Only the Undo right after a move into Done can reopen it.
 - **Next Sprint is a drop target with its own rules.** Only To Do, Blocked, QA (ready) and On Hold tickets can
   be moved in — Jira: nearest dated future sprint, else the READY bucket, else REFINEMENT, status To Do — and a

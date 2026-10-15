@@ -175,11 +175,17 @@ ticket's branches, and that has its own status words):
   `PALETTE` in `PrReportPrint.tsx` (6-digit hex — the markup appends an alpha pair), not the board's `toneColor`, and keep
   every Light override scoped to `.jb-pdf.jb-deck-light`. A slide's content may never overflow its cell: table chips wrap.
 - Drag and drop: a zone must arm on `dragenter` as well as `dragover`, columns overlap their gap by 6px so
-  hit areas touch, widths do not animate while a drag is in flight (`jb-dragging`), and the carried card is a
-  translucent clone (`DRAG_GHOST_OPACITY`) so the drop zone shows through it. The board stays "calm"
-  (`Board.tsx::SETTLE_MS`: widths snap, cards skip `layout="position"`) during a drag and for 450 ms after it —
-  dropping a card back where it was changes nothing in Jira, but the columns re-flow, and a width
-  transition plus card springs on top of each other stuttered. The card itself fades back in (`ticket-card-return`).
+  hit areas touch, and the carried card is a translucent clone (`DRAG_GHOST_OPACITY`) so the drop zone shows through it.
+  The board stays "calm" (`Board.tsx::SETTLE_MS`: cards skip `layout="position"`, `jb-dragging`) during a drag and for
+  450 ms after it — dropping a card back where it was changes nothing in Jira, but the columns re-flow, and card springs on
+  top of width easing stuttered. The card itself fades back in (`ticket-card-return`).
+  **Nothing may snap when a drag starts or ends** (that was the jitter): empty columns open from a rail to a drop zone
+  (+4.25rem each), and that width has to come out of the full columns, which at rest sit within half a rem of their minimum.
+  So while calm `lib/columns.ts::columnWidth` lowers their `min-width` and raises `flex-shrink` — wide columns 1.6, slim ones
+  0.75, so the cards with room give up most and the narrow ones re-wrap least — and `.jb-col` eases EVERY property that
+  changes (basis, grow, shrink, min-width; list a new one there or some columns ease and others snap). The note a zone shows
+  when it refuses the dragged card (`DeniedSlot`) grows in with a CSS grid row `0fr → 1fr`, never a measured height — the
+  text re-wraps while the widths move, so a measured target ends short and the board snaps at the end.
 - Fixed-width right-hand "rails" in list rows (one width table shared by header + rows) so
   columns align to the pixel; labels truncate, never overflow.
 - Every icon-only button gets `aria-label`; toggles get `aria-pressed`; overlays are
