@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import type { ReportScope } from '../../lib/runner'
-
+import { hexToRgba } from '../../lib/format'
 import { APP_CONFIG } from '../../lib/appConfig'
 import { SparkleIcon } from '../common/Icons'
 import { ScopeMenu, StopButton, type MenuScope } from './ScopeMenu'
-import { lift, tint } from '../../lib/tone'
 
 const AI = '#a855f7'
 /** How long nothing may be generating before the next run counts as a new batch. */
@@ -34,7 +33,7 @@ function AiSpark({ busy }: { busy: boolean }) {
         animate={busy ? { scale: [1, 1.2, 0.94, 1.12, 1], rotate: [0, -14, 12, 0] } : { scale: 1, rotate: 0 }}
         transition={busy ? { duration: 1.35, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }}
       >
-        <SparkleIcon size={16} color={lift(AI)} />
+        <SparkleIcon size={16} color={AI} />
       </motion.span>
       {busy && (
         <>
@@ -117,7 +116,7 @@ export function ReportsMenu({ served, generating, withPrCount, reportCount, boar
               : "Generate PR Readiness Reports — all tickets with a pull request, the dashboard's tickets, a time window, or one ticket"
           }
           className="grid h-9 w-9 place-items-center rounded-xl border bg-[var(--surface-solid)] card-shadow hover:border-[var(--muted)]"
-          style={{ borderColor: busy ? tint(AI, 0.5) : 'var(--line)' }}
+          style={{ borderColor: busy ? hexToRgba(AI, 0.5) : 'var(--line)' }}
         >
           <AiSpark busy={busy > 0} />
         </motion.button>

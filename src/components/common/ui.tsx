@@ -2,10 +2,9 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import type { ColumnKey, PrState } from '../../types'
 import { COLUMN_META } from '../../lib/columns'
-import { priorityMeta, typeMeta, prMeta, branchStatusMeta } from '../../lib/format'
+import { priorityMeta, typeMeta, prMeta, hexToRgba, branchStatusMeta } from '../../lib/format'
 import { APP_CONFIG } from '../../lib/appConfig'
 import { PriorityIcon, TypeIcon, PrStateIcon, CopyIcon, CheckIcon, ICON_SCALE } from './Icons'
-import { lift, onFill, tint } from '../../lib/tone'
 
 export function Pill({
   children,
@@ -28,14 +27,14 @@ export function Pill({
   const style = filled
     ? {
         background: `linear-gradient(135deg, ${c}, color-mix(in srgb, ${c} 72%, #ffffff))`,
-        color: onFill(c),
+        color: '#fff',
         borderColor: 'transparent',
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.28), 0 1px 3px -1px ${tint(hex ? c : '#64748b', 0.55)}`,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.28), 0 1px 3px -1px ${hexToRgba(hex ? c : '#64748b', 0.55)}`,
       }
     : {
-        color: hex ? `color-mix(in srgb, ${lift(c)} 80%, var(--ink))` : c,
-        borderColor: tint(hex ? c : '#94a3b8', 0.34),
-        background: `linear-gradient(135deg, ${tint(hex ? c : '#bac2cd', 0.2)}, ${tint(hex ? c : '#bac2cd', 0.07)})`,
+        color: hex ? `color-mix(in srgb, ${c} 80%, var(--ink))` : c,
+        borderColor: hexToRgba(hex ? c : '#94a3b8', 0.34),
+        background: `linear-gradient(135deg, ${hexToRgba(hex ? c : '#bac2cd', 0.2)}, ${hexToRgba(hex ? c : '#bac2cd', 0.07)})`,
       }
   return (
     <span
@@ -52,7 +51,7 @@ export function StatusBadge({ column, label }: { column: ColumnKey; label: strin
   const accent = COLUMN_META[column]?.accent ?? '#64748b'
   return (
     <Pill color={accent} filled title={`Status: ${label}`}>
-      <span className="inline-block h-1.5 w-1.5 rounded-full bg-current opacity-85" />
+      <span className="inline-block h-1.5 w-1.5 rounded-full bg-white/85" />
       {label}
     </Pill>
   )
@@ -77,7 +76,7 @@ export function PriorityBadge({ priority }: { priority?: string | null }) {
   const m = priorityMeta(priority)
   return (
     <Pill color={m.color} title={`Priority: ${m.label}`}>
-      <PriorityIcon rank={m.rank} color={lift(m.color)} size={13} />
+      <PriorityIcon rank={m.rank} color={m.color} size={13} />
       {m.label}
     </Pill>
   )
@@ -95,7 +94,7 @@ export function PriorityGlyph({ priority, size = 16 }: { priority?: string | nul
       title={`Priority: ${m.label}`}
       aria-label={`${m.label} priority`}
     >
-      <PriorityIcon rank={m.rank} color={lift(m.color)} size={size} />
+      <PriorityIcon rank={m.rank} color={m.color} size={size} />
     </span>
   )
 }
@@ -105,7 +104,7 @@ export function TypeBadge({ type }: { type?: string | null }) {
   const m = typeMeta(type)
   return (
     <Pill color={m.color} title={`Type: ${type}`}>
-      <TypeIcon type={type} color={lift(m.color)} size={12} />
+      <TypeIcon type={type} color={m.color} size={12} />
       {type}
     </Pill>
   )
@@ -117,7 +116,7 @@ export function PrBadge({ state }: { state?: PrState | null }) {
   const m = prMeta(state)
   return (
     <Pill color={m.color} filled title={m.label}>
-      <PrStateIcon state={state} color="currentColor" size={12} />
+      <PrStateIcon state={state} color="#fff" size={12} />
       {m.label}
     </Pill>
   )
@@ -189,7 +188,7 @@ export function CopyButton({ text, label = 'Copy', className = '', icon, title }
       aria-live="polite"
       className={`glass-interactive inline-flex items-center gap-1.5 rounded-lg border border-[var(--line-strong)] bg-[var(--surface-solid)] px-2.5 py-1 text-[11px] font-medium text-[var(--ink-soft)] transition-colors hover:border-[var(--muted)] hover:text-[var(--ink)] ${className}`}
     >
-      {done ? <CheckIcon size={12} color={lift('#22c55e')} /> : failed ? <CopyIcon size={12} color={lift('#ef4444')} /> : (icon ?? <CopyIcon size={12} />)}
+      {done ? <CheckIcon size={12} color="#22c55e" /> : failed ? <CopyIcon size={12} color="#ef4444" /> : (icon ?? <CopyIcon size={12} />)}
       {done ? 'Copied' : failed ? 'Copy failed' : label}
       {failed && <span className="select-all font-mono text-[10px] text-[var(--muted)]">{text}</span>}
     </motion.button>
@@ -222,14 +221,14 @@ export function Approvals({ approvals }: { approvals?: number | null }) {
     <span
       className="inline-flex items-center gap-1 rounded-full border px-1.5 py-[2px] leading-none"
       title={`${n} of ${REQUIRED_APPROVALS} approvals${full ? ' — approved ✓' : ' — needs ' + (REQUIRED_APPROVALS - n) + ' more'}`}
-      style={{ borderColor: tint(color, 0.45), background: tint(color, 0.12) }}
+      style={{ borderColor: hexToRgba(color, 0.45), background: hexToRgba(color, 0.12) }}
     >
       <span className="inline-flex items-center gap-0.5">
         {Array.from({ length: REQUIRED_APPROVALS }).map((_, i) => (
           <ApprovalDot key={i} filled={i < n} />
         ))}
       </span>
-      <span className="text-[9.5px] font-bold tabular-nums" style={{ color: full ? lift('#22c55e') : 'var(--muted)' }}>
+      <span className="text-[9.5px] font-bold tabular-nums" style={{ color: full ? '#22c55e' : 'var(--muted)' }}>
         {n}/{REQUIRED_APPROVALS}
         {n > REQUIRED_APPROVALS ? `+${n - REQUIRED_APPROVALS}` : ''}
       </span>

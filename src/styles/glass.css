@@ -50,31 +50,29 @@
 }
 
 .dark {
-  /* Dark means DARK, not grey: the page is near-black, and the surfaces that float over it (sheets, menus, bars, wells) are
-     deeper still, so a popup reads as a hole in the glass rather than a grey card. Cards are a faint lift off the page. */
-  --bg: #07080a;
-  --bg-2: #0c0e11;
-  --surface-solid: rgba(255, 255, 255, 0.055);
-  --surface-2: rgba(255, 255, 255, 0.04);
-  --sheet: rgba(8, 9, 12, 0.9);
-  --pop: rgba(6, 7, 9, 0.985);
-  --bar: rgba(7, 8, 10, 0.74);
-  --field: rgba(0, 0, 0, 0.55);
-  --line: rgba(255, 255, 255, 0.12);
-  --line-strong: rgba(255, 255, 255, 0.22);
+  --bg: #0e1014;
+  --bg-2: #15181e;
+  --surface-solid: rgba(255, 255, 255, 0.065);
+  --surface-2: rgba(255, 255, 255, 0.045);
+  --sheet: rgba(28, 30, 36, 0.84);
+  --pop: rgba(30, 32, 38, 0.98);
+  --bar: rgba(22, 24, 30, 0.66);
+  --field: rgba(0, 0, 0, 0.32);
+  --line: rgba(255, 255, 255, 0.1);
+  --line-strong: rgba(255, 255, 255, 0.18);
   --spec: rgba(255, 255, 255, 0.2);
   --spec-soft: rgba(255, 255, 255, 0.05);
-  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 42%);
+  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0) 42%);
   --rim: linear-gradient(135deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.1) 30%, rgba(255, 255, 255, 0.03) 62%, rgba(255, 255, 255, 0.16) 100%);
   --pointer-spec: rgba(255, 255, 255, 0.1);
   --glass-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .045 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-  --glass-reflect: linear-gradient(115deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 26%);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 14px 36px -14px rgba(0, 0, 0, 0.75);
-  --shadow-sheet: 0 2px 6px rgba(0, 0, 0, 0.55), 0 34px 90px -24px rgba(0, 0, 0, 0.85);
-  --scrim: rgba(0, 0, 0, 0.62);
-  --close: #fca5a5;
-  --close-soft: rgba(248, 113, 113, 0.14);
-  --close-line: rgba(248, 113, 113, 0.55);
+  --glass-reflect: linear-gradient(115deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 26%);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 36px -14px rgba(0, 0, 0, 0.6);
+  --shadow-sheet: 0 2px 6px rgba(0, 0, 0, 0.45), 0 34px 90px -24px rgba(0, 0, 0, 0.7);
+  --scrim: rgba(0, 0, 0, 0.5);
+  --close: #f87171;
+  --close-soft: rgba(248, 113, 113, 0.12);
+  --close-line: rgba(248, 113, 113, 0.5);
 }
 
 /* ── Ambient background: a faint hint of colour for the glass to pick up — mostly white / near-black ─────────────── */
@@ -89,10 +87,10 @@ body {
 }
 .dark body {
   background:
-    radial-gradient(900px 640px at 4% -10%, rgba(99, 102, 241, 0.1), transparent 62%),
-    radial-gradient(780px 560px at 100% 0%, rgba(217, 70, 239, 0.05), transparent 60%),
-    radial-gradient(960px 720px at 76% 110%, rgba(20, 184, 166, 0.05), transparent 60%),
-    radial-gradient(720px 540px at -6% 96%, rgba(37, 99, 235, 0.07), transparent 60%),
+    radial-gradient(900px 640px at 4% -10%, rgba(99, 102, 241, 0.14), transparent 62%),
+    radial-gradient(780px 560px at 100% 0%, rgba(217, 70, 239, 0.07), transparent 60%),
+    radial-gradient(960px 720px at 76% 110%, rgba(20, 184, 166, 0.08), transparent 60%),
+    radial-gradient(720px 540px at -6% 96%, rgba(37, 99, 235, 0.1), transparent 60%),
     var(--bg);
   background-attachment: fixed;
 }
@@ -297,12 +295,12 @@ button[aria-label^='Close' i]:active {
     --line: rgba(15, 23, 42, 0.26);
   }
   .dark {
-    --surface-solid: #111317;
-    --surface-2: #1a1d22;
-    --sheet: #0b0c0f;
-    --pop: #0b0c0f;
-    --bar: #0b0c0f;
-    --field: #050607;
+    --surface-solid: #1d2027;
+    --surface-2: #262a32;
+    --sheet: #181b21;
+    --pop: #1d2027;
+    --bar: #181b21;
+    --field: #111318;
     --glass-sheen: none;
     --glass-grain: none;
     --glass-reflect: none;
@@ -328,9 +326,9 @@ button[aria-label^='Close' i]:active {
     --bar: rgba(255, 255, 255, 0.96);
   }
   .dark {
-    --surface-solid: rgba(17, 19, 23, 0.96);
-    --sheet: #0b0c0f;
-    --bar: rgba(9, 10, 12, 0.97);
+    --surface-solid: rgba(29, 32, 39, 0.96);
+    --sheet: #181b21;
+    --bar: rgba(24, 27, 33, 0.97);
   }
 }
 
@@ -355,12 +353,12 @@ html.jb-no-anim {
   --spec-soft: transparent;
 }
 html.dark.jb-no-anim {
-  --surface-solid: #121418;
-  --surface-2: #1a1d22;
-  --sheet: #0c0d10;
-  --pop: #0b0c0f;
-  --bar: #0c0d10;
-  --field: #050607;
+  --surface-solid: #1b1e24;
+  --surface-2: #23262d;
+  --sheet: #17191e;
+  --pop: #1d2027;
+  --bar: #17191e;
+  --field: #111318;
 }
 html.jb-no-anim body {
   background: var(--bg);

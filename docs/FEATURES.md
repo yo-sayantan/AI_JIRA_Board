@@ -307,9 +307,6 @@ rewritten when the evidence changes even though Jira's `updated` did not (`aiSum
   theme is animated from that button: going dark, the dark theme spreads out of it; going light, the dark folds back into it —
   through a soft radial gradient edge (View Transitions API, `lib/themeTransition.ts` + "Theme switch" in `styles/glass.css`).
   Without the API the colours cross-fade; with Motion & animations off, or the OS asking for reduced motion, it just switches.
-  **Dark theme:** near-black page with deeper sheets / menus / fields; the colour palette is shared with light, but every brand colour
-  painted as text, icon, line or wash is lifted to a readable tone in dark (`lib/tone.ts` → `--tone-lift` in `styles/dark.css`),
-  text selection and native controls follow the theme, and print / the PDF deck never lift.
 - `src/components/header/Header.tsx`, `ArchiveMenu.tsx`, `ReportsMenu.tsx`.
 
 ## API keys

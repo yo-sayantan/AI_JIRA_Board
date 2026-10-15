@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { CompletedTicket, Ticket } from '../../types'
-import { fmtDate, relTime, priorityMeta, projectOf, typeMeta, effectiveType, releaseEnvOf, yearOf, monthOf, branchesOf, branchStatusOf, prListOf, isMergedPr, isClosedPr, shortBranch, cycleTime, fmtDays } from '../../lib/format'
+import { fmtDate, relTime, priorityMeta, projectOf, typeMeta, effectiveType, releaseEnvOf, yearOf, monthOf, hexToRgba, branchesOf, branchStatusOf, prListOf, isMergedPr, isClosedPr, shortBranch, cycleTime, fmtDays } from '../../lib/format'
 import { matchRow, parseQuery } from '../../lib/search'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { Pill, PrBadge, BranchStatusPill, PointsTag, safeHref } from '../common/ui'
 import { BranchIcon, ChevronIcon, CommentIcon, ExpandAllIcon, PersonIcon, PrStateIcon, SearchIcon, SparkleIcon, TrophyIcon, TypeIcon } from '../common/Icons'
-import { lift, tint } from '../../lib/tone'
 
 const DONE = '#22c55e'
 const CONTEXT = '#8b5cf6' // parent tickets owned by others, shown for lineage
@@ -225,12 +224,12 @@ export function CompletedOverlay({
             {/* hero header: title + at-a-glance stat band */}
             <div
               className="shrink-0 border-b border-[var(--line)]"
-              style={{ background: `radial-gradient(120% 140% at 0% 0%, ${tint(DONE, 0.2)}, ${tint(DONE, 0.05)} 42%, transparent 78%)` }}
+              style={{ background: `radial-gradient(120% 140% at 0% 0%, ${hexToRgba(DONE, 0.2)}, ${hexToRgba(DONE, 0.05)} 42%, transparent 78%)` }}
             >
               <div className="flex items-center gap-3.5 px-6 pt-5 sm:gap-4">
                 <span
                   className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl"
-                  style={{ background: `linear-gradient(140deg, ${tint(DONE, 0.3)}, ${tint(DONE, 0.1)})`, boxShadow: `inset 0 0 0 1px ${tint(DONE, 0.4)}, 0 10px 26px -14px ${DONE}` }}
+                  style={{ background: `linear-gradient(140deg, ${hexToRgba(DONE, 0.3)}, ${hexToRgba(DONE, 0.1)})`, boxShadow: `inset 0 0 0 1px ${hexToRgba(DONE, 0.4)}, 0 10px 26px -14px ${DONE}` }}
                 >
                   <TrophyIcon size={24} glint />
                 </span>
@@ -250,7 +249,7 @@ export function CompletedOverlay({
                         {showContext && contextCount > 0 && (
                           <span title="Parent tickets owned by someone else, shown because you delivered a sub-ticket under them. Not counted in your totals — use “Mine only” to hide them.">
                             {' · '}
-                            <b style={{ color: lift(CONTEXT) }}>+{contextCount}</b> parent{contextCount === 1 ? '' : 's'} for context
+                            <b style={{ color: CONTEXT }}>+{contextCount}</b> parent{contextCount === 1 ? '' : 's'} for context
                           </span>
                         )}
                       </>
@@ -268,10 +267,10 @@ export function CompletedOverlay({
               {!empty && (
                 <div className="grid grid-cols-2 gap-2.5 px-6 pb-5 pt-4 sm:grid-cols-3 lg:grid-cols-5">
                   <StatTile n={mineItems.length} label="Tickets done" color={DONE} icon={<TrophyIcon size={14} />} />
-                  <StatTile n={totalPts} label="Story points" color={'#3b82f6'} icon={<SparkleIcon size={14} color={lift('#3b82f6')} />} />
-                  <StatTile n={stats.merged} label="PRs merged" color={CONTEXT} icon={<PrStateIcon state="merged" color={lift(CONTEXT)} size={14} />} />
-                  <StatTile n={stats.releases} label="Releases" color={'#ec4899'} icon={<TypeIcon type="Release" color={lift('#ec4899')} size={14} />} />
-                  <StatTile n={stats.onboarding} label="Onboarding" color={'#84cc16'} icon={<TypeIcon type="Onboarding" color={lift('#84cc16')} size={14} />} />
+                  <StatTile n={totalPts} label="Story points" color="#3b82f6" icon={<SparkleIcon size={14} color="#3b82f6" />} />
+                  <StatTile n={stats.merged} label="PRs merged" color={CONTEXT} icon={<PrStateIcon state="merged" color={CONTEXT} size={14} />} />
+                  <StatTile n={stats.releases} label="Releases" color="#ec4899" icon={<TypeIcon type="Release" color="#ec4899" size={14} />} />
+                  <StatTile n={stats.onboarding} label="Onboarding" color="#84cc16" icon={<TypeIcon type="Onboarding" color="#84cc16" size={14} />} />
                 </div>
               )}
             </div>
@@ -312,7 +311,7 @@ export function CompletedOverlay({
                       <div className="ml-auto flex items-center gap-2.5">
                         {filtering && (
                           <span className="text-[11.5px] font-semibold tabular-nums text-[var(--muted)]">
-                            <b style={{ color: lift(DONE) }}>{filtered.length}</b> of {items.length}
+                            <b style={{ color: DONE }}>{filtered.length}</b> of {items.length}
                           </span>
                         )}
                         {contextCount > 0 && (
@@ -328,7 +327,7 @@ export function CompletedOverlay({
                             style={
                               showContext
                                 ? { borderColor: 'var(--line)', background: 'var(--surface-solid)', color: 'var(--ink-soft)' }
-                                : { borderColor: tint(CONTEXT, 0.5), background: tint(CONTEXT, 0.08), color: lift(CONTEXT) }
+                                : { borderColor: hexToRgba(CONTEXT, 0.5), background: hexToRgba(CONTEXT, 0.08), color: CONTEXT }
                             }
                           >
                             <PersonIcon size={13} />
@@ -368,7 +367,7 @@ export function CompletedOverlay({
                       <span className="mx-1 h-5 w-px shrink-0 bg-[var(--line-strong)]" aria-hidden />
                       {types.map(([t, n]) => (
                         <FilterChip key={t} active={typ === t} color={typeMeta(t).color} onClick={() => setTyp(typ === t ? null : t)} n={n} title={`Only ${t} tickets`}>
-                          <TypeIcon type={t} color={lift(typ === t ? typeMeta(t).color : 'currentColor')} size={11} />
+                          <TypeIcon type={t} color={typ === t ? typeMeta(t).color : 'currentColor'} size={11} />
                           {t}
                         </FilterChip>
                       ))}
@@ -386,17 +385,17 @@ export function CompletedOverlay({
                         <div key={year}>
                           <div className="mb-3 flex items-center gap-3 px-1">
                             <span className="text-[19px] font-black tracking-tight text-[var(--ink)]">{year}</span>
-                            <span className="rounded-full px-2.5 py-[3px] text-[11px] font-extrabold tabular-nums" style={{ color: lift(DONE), background: tint(DONE, 0.14) }}>
+                            <span className="rounded-full px-2.5 py-[3px] text-[11px] font-extrabold tabular-nums" style={{ color: DONE, background: hexToRgba(DONE, 0.14) }}>
                               {count}
                             </span>
-                            <span className="h-px flex-1" style={{ background: `linear-gradient(90deg, ${tint(DONE, 0.35)}, transparent)` }} />
+                            <span className="h-px flex-1" style={{ background: `linear-gradient(90deg, ${hexToRgba(DONE, 0.35)}, transparent)` }} />
                           </div>
                           <div className="flex flex-col gap-5">
                             {months.map((m, mi) => (
                               <div key={`${m.label}-${mi}`}>
                                 {m.label && (
                                   <div className="mb-2 flex items-center gap-2 px-1">
-                                    <span className="h-3 w-1 rounded-full" style={{ background: tint(DONE, 0.5) }} aria-hidden />
+                                    <span className="h-3 w-1 rounded-full" style={{ background: hexToRgba(DONE, 0.5) }} aria-hidden />
                                     <span className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-[var(--ink-soft)]">{m.label}</span>
                                     <span className="text-[11px] font-semibold tabular-nums text-[var(--muted)]">{m.rows.length}</span>
                                   </div>
@@ -467,7 +466,7 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
         borderLeftColor: tm.color,
         // A context parent (owned by someone else) gets a faint tint rather than reduced
         // opacity — still fully legible, but instantly distinguishable from my own tickets.
-        background: mine ? 'var(--surface-solid)' : tint(CONTEXT, 0.05),
+        background: mine ? 'var(--surface-solid)' : hexToRgba(CONTEXT, 0.05),
       }}
     >
       <div className="flex items-center gap-2.5 px-3 py-2.5">
@@ -484,8 +483,8 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
         </button>
 
         <button onClick={onOpen} className="group flex min-w-0 flex-1 items-center gap-2.5 text-left" title="Open full ticket details">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: tint(tm.color, 0.14), boxShadow: `inset 0 0 0 1px ${tint(tm.color, 0.22)}` }} title={et || 'Ticket'}>
-            <TypeIcon type={et} color={lift(tm.color)} size={15} />
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: hexToRgba(tm.color, 0.14), boxShadow: `inset 0 0 0 1px ${hexToRgba(tm.color, 0.22)}` }} title={et || 'Ticket'}>
+            <TypeIcon type={et} color={tm.color} size={15} />
           </span>
           {/* Fixed-width key + points columns so every title starts at the same x. */}
           <span className="w-[104px] shrink-0 whitespace-nowrap font-mono text-[12.5px] font-extrabold" style={{ color: 'var(--link)' }}>
@@ -501,7 +500,7 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
           {it.parentKey && (
             <span
               className="hidden shrink-0 items-center gap-0.5 rounded-md border px-1.5 py-[2px] font-mono text-[10px] font-bold lg:inline-flex"
-              style={{ borderColor: tint(SUB, 0.35), color: lift(SUB), background: tint(SUB, 0.09) }}
+              style={{ borderColor: hexToRgba(SUB, 0.35), color: SUB, background: hexToRgba(SUB, 0.09) }}
               title={`Sub-ticket of ${it.parentKey}${it.parentTitle ? ` — ${it.parentTitle}` : ''}`}
             >
               ↳ {it.parentKey}
@@ -510,7 +509,7 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
           {subs.length > 0 && (
             <span
               className="hidden shrink-0 rounded-md border px-1.5 py-[2px] text-[10px] font-bold lg:inline"
-              style={{ borderColor: tint(SUB, 0.35), color: lift(SUB), background: tint(SUB, 0.09) }}
+              style={{ borderColor: hexToRgba(SUB, 0.35), color: SUB, background: hexToRgba(SUB, 0.09) }}
               title={`${subs.length} sub-ticket${subs.length === 1 ? '' : 's'} — expand to see owners and reviews`}
             >
               {subs.length} sub
@@ -519,10 +518,10 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
           {!mine && (
             <span
               className="hidden shrink-0 items-center gap-1 rounded-md border px-1.5 py-[2px] text-[10px] font-bold lg:inline-flex"
-              style={{ borderColor: tint(CONTEXT, 0.4), color: lift(CONTEXT), background: tint(CONTEXT, 0.1) }}
+              style={{ borderColor: hexToRgba(CONTEXT, 0.4), color: CONTEXT, background: hexToRgba(CONTEXT, 0.1) }}
               title={`Parent ticket${it.assignee ? ` owned by ${it.assignee}` : ''} — shown because you delivered a sub-ticket under it`}
             >
-              <PersonIcon size={9} color={lift(CONTEXT)} />
+              <PersonIcon size={9} color={CONTEXT} />
               context
             </span>
           )}
@@ -540,7 +539,7 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
           </span>
           <span className="flex justify-center" style={{ width: RAIL.env }}>
             {env && (
-              <span className="rounded-full border px-2 py-[2px] text-[10px] font-extrabold uppercase tracking-wide" style={{ borderColor: tint(env.color, 0.5), color: lift(env.color), background: tint(env.color, 0.12) }}>
+              <span className="rounded-full border px-2 py-[2px] text-[10px] font-extrabold uppercase tracking-wide" style={{ borderColor: hexToRgba(env.color, 0.5), color: env.color, background: hexToRgba(env.color, 0.12) }}>
                 {env.label}
               </span>
             )}
@@ -548,8 +547,8 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
           <span className="flex items-center justify-center gap-0.5" style={{ width: RAIL.pr }} title={prs.length ? `${prs.length} pull request${prs.length === 1 ? '' : 's'}${anyMerged ? ' — merged' : ' — none merged'}` : undefined}>
             {prs.length > 0 && (
               <>
-                <PrStateIcon state={anyMerged ? 'merged' : undefined} color={lift(anyMerged ? PR_PURPLE : '#dc2626')} size={14} />
-                {prs.length > 1 && <b className="text-[10px] tabular-nums" style={{ color: lift(anyMerged ? PR_PURPLE : '#dc2626') }}>{prs.length}</b>}
+                <PrStateIcon state={anyMerged ? 'merged' : undefined} color={anyMerged ? PR_PURPLE : '#dc2626'} size={14} />
+                {prs.length > 1 && <b className="text-[10px] tabular-nums" style={{ color: anyMerged ? PR_PURPLE : '#dc2626' }}>{prs.length}</b>}
               </>
             )}
           </span>
@@ -673,7 +672,7 @@ function SubRow({ s, onOpen }: { s: Ticket; onOpen: () => void }) {
           {owner}
         </span>
       )}
-      <span className="shrink-0 text-[10.5px] font-bold" style={{ color: s.done ? lift(DONE) : 'var(--muted)' }}>
+      <span className="shrink-0 text-[10.5px] font-bold" style={{ color: s.done ? DONE : 'var(--muted)' }}>
         {s.status}
       </span>
       {prs.map((p, i) => (
@@ -703,9 +702,9 @@ function FilterChip({ active, color, onClick, n, title, children }: { active: bo
       aria-pressed={active}
       className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors"
       style={{
-        borderColor: active ? tint(color, 0.5) : 'var(--line)',
-        color: active ? lift(color) : 'var(--muted)',
-        background: active ? tint(color, 0.12) : 'var(--surface-solid)',
+        borderColor: active ? hexToRgba(color, 0.5) : 'var(--line)',
+        color: active ? color : 'var(--muted)',
+        background: active ? hexToRgba(color, 0.12) : 'var(--surface-solid)',
       }}
     >
       {children}
@@ -718,11 +717,11 @@ function StatTile({ n, label, color, icon }: { n: number; label: string; color: 
   return (
     <div
       className="rounded-2xl border px-3.5 py-2.5 transition-transform hover:-translate-y-0.5"
-      style={{ borderColor: tint(color, 0.28), background: `linear-gradient(150deg, ${tint(color, 0.14)}, ${tint(color, 0.05)})` }}
+      style={{ borderColor: hexToRgba(color, 0.28), background: `linear-gradient(150deg, ${hexToRgba(color, 0.14)}, ${hexToRgba(color, 0.05)})` }}
     >
       <div className="flex items-center gap-1.5">
         <span className="inline-flex">{icon}</span>
-        <span className="text-[22px] font-black leading-none tabular-nums" style={{ color: lift(color) }}>
+        <span className="text-[22px] font-black leading-none tabular-nums" style={{ color }}>
           {n}
         </span>
       </div>

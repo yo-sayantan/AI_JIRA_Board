@@ -10,7 +10,7 @@ import type {
   ReportTone,
 } from '../../lib/reportTypes'
 import { toneColor, worstTone } from '../../lib/reportTypes'
-import { fmtDateTime, fmtReportMetadata } from '../../lib/format'
+import { fmtDateTime, fmtReportMetadata, hexToRgba } from '../../lib/format'
 import { APP_CONFIG } from '../../lib/appConfig'
 import { PrinterIcon, RefreshIcon, SparkleIcon } from '../common/Icons'
 import { PrReportPrintDoc } from './PrReportPrint'
@@ -20,7 +20,6 @@ import type { AiInternStatus } from '../../lib/runner'
 import { hrefForKey, shareableLinks } from '../../lib/reportLinks'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { isSafeUrl, safeHref } from '../common/ui'
-import { lift, tint } from '../../lib/tone'
 
 /**
  * PR Readiness Report overlay — renders a report GENERICALLY from its block kinds, so the
@@ -138,7 +137,7 @@ export function PrReportOverlay({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Verdict-coloured top bar */}
-            <div className="h-1.5 w-full rounded-t-2xl" style={{ background: `linear-gradient(90deg, ${vc}, ${tint(vc, 0.2)})` }} />
+            <div className="h-1.5 w-full rounded-t-2xl" style={{ background: `linear-gradient(90deg, ${vc}, ${hexToRgba(vc, 0.2)})` }} />
 
             {/* Header */}
             <header className="flex flex-wrap items-start gap-3 border-b border-[var(--line)] px-5 py-4 lg:px-8">
@@ -159,9 +158,9 @@ export function PrReportOverlay({
                   )}
                   <ProvenanceChip provenance={report.enriched ? 'ai' : 'derived'} big />
                   {generating && (
-                    <span className="inline-flex items-center gap-1 rounded-full border px-1.5 py-[2px] text-[10.5px] font-semibold normal-case tracking-normal" style={{ color: lift('#a855f7'), borderColor: tint('#a855f7', 0.4), background: tint('#a855f7', 0.1) }}>
+                    <span className="inline-flex items-center gap-1 rounded-full border px-1.5 py-[2px] text-[10.5px] font-semibold normal-case tracking-normal" style={{ color: '#a855f7', borderColor: hexToRgba('#a855f7', 0.4), background: hexToRgba('#a855f7', 0.1) }}>
                       <motion.span className="inline-flex" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}>
-                        <SparkleIcon size={9} color={lift('#a855f7')} />
+                        <SparkleIcon size={9} color="#a855f7" />
                       </motion.span>
                       AI report generating…
                     </span>
@@ -200,7 +199,7 @@ export function PrReportOverlay({
                   {v && (
                     <span
                       className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-extrabold"
-                      style={{ color: lift(vc), borderColor: tint(vc, 0.5), background: tint(vc, 0.14) }}
+                      style={{ color: vc, borderColor: hexToRgba(vc, 0.5), background: hexToRgba(vc, 0.14) }}
                     >
                       <span className="inline-block h-2 w-2 rounded-full" style={{ background: vc }} />
                       {v.label}
@@ -278,15 +277,15 @@ export function PrReportOverlay({
                     }}
                     className="relative flex shrink-0 items-center gap-2 rounded-t-lg px-3.5 py-2 text-[12.5px] font-semibold transition-colors"
                     style={{
-                      color: on ? lift(c) : 'var(--ink-soft)',
-                      background: on ? tint(c, 0.12) : 'transparent',
+                      color: on ? c : 'var(--ink-soft)',
+                      background: on ? hexToRgba(c, 0.12) : 'transparent',
                       boxShadow: on ? `inset 0 -2px 0 ${c}` : 'none',
                     }}
                   >
                     <span className="inline-block h-2 w-2 rounded-full" style={{ background: c }} />
                     {t.title}
                     {t.badge != null && t.badge !== '' && (
-                      <span className="rounded-full px-1.5 text-[10px] font-bold tabular-nums" style={{ color: lift(c), background: tint(c, 0.16) }}>
+                      <span className="rounded-full px-1.5 text-[10px] font-bold tabular-nums" style={{ color: c, background: hexToRgba(c, 0.16) }}>
                         {t.badge}
                       </span>
                     )}
@@ -323,7 +322,7 @@ export function PrReportOverlay({
                 {report.generator ? ` · ${report.generator}` : ''}
               </span>
               {internStatus && (
-                <span className={internStatus.down ? 'text-[#dc2626] dark:text-[#f87171]' : internStatus.state === 'working' ? 'text-[#a855f7] dark:text-[#c084fc]' : ''}>
+                <span className={internStatus.down ? 'text-[#dc2626]' : internStatus.state === 'working' ? 'text-[#a855f7]' : ''}>
                   {internStatus.down
                     ? 'AI intern is down'
                     : internStatus.state === 'working' && internStatus.current?.key
@@ -337,7 +336,7 @@ export function PrReportOverlay({
               )}
               {report.sources && <span className="min-w-0 truncate">Sources: {report.sources}</span>}
               {report.warnings && report.warnings.length > 0 && (
-                <span className="basis-full text-[#b45309] dark:text-[#fbbf24]">⚠ {report.warnings.join(' · ')}</span>
+                <span className="basis-full text-[#b45309]">⚠ {report.warnings.join(' · ')}</span>
               )}
             </footer>
           </motion.section>
@@ -412,8 +411,8 @@ function ScoreRing({ score, color }: { score: number; color: string }) {
   return (
     <span className="relative grid h-10 w-10 place-items-center" title={`Readiness score ${pct}/100`}>
       <svg width="40" height="40" viewBox="0 0 40 40" className="-rotate-90">
-        <circle cx="20" cy="20" r={r} stroke={tint(color, 0.18)} strokeWidth="4" fill="none" />
-        <circle cx="20" cy="20" r={r} stroke={lift(color)} strokeWidth="4" fill="none" strokeLinecap="round" strokeDasharray={`${(pct / 100) * c} ${c}`} />
+        <circle cx="20" cy="20" r={r} stroke={hexToRgba(color, 0.18)} strokeWidth="4" fill="none" />
+        <circle cx="20" cy="20" r={r} stroke={color} strokeWidth="4" fill="none" strokeLinecap="round" strokeDasharray={`${(pct / 100) * c} ${c}`} />
       </svg>
       <span className="absolute text-[11px] font-extrabold tabular-nums" style={{ color }}>
         {pct}
@@ -438,7 +437,7 @@ function StatChip({ stat, first }: { stat: ReportStat; first?: boolean }) {
     >
       {active && <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: c }} />}
       <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--muted)]">{stat.label}</span>
-      <span className="text-[13px] font-extrabold tabular-nums" style={{ color: active ? lift(c) : 'var(--ink)' }}>
+      <span className="text-[13px] font-extrabold tabular-nums" style={{ color: active ? c : 'var(--ink)' }}>
         {stat.value}
       </span>
     </span>
@@ -456,10 +455,10 @@ function ProvenanceChip({ provenance, big }: { provenance?: ReportProvenance | n
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full border px-1.5 font-semibold normal-case tracking-normal ${big ? 'py-[2px] text-[10.5px]' : 'py-px text-[9.5px]'}`}
-      style={{ color: lift(meta.color), borderColor: tint(meta.color, 0.4), background: tint(meta.color, 0.1) }}
+      style={{ color: meta.color, borderColor: hexToRgba(meta.color, 0.4), background: hexToRgba(meta.color, 0.1) }}
       title={meta.title}
     >
-      {p === 'ai' && <SparkleIcon size={9} color={lift(meta.color)} />}
+      {p === 'ai' && <SparkleIcon size={9} color={meta.color} />}
       {meta.label}
     </span>
   )
@@ -468,11 +467,11 @@ function ProvenanceChip({ provenance, big }: { provenance?: ReportProvenance | n
 function BlockShell({ block, children }: { block: ReportBlock; children: ReactNode }) {
   const c = toneColor(block.tone)
   return (
-    <section className="overflow-hidden rounded-xl border" style={{ borderColor: tint(c, 0.35) }}>
+    <section className="overflow-hidden rounded-xl border" style={{ borderColor: hexToRgba(c, 0.35) }}>
       {(block.title || block.provenance) && (
-        <div className="flex items-center gap-2 border-b px-3.5 py-2" style={{ borderColor: tint(c, 0.25), background: tint(c, 0.07) }}>
+        <div className="flex items-center gap-2 border-b px-3.5 py-2" style={{ borderColor: hexToRgba(c, 0.25), background: hexToRgba(c, 0.07) }}>
           <span className="inline-block h-2 w-2 rounded-full" style={{ background: c }} />
-          <span className="text-[12px] font-bold" style={{ color: lift(c) }}>
+          <span className="text-[12px] font-bold" style={{ color: c }}>
             {block.title}
           </span>
           <span className="ml-auto">
@@ -481,12 +480,12 @@ function BlockShell({ block, children }: { block: ReportBlock; children: ReactNo
         </div>
       )}
       <div className="bg-[var(--surface-solid)]">{children}</div>
-      {block.note && <div className="border-t px-3.5 py-1.5 text-[10.5px] text-[var(--muted)]" style={{ borderColor: tint(c, 0.2) }}>{block.note}</div>}
+      {block.note && <div className="border-t px-3.5 py-1.5 text-[10.5px] text-[var(--muted)]" style={{ borderColor: hexToRgba(c, 0.2) }}>{block.note}</div>}
     </section>
   )
 }
 
-const toneText = (t?: ReportTone | null) => (t && t !== 'neutral' ? lift(toneColor(t)) : 'var(--ink)')
+const toneText = (t?: ReportTone | null) => (t && t !== 'neutral' ? toneColor(t) : 'var(--ink)')
 
 function Block({ block, report }: { block: ReportBlock; report: PrReport }) {
   switch (block.kind) {
@@ -495,7 +494,7 @@ function Block({ block, report }: { block: ReportBlock; report: PrReport }) {
       const tinted = block.tone && block.tone !== 'neutral'
       return (
         <BlockShell block={block}>
-          <div style={tinted ? { background: tint(c, 0.05) } : undefined}>
+          <div style={tinted ? { background: hexToRgba(c, 0.05) } : undefined}>
             <ReportHtml html={block.body} report={report} className="px-3.5 py-3 text-[13.5px] leading-relaxed text-[var(--ink-soft)]" />
           </div>
         </BlockShell>
@@ -529,7 +528,7 @@ function Block({ block, report }: { block: ReportBlock; report: PrReport }) {
                 {block.rows.map((r, i) => {
                   const c = toneColor(r.tone)
                   return (
-                    <tr key={i} className="align-top" style={{ background: r.tone && r.tone !== 'neutral' ? tint(c, 0.06) : undefined, boxShadow: `inset 3px 0 0 ${r.tone ? c : 'transparent'}` }}>
+                    <tr key={i} className="align-top" style={{ background: r.tone && r.tone !== 'neutral' ? hexToRgba(c, 0.06) : undefined, boxShadow: `inset 3px 0 0 ${r.tone ? c : 'transparent'}` }}>
                       {r.cells.map((cell, j) => (
                         <td key={j} className="border-b border-[var(--line)] px-3.5 py-2 text-[var(--ink-soft)]" style={j === 0 ? { fontWeight: 600, color: 'var(--ink)' } : undefined}>
                           <ReportHtml html={cell} report={report} inline />
@@ -557,7 +556,7 @@ function Block({ block, report }: { block: ReportBlock; report: PrReport }) {
                       <ReportHtml html={card.title} report={report} inline />
                     </span>
                     {card.badge && (
-                      <span className="shrink-0 rounded-full px-2 py-[2px] text-[10px] font-bold" style={{ color: lift(c), background: tint(c, 0.16) }}>
+                      <span className="shrink-0 rounded-full px-2 py-[2px] text-[10px] font-bold" style={{ color: c, background: hexToRgba(c, 0.16) }}>
                         {card.badge}
                       </span>
                     )}
@@ -571,7 +570,7 @@ function Block({ block, report }: { block: ReportBlock; report: PrReport }) {
                 </>
               )
               const cls = 'block rounded-lg border p-3 transition'
-              const style = { ...tileStyle(cols, 260, 12), borderColor: tint(c, 0.35), background: tint(c, 0.05) }
+              const style = { ...tileStyle(cols, 260, 12), borderColor: hexToRgba(c, 0.35), background: hexToRgba(c, 0.05) }
               const cardHref = safeHref(card.href)
               return cardHref ? (
                 <a key={i} href={cardHref} target="_blank" rel="noopener noreferrer" className={`${cls} hover:-translate-y-px hover:brightness-105`} style={style}>
@@ -595,7 +594,7 @@ function Block({ block, report }: { block: ReportBlock; report: PrReport }) {
             {block.items.map((it, i) => (
               <li key={i} className="flex items-start gap-2 py-0.5 text-[var(--ink-soft)]">
                 {!block.ordered && <span className="mt-[7px] inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: toneColor(it.tone) }} />}
-                <span style={{ color: it.tone === 'danger' ? lift(toneColor('danger')) : undefined }}>
+                <span style={{ color: it.tone === 'danger' ? toneColor('danger') : undefined }}>
                   <ReportHtml html={it.text} report={report} inline />
                 </span>
               </li>

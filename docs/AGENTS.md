@@ -32,7 +32,7 @@ AI agent to make a correct change without re-deriving the architecture.
 | `src/` | React 19 + Tailwind v4 + Motion app → built into ONE `dist/index.html` (vite-plugin-singlefile). |
 | `src/types.ts` | **THE CONTRACT** — `Ticket`, `CompletedTicket`, `RaisedTicket`, `JiraData`, adapters. |
 | `src/data.ts` | Dump → board rules (normalise columns, retire old Done tickets, merge user-archived keys). |
-| `src/lib/` | Pure logic: `boardView` (derivations/index), `search` (query grammar), `columns` (status→column), `format` (every display helper), `tone` (theme-aware colour: `lift` / `tint` / `onFill`), `runner` (typed API client), `settings` (feature registry), `statusPoller`. |
+| `src/lib/` | Pure logic: `boardView` (derivations/index), `search` (query grammar), `columns` (status→column), `format` (every display helper), `runner` (typed API client), `settings` (feature registry), `statusPoller`. |
 | `src/hooks/` | Stateful glue: `useBoardData`, `useInternJobs` (daily/archive/raised/per-ticket jobs), `useReports`, `useDrawerStack`, `useBoardSettings`, `useToasts`. |
 | `src/components/` | Feature folders: `board/` `header/` `ticket/` `completed/` `raised/` `reports/` `settings/` `common/`. |
 | `jira-intern/` | The data pipeline. `daily_fetch.py` (active tickets + raised list + single-ticket refresh), `completed_archive.py` (historical archive), `raised.py` (raised-by-me fetch, shared), `_jira.py` (HTTP + field formatting), `devinfo.py` (branches/PRs via Jira dev-status), `jenkins.py` (latest Jenkins build per branch, environment and pipeline → `Ticket.builds`) with `jenkins_discovery.py` (finds the pipelines under the Jenkins root; cache `.jenkins-discovery.json`), `checkmarx.py` (Checkmarx One: which vulnerabilities a fix ticket fixed, branch scan vs base scan → `Ticket.vulnFixes`; also the worker's Checkmarx client; `diagnose` from the terminal), `dynatrace.py` (the Dynatrace links in a ticket's text, read-only DQL at listed tenants only → `Ticket.dynatrace`; `inspect` from the terminal), `evidence.py` (the ONE builder of "what Dynatrace / Checkmarx / Jenkins say about a ticket": headline, templated insight, sections, fingerprint — read by the AI brief, the PR report and the worker), `_scrub.py` (cleans outside text — Dynatrace messages, Jenkins console lines — before it is stored or sent to a model), `_sources.py` (what each proof source did this run → `proofSources`, the run notes), `_safe_http.py` (the proof clients' hardened urllib: verified TLS context with an opt-out per source, same-origin-only redirects), `pr_report.py` (deterministic PR reports), `_health.py` (per-service health files `.health/<id>.json` every outside client writes after a real call — the API keys dialog's dots), `datafile.py` (atomic writes, data.js sync), `progress.py` (progress file for button fills). |
@@ -167,16 +167,6 @@ ticket's branches, and that has its own status words):
   an interactive surface gets `.glass-interactive` (pointer-following highlight, `lib/glassPointer.ts`); text on glass must stay
   readable without the blur — the three fallbacks (prefers-reduced-transparency, prefers-contrast: more, no backdrop-filter) go opaque.
   Print slides (`.jb-pdf`) stay flat. Keep the column colours, gradients and animations — glass is the material, not a monochrome.
-- **Dark mode keeps the hue and lifts the tone** (`src/lib/tone.ts` + `src/styles/dark.css`). Colours are hex strings handed to
-  inline styles and SVG attributes, which cannot see `.dark`, so never paint a brand colour straight: **text, icons and lines go
-  through `lift(hex)`, a see-through wash or border through `tint(hex, alpha)` (not `hexToRgba`), text on a SOLID fill through
-  `onFill(hex)`**, and a Tailwind hex text class gets a `dark:text-[#…]` partner. They compile to a `color-mix()` that reads the CSS
-  variable `--tone-lift` (0 in light, 1 in dark, forced to 0 on `.jb-pdf` and in print), so the theme switch needs no re-render.
-  The lift is computed per colour — the smallest white fraction that reaches 6.5:1 on the dark surface (a colour that already reads
-  gets none, capped so the hue survives); `tone.test.ts` pins every palette colour at ≥ 4.5:1. A component that takes a `color`
-  prop and also passes it to `tint` / `lift` must receive the RAW hex (both need a plain hex), and lift at the point of painting.
-  Dark surfaces are near-black tokens in `glass.css` — sheets / menus / bars / wells deeper than the page, never grey; do not
-  add a surface with its own grey hex.
 - **The PDF deck is not glass.** `.jb-pdf` (the PR report slides) is paper — flat, static, no blur / translucency / pointer
   effects (they have nothing to show through on a page and cannot exist in a PDF). It uses Google's presentation look
   (`src/styles/slides-google.css`: white pages, Google palette, tonal containers, outlined cards, Material tables) when

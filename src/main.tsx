@@ -6,7 +6,6 @@ import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { applySettings, loadSettings } from './lib/settings'
 import './styles/index.css'
 import './styles/glass.css'
-import './styles/dark.css'
 import './styles/slides-google.css'
 import { installGlassPointer } from './lib/glassPointer'
 
