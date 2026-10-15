@@ -7,7 +7,7 @@ import { matchRow, parseQuery } from '../../lib/search'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { PriorityGlyph, SafeHtml } from '../common/ui'
 import { ChevronIcon, CheckIcon, ClockIcon, DocIcon, ExpandAllIcon, LinkIcon, MegaphoneIcon, PersonIcon, QuestionIcon, RefreshIcon, SearchIcon, SparkleIcon, TypeIcon } from '../common/Icons'
-import { lift, tint } from '../../lib/tone'
+import { lift, selectedText, tint } from '../../lib/tone'
 
 // The Raised view's own palette — indigo identity (deliberately apart from the Completed
 // archive's green/gold, and not a red/alarm family); amber marks what's still open.
@@ -705,9 +705,9 @@ function FilterChip({ active, color, onClick, n, title, children }: { active: bo
       aria-pressed={active}
       className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors"
       style={{
-        borderColor: active ? tint(color, 0.5) : 'var(--line)',
-        color: active ? lift(color) : 'var(--muted)',
-        background: active ? tint(color, 0.12) : 'var(--surface-solid)',
+        borderColor: active ? lift(color) : 'var(--line)',
+        color: active ? selectedText(color) : 'var(--muted)',
+        background: active ? tint(color, 0.14) : 'var(--surface-solid)',
       }}
     >
       {children}

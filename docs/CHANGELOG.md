@@ -5,6 +5,13 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Dark mode, second pass: lighter colour, no grey, readable selections.** Coloured text is lifted much further (to 9:1 on
+  the dark surface, from 6.5:1), so blue / violet / green labels read as light tints rather than dim colour. A selected
+  option — the segments in Settings (Appearance, PDF report, AI level, Local / Cloud, provider), active filter chips, the
+  chosen API keys row, report tabs — now has a near-white label with its colour on a strong ring (`selectedStyle` /
+  `selectedText` in `lib/tone.ts`), never coloured text on a coloured wash. The grey cast is gone: dark panels, sheen and
+  highlights are much thinner white, sheets and menus more opaque, and the blur's colour boost is lower, so the UI is black.
+  Every coloured label in the API keys dialog and Settings now measures ≥ 7:1. Light mode is unchanged.
 - **Dragging a ticket no longer makes the board jitter.** Empty columns (a Blocked or On Hold with nothing in it) open from a
   thin rail to a drop zone when a drag starts, and they used to snap open: the full columns were already at their minimum
   width, so the board overflowed sideways, and the "can't drop here" note popped into every refusing zone at full height, so the

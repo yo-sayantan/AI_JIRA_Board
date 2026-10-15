@@ -170,13 +170,15 @@ ticket's branches, and that has its own status words):
 - **Dark mode keeps the hue and lifts the tone** (`src/lib/tone.ts` + `src/styles/dark.css`). Colours are hex strings handed to
   inline styles and SVG attributes, which cannot see `.dark`, so never paint a brand colour straight: **text, icons and lines go
   through `lift(hex)`, a see-through wash or border through `tint(hex, alpha)` (not `hexToRgba`), text on a SOLID fill through
-  `onFill(hex)`**, and a Tailwind hex text class gets a `dark:text-[#…]` partner. They compile to a `color-mix()` that reads the CSS
+  `onFill(hex)`**, a SELECTED / pressed option (segment, active filter chip, chosen list row) through `selectedStyle(hex)` /
+  `selectedText(hex)` (dark: near-white label, the colour on a strong ring — never coloured text on a coloured wash), and a Tailwind hex text class gets a `dark:text-[#…]` partner. They compile to a `color-mix()` that reads the CSS
   variable `--tone-lift` (0 in light, 1 in dark, forced to 0 on `.jb-pdf` and in print), so the theme switch needs no re-render.
-  The lift is computed per colour — the smallest white fraction that reaches 6.5:1 on the dark surface (a colour that already reads
-  gets none, capped so the hue survives); `tone.test.ts` pins every palette colour at ≥ 4.5:1. A component that takes a `color`
+  The lift is computed per colour — the smallest white fraction that reaches 9:1 on the dark surface (a colour that already reads
+  gets none, capped at 82% so the hue survives); `tone.test.ts` pins every palette colour at ≥ 7:1. A component that takes a `color`
   prop and also passes it to `tint` / `lift` must receive the RAW hex (both need a plain hex), and lift at the point of painting.
   Dark surfaces are near-black tokens in `glass.css` — sheets / menus / bars / wells deeper than the page, never grey; do not
-  add a surface with its own grey hex.
+  add a surface with its own grey hex. Every white overlay in dark is thin (panel ~3%, sheen 3%, top highlight 11%) because
+  they stack and each layer of white on black reads as grey; panels are told apart by their hairline, not by being lighter.
 - **The PDF deck is not glass.** `.jb-pdf` (the PR report slides) is paper — flat, static, no blur / translucency / pointer
   effects (they have nothing to show through on a page and cannot exist in a PDF). It uses Google's presentation look
   (`src/styles/slides-google.css`: white pages, Google palette, tonal containers, outlined cards, Material tables) when

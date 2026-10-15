@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contrastRatio, lift, liftAmount, onFill, tint } from './tone'
+import { contrastRatio, lift, liftAmount, onFill, selectedStyle, selectedText, tint } from './tone'
 import { hexToRgba } from './format'
 
 /** The `color-mix` the helper writes, evaluated in the dark theme (--tone-lift: 1) — what the browser would paint. */
@@ -50,17 +50,17 @@ describe('lift', () => {
     expect(css.startsWith('color-mix(in srgb, #1e3a8a, white calc(')).toBe(true)
   })
 
-  it('gives every palette colour at least 4.5:1 on the dark surface, and 6.5:1 unless the lift cap stopped it', () => {
+  it('lifts every palette colour to a clearly light tone on the dark surface (≥ 7:1, the WCAG enhanced level)', () => {
     for (const c of PALETTE) {
       const seen = darkResult(lift(c))
-      expect(contrastRatio(seen, '#23262d'), `${c} → ${seen}`).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(seen, '#23262d'), `${c} → ${seen}`).toBeGreaterThanOrEqual(7)
     }
   })
 
   it('lifts a deep colour more than a light one and never past the cap', () => {
     expect(liftAmount('#1e3a8a')).toBeGreaterThan(liftAmount('#6366f1'))
     expect(liftAmount('#6366f1')).toBeGreaterThan(liftAmount('#a855f7'))
-    for (const c of PALETTE) expect(liftAmount(c)).toBeLessThanOrEqual(0.72)
+    for (const c of PALETTE) expect(liftAmount(c)).toBeLessThanOrEqual(0.82)
   })
 
   it('keeps the hue: the lifted colour is the same family, only lighter', () => {
@@ -137,5 +137,36 @@ describe('onFill', () => {
       expect(contrastRatio('#0b0c0f', c), c).toBeGreaterThan(contrastRatio('#ffffff', c))
       expect(contrastRatio('#0b0c0f', c), c).toBeGreaterThanOrEqual(4.5)
     }
+  })
+})
+
+describe('selectedStyle / selectedText', () => {
+  it('in light mode is the colour on a wash with a coloured hairline (unchanged look)', () => {
+    const s = selectedStyle('#a855f7')
+    expect(s.color).toContain('var(--tone-lift, 0)') // resolves to the colour itself when the variable is 0
+    expect(s.background).toBe(tint('#a855f7', 0.14))
+    expect(s.boxShadow).toContain('inset 0 0 0 1px')
+  })
+
+  it('in dark mode moves the colour off the label (near-white) and onto a strong ring', () => {
+    expect(selectedText('#a855f7')).toBe('color-mix(in srgb, #a855f7, white calc(var(--tone-lift, 0) * 86%))')
+    expect(selectedStyle('#a855f7').boxShadow).toContain('calc(45% + 45% * var(--tone-lift, 0))')
+  })
+
+  it('never asks for more than 100% of the ring colour', () => {
+    expect(selectedStyle('#a855f7', { edge: 0.8 }).boxShadow).toContain('calc(80% + 20% * var(--tone-lift, 0))')
+  })
+
+  it('the near-white label reads on a selected wash for every palette colour', () => {
+    for (const c of PALETTE) {
+      const n = parseInt(c.slice(1), 16)
+      const mix = (v: number) => Math.round(v + (255 - v) * 0.86)
+      const label = `#${[(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => mix(v).toString(16).padStart(2, '0')).join('')}`
+      expect(contrastRatio(label, '#23262d'), c).toBeGreaterThanOrEqual(11)
+    }
+  })
+
+  it('leaves a non-hex colour alone', () => {
+    expect(selectedStyle('var(--ink)')).toEqual({ color: 'var(--ink)' })
   })
 })
