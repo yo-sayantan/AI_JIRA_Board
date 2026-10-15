@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
+import { lift } from '../../lib/tone'
 
 export type ToastKind = 'info' | 'success' | 'error' | 'loading'
 export interface ToastAction {
@@ -35,7 +36,7 @@ export const Toasts = memo(function Toasts({ toasts, onDismiss }: { toasts: Toas
               transition={{ type: 'spring', stiffness: 420, damping: 32 }}
               className="jb-float pointer-events-auto flex max-w-[92vw] items-center gap-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] px-4 py-2.5 text-[12.5px] font-medium text-[var(--ink)] card-shadow"
             >
-              <span className={kind === 'loading' ? 'animate-spin' : ''} style={{ color: COLOR[kind] }}>
+              <span className={kind === 'loading' ? 'animate-spin' : ''} style={{ color: lift(COLOR[kind]) }}>
                 {ICON[kind]}
               </span>
               <span className="min-w-0">{t.msg}</span>
@@ -47,7 +48,7 @@ export const Toasts = memo(function Toasts({ toasts, onDismiss }: { toasts: Toas
                     t.action!.run()
                   }}
                   className="shrink-0 rounded-md border px-2 py-0.5 text-[11.5px] font-bold transition-colors"
-                  style={{ color: COLOR[kind], borderColor: `${COLOR[kind]}73`, background: `${COLOR[kind]}12` }}
+                  style={{ color: lift(COLOR[kind]), borderColor: `${COLOR[kind]}73`, background: `${COLOR[kind]}12` }}
                 >
                   {t.action.label}
                 </button>
