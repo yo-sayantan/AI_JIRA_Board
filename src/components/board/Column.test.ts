@@ -162,32 +162,47 @@ describe('Column — empty columns and the On Hold space', () => {
     expect(onMove).not.toHaveBeenCalled()
   })
 
-  it('the note saying why a zone refuses the card eases in (a closed grid row), and takes no room at rest', () => {
+  it('a lane that refuses the dragged card says why in its header, not as a banner above the cards', () => {
     const dev = { key: 'D-1', title: 'Build it', type: 'Story', status: 'In Progress', column: 'prog' as const }
     const waiting = { key: 'Q-1', title: 'Waiting', status: 'Ready for QA', column: 'qa' as const }
-    const slot = (el: Element) => el.querySelector('[aria-hidden][style*="grid-template-rows"]') as HTMLElement
-    const rest = render({ meta: COLUMN_META.qa, tickets: [waiting], onMove: () => {} })
-    expect(slot(rest).style.gridTemplateRows).toBe('0fr')
-    expect(slot(rest).style.marginBottom).toBe('-0.5rem') // cancels the parent's gap: no room taken
-    expect(slot(rest).querySelector('[role="note"]')).toBeNull()
-    act(() => root!.unmount())
-    const dragging = render({ meta: COLUMN_META.qa, tickets: [waiting], onMove: () => {}, dragActive: true, dragged: dev })
-    expect(slot(dragging).style.gridTemplateRows).toBe('1fr')
-    expect(slot(dragging).style.marginBottom).toBe('0px')
-    expect(slot(dragging).querySelector('[role="note"]')).not.toBeNull()
+    const s = render({ meta: COLUMN_META.qa, tickets: [waiting], onMove: () => {}, dragActive: true, dragged: dev })
+    const head = s.querySelector('.jb-lane-head')!
+    const note = head.querySelector('[role="note"]')
+    expect(note?.textContent).toBe('QA tickets only')
+    expect(note?.getAttribute('title')).toMatch(/QA/)
+    // No banner above the cards: every note sits in a header row (the lane's, or QA In Progress's own), whose height is
+    // fixed, so the drag moves no card.
+    const notes = [...s.querySelectorAll('[role="note"]')]
+    expect(notes.length).toBeGreaterThan(0)
+    expect(notes.every((n) => n.closest('header'))).toBe(true)
   })
 
-  it('keeps the last note while the slot folds away, instead of emptying it mid-animation', () => {
+  it('shows the count again once the drag ends', () => {
     const dev = { key: 'D-1', title: 'Build it', type: 'Story', status: 'In Progress', column: 'prog' as const }
     const waiting = { key: 'Q-1', title: 'Waiting', status: 'Ready for QA', column: 'qa' as const }
     const props = { meta: COLUMN_META.qa, tickets: [waiting], now: Date.now(), onOpen: () => {}, onMove: () => {} }
     const s = render({ ...props, dragActive: true, dragged: dev })
-    const note = s.querySelector('[role="note"]')!.textContent
+    expect(s.querySelector('.jb-lane-head [role="note"]')).not.toBeNull()
     act(() => root!.render(createElement(Column, { ...props, dragActive: false })))
-    const slot = s.querySelector('[aria-hidden][style*="grid-template-rows"]') as HTMLElement
-    expect(slot.style.gridTemplateRows).toBe('0fr')
-    expect(slot.getAttribute('aria-hidden')).toBe('true')
-    expect(slot.textContent).toBe(note)
+    expect(s.querySelector('[role="note"]')).toBeNull()
+    expect(s.querySelector('.jb-lane-head')!.textContent).toContain('1')
+  })
+
+  it('a gate says ⌥ forces it, right in the header', () => {
+    const dev = { key: 'D-1', title: 'Build it', type: 'Story', status: 'In Progress', column: 'prog' as const }
+    const other = { key: 'R-1', title: 'In review', status: 'In Review', column: 'rev' as const }
+    const s = render({ meta: COLUMN_META.rev, tickets: [other], onMove: () => {}, dragActive: true, dragged: dev })
+    const chip = s.querySelector('.jb-lane-head [role="note"]')!
+    expect(chip.textContent).toContain('No pull request raised yet')
+    expect(chip.querySelector('kbd')?.textContent).toBe('⌥')
+    expect(chip.getAttribute('title')).toMatch(/Hold ⌥/)
+  })
+
+  it('the lane title is sticky, so it stays in view while the board scrolls', () => {
+    const waiting = { key: 'Q-1', title: 'Waiting', status: 'Ready for QA', column: 'qa' as const }
+    const head = render({ meta: COLUMN_META.qa, tickets: [waiting] }).querySelector('.jb-lane-head')!
+    expect(head.className).toContain('sticky')
+    expect(head.className).toContain('top-0')
   })
 
   it('while calm the full columns may shrink further, so an empty one opening never overflows the board', () => {

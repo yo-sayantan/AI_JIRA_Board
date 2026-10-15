@@ -5,6 +5,13 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Sticky board header and lane titles.** With full lanes you scroll the BOARD, not the page: the header, the demo banner
+  and the filter chips stay where they are, and each lane's title stays pinned at the top of the board while its cards
+  scroll underneath (frosted, so cards blur away behind it). Dragging near the board's edge scrolls it with the targets'
+  names in view. A window under 640px tall scrolls the page as before.
+- **"Can't drop here" notes no longer push cards down.** While dragging, a lane that refuses the card used to grow a banner
+  above its first card. The reason now hangs as a small callout just below the lane title, over the dimmed lane, and wraps
+  so the full sentence is readable ("#430 still open (merge or decline it)", "⌥ + drop to force").
 - **Dark mode, second pass: lighter colour, no grey, readable selections.** Coloured text is lifted much further (to 9:1 on
   the dark surface, from 6.5:1), so blue / violet / green labels read as light tints rather than dim colour. A selected
   option — the segments in Settings (Appearance, PDF report, AI level, Local / Cloud, provider), active filter chips, the

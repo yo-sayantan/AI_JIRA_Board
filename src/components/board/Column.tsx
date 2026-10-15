@@ -7,7 +7,7 @@ import { DRAG_MIME, TicketCard } from './TicketCard'
 import { futureSprintOf, sprintWhen } from '../../lib/format'
 import { CalendarIcon, ColumnIcon, PauseIcon } from '../common/Icons'
 import { SubSection } from './SubSection'
-import { DeniedNote, DeniedSlot, LandingSlot, SpaceHeader, dropBoxStyle, deniedOpacity } from './boardParts'
+import { DeniedNote, LandingSlot, SpaceHeader, dropBoxStyle, deniedOpacity } from './boardParts'
 import { lift, tint } from '../../lib/tone'
 
 /** Which of a column's drop targets a card is over: the column itself, or its second space. */
@@ -218,14 +218,22 @@ export const Column = memo(function Column({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
-      <SpaceHeader
-        accent={ownOff ? sub!.accent : meta.accent}
-        icon={ownOff ? <PauseIcon size={13} color={lift(sub!.accent)} /> : <ColumnIcon col={meta.key} color={lift(meta.accent)} size={13} />}
-        label={ownOff ? sub!.label : meta.label}
-        count={mode === 'full' ? (ownOff ? subTickets.length : own.length) : undefined}
-        folded={mode === 'rail'}
-        title={mode === 'rail' ? `${name} — empty. Drag a card here to move it in Jira.` : undefined}
-      />
+      {/* The lane's title stays in view while the board scrolls (it is sticky inside the board's scroll area, App.tsx), and
+          it is where a refusing lane says why — so a drag never pushes the cards down. An empty lane that opened to a drop
+          zone says it inside the zone instead (fixed height, nothing below it to move). */}
+      <div className="jb-lane-head sticky top-0 z-20 flow-root pt-1">
+        <SpaceHeader
+          accent={ownOff ? sub!.accent : meta.accent}
+          icon={ownOff ? <PauseIcon size={13} color={lift(sub!.accent)} /> : <ColumnIcon col={meta.key} color={lift(meta.accent)} size={13} />}
+          label={ownOff ? sub!.label : meta.label}
+          count={mode === 'full' ? (ownOff ? subTickets.length : own.length) : undefined}
+          folded={mode === 'rail'}
+          title={mode === 'rail' ? `${name} — empty. Drag a card here to move it in Jira.` : undefined}
+          denied={mode === 'full' ? (ownOff ? subDenied : ownDenied) : null}
+          alt={alt}
+          active={over === (ownOff ? 'sub' : 'col')}
+        />
+      </div>
 
       {mode === 'rail' ? (
         <div className="flex flex-1 flex-col gap-3">
@@ -248,12 +256,11 @@ export const Column = memo(function Column({
             style={{ ...dropBoxStyle(meta.accent, over === 'col'), opacity: deniedOpacity(ownDenied, over === 'col') }}
             title={ownDenied?.reason ?? undefined}
           >
-            <DeniedSlot check={ownDenied} alt={alt} active={over === 'col'} />
             <AnimatePresence mode="popLayout" initial={false}>
               {own.map(card)}
             </AnimatePresence>
             <LandingSlot accent={meta.accent} show={over === 'col'} label={dropLabel} />
-            {own.length === 0 && over !== 'col' && !ownDenied && (
+            {own.length === 0 && over !== 'col' && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
