@@ -2,8 +2,9 @@ import { memo, useEffect, useState } from 'react'
 import { motion, useSpring } from 'motion/react'
 import { BOARD_COLUMNS } from '../../lib/columns'
 import type { ColumnKey, Ticket } from '../../types'
-import { hexToRgba } from '../../lib/format'
+
 import { MegaphoneIcon, TrophyIcon, TicketGlyph } from '../common/Icons'
+import { lift, tint } from '../../lib/tone'
 
 // Identity of the Raised-by-me view — indigo, deliberately not a red/alarm family.
 const RAISED = '#6366f1'
@@ -78,15 +79,15 @@ export const Stats = memo(function Stats({
             onClick={() => onSelect(isActive ? null : c.key)}
             className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors"
             style={{
-              borderColor: isActive ? c.accent : 'var(--line)',
-              background: isActive ? hexToRgba(c.accent, 0.16) : 'var(--surface-solid)',
-              color: isActive ? c.accent : 'var(--ink-soft)',
-              boxShadow: isActive ? `0 0 0 1px ${hexToRgba(c.accent, 0.4)}` : 'none',
+              borderColor: isActive ? lift(c.accent) : 'var(--line)',
+              background: isActive ? tint(c.accent, 0.16) : 'var(--surface-solid)',
+              color: isActive ? lift(c.accent) : 'var(--ink-soft)',
+              boxShadow: isActive ? `0 0 0 1px ${tint(c.accent, 0.4)}` : 'none',
             }}
           >
             <span className="inline-block h-2 w-2 rounded-full" style={{ background: c.accent }} />
             {c.label}
-            <b style={{ color: c.accent }}>
+            <b style={{ color: lift(c.accent) }}>
               <AnimatedNumber value={n} />
             </b>
           </motion.button>
@@ -106,9 +107,9 @@ export const Stats = memo(function Stats({
               onClick={onOpenRaised}
               title={`Tickets you raised (sub-tickets excluded) — ${raisedCount.open} of ${raisedCount.total} still open. See each one's status, who holds it now, and every hand-off.`}
               className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-[7.5px] text-[12.5px] font-bold transition-colors"
-              style={{ borderColor: hexToRgba(RAISED, 0.45), color: RAISED, background: hexToRgba(RAISED, 0.07) }}
+              style={{ borderColor: tint(RAISED, 0.45), color: lift(RAISED), background: tint(RAISED, 0.07) }}
             >
-              <MegaphoneIcon size={14} color={RAISED} />
+              <MegaphoneIcon size={14} color={lift(RAISED)} />
               Raised{' '}
               <b className="tabular-nums">
                 <AnimatedNumber value={raisedCount.open} />

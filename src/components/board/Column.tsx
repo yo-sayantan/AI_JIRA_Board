@@ -4,10 +4,11 @@ import { HOLD_COLUMN, NEXT_SPRINT_SECTION, QA_IN_PROGRESS, columnMode, columnWid
 import { MOVE_OK, checkMove, readinessOf, type MoveCheck, type TicketLookup } from '../../lib/moveRules'
 import type { Ticket } from '../../types'
 import { DRAG_MIME, TicketCard } from './TicketCard'
-import { futureSprintOf, hexToRgba, sprintWhen } from '../../lib/format'
+import { futureSprintOf, sprintWhen } from '../../lib/format'
 import { CalendarIcon, ColumnIcon, PauseIcon } from '../common/Icons'
 import { SubSection } from './SubSection'
 import { DeniedNote, DeniedSlot, LandingSlot, SpaceHeader, dropBoxStyle, deniedOpacity } from './boardParts'
+import { lift, tint } from '../../lib/tone'
 
 /** Which of a column's drop targets a card is over: the column itself, or its second space. */
 type DropTarget = 'col' | 'sub'
@@ -36,7 +37,7 @@ const SUB_HINTS = {
 
 function SubIcon({ sub, size, color }: { sub: Sub; size: number; color?: string }) {
   const c = color ?? sub.accent
-  return sub.id === 'hold' ? <PauseIcon size={size} color={c} /> : sub.id === 'next' ? <CalendarIcon size={size} color={c} /> : <ColumnIcon col="qa" color={c} size={size} />
+  return sub.id === 'hold' ? <PauseIcon size={size} color={lift(c)} /> : sub.id === 'next' ? <CalendarIcon size={size} color={lift(c)} /> : <ColumnIcon col="qa" color={lift(c)} size={size} />
 }
 
 export const Column = memo(function Column({
@@ -219,7 +220,7 @@ export const Column = memo(function Column({
     >
       <SpaceHeader
         accent={ownOff ? sub!.accent : meta.accent}
-        icon={ownOff ? <PauseIcon size={13} color={sub!.accent} /> : <ColumnIcon col={meta.key} color={meta.accent} size={13} />}
+        icon={ownOff ? <PauseIcon size={13} color={lift(sub!.accent)} /> : <ColumnIcon col={meta.key} color={lift(meta.accent)} size={13} />}
         label={ownOff ? sub!.label : meta.label}
         count={mode === 'full' ? (ownOff ? subTickets.length : own.length) : undefined}
         folded={mode === 'rail'}
@@ -303,8 +304,8 @@ function RailBox({ boxRef, accent, label, stacked, sub }: { boxRef?: Ref<HTMLDiv
       className={`jb-rail-zone flex flex-col items-center gap-1.5 rounded-2xl border border-dashed py-2 ${stacked ? 'min-h-[132px]' : 'flex-1'}`}
       style={dropBoxStyle(accent, false)}
     >
-      {sub && <SubIcon sub={sub} size={11} color={accent} />}
-      <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', color: hexToRgba(accent, 0.85) }}>
+      {sub && <SubIcon sub={sub} size={11} color={lift(accent)} />}
+      <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', color: tint(accent, 0.85) }}>
         {label}
       </span>
     </div>
@@ -342,15 +343,15 @@ function DropZone({
       style={{ ...dropBoxStyle(accent, active), opacity: deniedOpacity(denied, active) }}
       title={denied?.reason ?? undefined}
     >
-      {sub && <SubIcon sub={sub} size={13} color={accent} />}
+      {sub && <SubIcon sub={sub} size={13} color={lift(accent)} />}
       {denied ? (
         <DeniedNote check={denied} alt={alt} active={active} inline />
       ) : (
-        <span className="text-[11px] font-bold leading-tight" style={{ color: accent }}>
+        <span className="text-[11px] font-bold leading-tight" style={{ color: lift(accent) }}>
           {active ? 'Release' : 'Drop here'}
         </span>
       )}
-      <span className="text-[10px] font-semibold uppercase leading-tight tracking-wider" style={{ color: hexToRgba(accent, 0.75) }}>
+      <span className="text-[10px] font-semibold uppercase leading-tight tracking-wider" style={{ color: tint(accent, 0.75) }}>
         {label}
       </span>
     </div>

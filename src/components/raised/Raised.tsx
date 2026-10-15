@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { AssigneeHop, ColumnKey, LinkRef, RaisedTicket } from '../../types'
 import { COLUMN_META, mapStatusToColumn } from '../../lib/columns'
-import { fmtDate, relTime, priorityMeta, projectOf, typeMeta, effectiveType, yearOf, hexToRgba, isAssignedToMe, unwrapBrief } from '../../lib/format'
+import { fmtDate, relTime, priorityMeta, projectOf, typeMeta, effectiveType, yearOf, isAssignedToMe, unwrapBrief } from '../../lib/format'
 import { matchRow, parseQuery } from '../../lib/search'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { PriorityGlyph, SafeHtml } from '../common/ui'
 import { ChevronIcon, CheckIcon, ClockIcon, DocIcon, ExpandAllIcon, LinkIcon, MegaphoneIcon, PersonIcon, QuestionIcon, RefreshIcon, SearchIcon, SparkleIcon, TypeIcon } from '../common/Icons'
+import { lift, tint } from '../../lib/tone'
 
 // The Raised view's own palette — indigo identity (deliberately apart from the Completed
 // archive's green/gold, and not a red/alarm family); amber marks what's still open.
@@ -228,14 +229,14 @@ export function RaisedOverlay({
             {/* hero header: title + at-a-glance stat band */}
             <div
               className="shrink-0 border-b border-[var(--line)]"
-              style={{ background: `radial-gradient(120% 140% at 0% 0%, ${hexToRgba(RAISED, 0.18)}, ${hexToRgba(RAISED, 0.05)} 42%, transparent 78%)` }}
+              style={{ background: `radial-gradient(120% 140% at 0% 0%, ${tint(RAISED, 0.18)}, ${tint(RAISED, 0.05)} 42%, transparent 78%)` }}
             >
               <div className="flex items-center gap-3.5 px-6 pt-5 sm:gap-4">
                 <span
                   className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl"
-                  style={{ background: `linear-gradient(140deg, ${hexToRgba(RAISED, 0.28)}, ${hexToRgba(RAISED, 0.1)})`, boxShadow: `inset 0 0 0 1px ${hexToRgba(RAISED, 0.4)}, 0 10px 26px -14px ${RAISED}` }}
+                  style={{ background: `linear-gradient(140deg, ${tint(RAISED, 0.28)}, ${tint(RAISED, 0.1)})`, boxShadow: `inset 0 0 0 1px ${tint(RAISED, 0.4)}, 0 10px 26px -14px ${RAISED}` }}
                 >
-                  <MegaphoneIcon size={24} color={RAISED} />
+                  <MegaphoneIcon size={24} color={lift(RAISED)} />
                 </span>
                 <div className="min-w-0">
                   <h2 className="bg-gradient-to-r bg-clip-text text-[24px] font-black leading-none tracking-tight text-transparent" style={{ backgroundImage: `linear-gradient(95deg, ${RAISED}, #a855f7)` }}>
@@ -253,7 +254,7 @@ export function RaisedOverlay({
                         {stats.open > 0 && (
                           <span title="Raised tickets that are not Done yet — the ones still waiting on a fix.">
                             {' · '}
-                            <b style={{ color: OPEN }}>{stats.open}</b> still open
+                            <b style={{ color: lift(OPEN) }}>{stats.open}</b> still open
                           </span>
                         )}
                       </>
@@ -277,9 +278,9 @@ export function RaisedOverlay({
                         title="Hard refresh — re-pulls EVERY ticket you ever reported straight from Jira: rows already listed pick up their updates, and newly raised tickets appear. (The board's normal refresh never covers tickets other people are working.)"
                         className="inline-flex h-10 items-center gap-1.5 rounded-xl border px-3.5 text-[12px] font-bold transition-colors"
                         style={{
-                          borderColor: hexToRgba(RAISED, 0.45),
-                          color: RAISED,
-                          background: hexToRgba(RAISED, refreshing ? 0.14 : 0.07),
+                          borderColor: tint(RAISED, 0.45),
+                          color: lift(RAISED),
+                          background: tint(RAISED, refreshing ? 0.14 : 0.07),
                           opacity: refreshing ? 0.85 : 1,
                         }}
                       >
@@ -288,7 +289,7 @@ export function RaisedOverlay({
                           animate={refreshing ? { rotate: 360 } : { rotate: 0 }}
                           transition={refreshing ? { repeat: Infinity, duration: 0.8, ease: 'linear' } : { type: 'spring', stiffness: 300, damping: 20 }}
                         >
-                          <RefreshIcon size={13} color={RAISED} />
+                          <RefreshIcon size={13} color={lift(RAISED)} />
                         </motion.span>
                         {refreshing ? 'Fetching all…' : 'Hard refresh'}
                       </motion.button>
@@ -310,11 +311,11 @@ export function RaisedOverlay({
               </div>
               {!empty && (
                 <div className="grid grid-cols-2 gap-2.5 px-6 pb-5 pt-4 sm:grid-cols-3 lg:grid-cols-5">
-                  <StatTile n={items.length} label="Raised" color={RAISED} icon={<MegaphoneIcon size={14} color={RAISED} />} />
-                  <StatTile n={stats.open} label="Still open" color={OPEN} icon={<ClockIcon size={14} color={OPEN} />} />
-                  <StatTile n={stats.fixed} label="Fixed" color={FIXED} icon={<CheckIcon size={14} color={FIXED} />} />
-                  <StatTile n={stats.moved} label="Reassigned" color={HANDOFF} icon={<PersonIcon size={14} color={HANDOFF} />} />
-                  <StatTile n={stats.unassigned} label="Unassigned" color={NOBODY} icon={<QuestionIcon size={14} color={NOBODY} />} />
+                  <StatTile n={items.length} label="Raised" color={RAISED} icon={<MegaphoneIcon size={14} color={lift(RAISED)} />} />
+                  <StatTile n={stats.open} label="Still open" color={OPEN} icon={<ClockIcon size={14} color={lift(OPEN)} />} />
+                  <StatTile n={stats.fixed} label="Fixed" color={FIXED} icon={<CheckIcon size={14} color={lift(FIXED)} />} />
+                  <StatTile n={stats.moved} label="Reassigned" color={HANDOFF} icon={<PersonIcon size={14} color={lift(HANDOFF)} />} />
+                  <StatTile n={stats.unassigned} label="Unassigned" color={NOBODY} icon={<QuestionIcon size={14} color={lift(NOBODY)} />} />
                 </div>
               )}
             </div>
@@ -355,7 +356,7 @@ export function RaisedOverlay({
                       <div className="ml-auto flex items-center gap-2.5">
                         {filtering && (
                           <span className="text-[11.5px] font-semibold tabular-nums text-[var(--muted)]">
-                            <b style={{ color: RAISED }}>{filtered.length}</b> of {items.length}
+                            <b style={{ color: lift(RAISED) }}>{filtered.length}</b> of {items.length}
                           </span>
                         )}
                         <button
@@ -412,7 +413,7 @@ export function RaisedOverlay({
                       <span className="mx-1 h-5 w-px shrink-0 bg-[var(--line-strong)]" aria-hidden />
                       {types.map(([t, n]) => (
                         <FilterChip key={t} active={typ === t} color={typeMeta(t).color} onClick={() => setTyp(typ === t ? null : t)} n={n} title={`Only ${t} tickets`}>
-                          <TypeIcon type={t} color={typ === t ? typeMeta(t).color : 'currentColor'} size={11} />
+                          <TypeIcon type={t} color={lift(typ === t ? typeMeta(t).color : 'currentColor')} size={11} />
                           {t}
                         </FilterChip>
                       ))}
@@ -429,17 +430,17 @@ export function RaisedOverlay({
                         <div key={year}>
                           <div className="mb-3 flex items-center gap-3 px-1">
                             <span className="text-[19px] font-black tracking-tight text-[var(--ink)]">{year}</span>
-                            <span className="rounded-full px-2.5 py-[3px] text-[11px] font-extrabold tabular-nums" style={{ color: RAISED, background: hexToRgba(RAISED, 0.12) }}>
+                            <span className="rounded-full px-2.5 py-[3px] text-[11px] font-extrabold tabular-nums" style={{ color: lift(RAISED), background: tint(RAISED, 0.12) }}>
                               {count}
                             </span>
-                            <span className="h-px flex-1" style={{ background: `linear-gradient(90deg, ${hexToRgba(RAISED, 0.35)}, transparent)` }} />
+                            <span className="h-px flex-1" style={{ background: `linear-gradient(90deg, ${tint(RAISED, 0.35)}, transparent)` }} />
                           </div>
                           <div className="flex flex-col gap-5">
                             {months.map((m, mi) => (
                               <div key={`${m.label}-${mi}`}>
                                 {m.label && (
                                   <div className="mb-2 flex items-center gap-2 px-1">
-                                    <span className="h-3 w-1 rounded-full" style={{ background: hexToRgba(RAISED, 0.5) }} aria-hidden />
+                                    <span className="h-3 w-1 rounded-full" style={{ background: tint(RAISED, 0.5) }} aria-hidden />
                                     <span className="text-[11px] font-extrabold uppercase tracking-[0.1em] text-[var(--ink-soft)]">{m.label}</span>
                                     <span className="text-[11px] font-semibold tabular-nums text-[var(--muted)]">{m.rows.length}</span>
                                   </div>
@@ -527,8 +528,8 @@ function RaisedRow({ it, user, briefsEnabled, expanded, onToggle, onOpen }: { it
         </button>
 
         <button onClick={onOpen} className="group flex min-w-0 flex-1 items-center gap-2.5 text-left" title="Open full ticket details">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: hexToRgba(tm.color, 0.14), boxShadow: `inset 0 0 0 1px ${hexToRgba(tm.color, 0.22)}` }} title={et || 'Ticket'}>
-            <TypeIcon type={et} color={tm.color} size={15} />
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: tint(tm.color, 0.14), boxShadow: `inset 0 0 0 1px ${tint(tm.color, 0.22)}` }} title={et || 'Ticket'}>
+            <TypeIcon type={et} color={lift(tm.color)} size={15} />
           </span>
           {/* Fixed-width key + priority columns so every title starts at the same x. */}
           <span className="w-[104px] shrink-0 whitespace-nowrap font-mono text-[12.5px] font-extrabold" style={{ color: 'var(--link)' }}>
@@ -543,7 +544,7 @@ function RaisedRow({ it, user, briefsEnabled, expanded, onToggle, onOpen }: { it
           {links.length > 0 && (
             <span
               className="hidden shrink-0 items-center gap-1 rounded-md border px-1.5 py-[2px] font-mono text-[10px] font-bold lg:inline-flex"
-              style={{ borderColor: hexToRgba(HANDOFF, 0.35), color: HANDOFF, background: hexToRgba(HANDOFF, 0.09) }}
+              style={{ borderColor: tint(HANDOFF, 0.35), color: lift(HANDOFF), background: tint(HANDOFF, 0.09) }}
               title={links.map((l) => `${l.relation || 'linked'}: ${l.key}${l.summary ? ` — ${l.summary}` : ''}`).join('\n')}
             >
               ⇄ {links[0].key}
@@ -556,14 +557,14 @@ function RaisedRow({ it, user, briefsEnabled, expanded, onToggle, onOpen }: { it
         <span className="hidden shrink-0 items-center sm:flex">
           <span className="flex items-center justify-center" style={{ width: RAIL.hands }} title={handoffTitle(hops)}>
             {hops.length > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[11px] font-extrabold tabular-nums" style={{ color: OPEN }}>
+              <span className="inline-flex items-center gap-0.5 text-[11px] font-extrabold tabular-nums" style={{ color: lift(OPEN) }}>
                 ↻ {hops.length}
               </span>
             )}
           </span>
           <span className="flex items-center gap-1 overflow-hidden pl-2" style={{ width: RAIL.assignee }} title={who === 'none' ? 'Nobody assigned yet' : `Currently with ${shortName(it.assignee)}${who === 'me' ? ' (you)' : ''}`}>
-            <PersonIcon size={10} color={holderColor} />
-            <span className={`truncate text-[11.5px] font-semibold ${who === 'none' ? 'italic' : ''}`} style={{ color: holderColor }}>
+            <PersonIcon size={10} color={lift(holderColor)} />
+            <span className={`truncate text-[11.5px] font-semibold ${who === 'none' ? 'italic' : ''}`} style={{ color: lift(holderColor) }}>
               {who === 'me' ? 'me' : holder}
             </span>
           </span>
@@ -572,7 +573,7 @@ function RaisedRow({ it, user, briefsEnabled, expanded, onToggle, onOpen }: { it
           <span className="flex justify-center overflow-hidden px-1" style={{ width: RAIL.status }} title={`Status: ${it.status || COLUMN_META[col]?.label || '—'}`}>
             <span
               className="inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-[3px] text-[10.5px] font-bold leading-none"
-              style={{ borderColor: hexToRgba(accent, 0.45), color: accent, background: hexToRgba(accent, 0.12) }}
+              style={{ borderColor: tint(accent, 0.45), color: lift(accent), background: tint(accent, 0.12) }}
             >
               <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: accent }} />
               <span className="truncate">{it.status || COLUMN_META[col]?.label || '—'}</span>
@@ -592,9 +593,9 @@ function RaisedRow({ it, user, briefsEnabled, expanded, onToggle, onOpen }: { it
               {/* The brief leads: for a ticket someone else works, it's the fastest answer to
                   "what is this and where does it stand" without opening the full page. */}
               {briefsEnabled && it.aiSummary && (
-                <div className="mb-3.5 overflow-hidden rounded-xl border" style={{ borderColor: hexToRgba(RAISED, 0.3), background: hexToRgba(RAISED, 0.05) }}>
-                  <div className="flex items-center gap-1.5 border-b px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.07em]" style={{ borderColor: hexToRgba(RAISED, 0.18), color: RAISED }}>
-                    <SparkleIcon size={12} color={RAISED} />
+                <div className="mb-3.5 overflow-hidden rounded-xl border" style={{ borderColor: tint(RAISED, 0.3), background: tint(RAISED, 0.05) }}>
+                  <div className="flex items-center gap-1.5 border-b px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.07em]" style={{ borderColor: tint(RAISED, 0.18), color: lift(RAISED) }}>
+                    <SparkleIcon size={12} color={lift(RAISED)} />
                     AI brief
                     {it.aiSummaryAt && (
                       <span className="ml-auto font-semibold normal-case tracking-normal text-[var(--muted)]">{relTime(it.aiSummaryAt)}</span>
@@ -687,7 +688,7 @@ function HolderPill({ name, color, when }: { name: string; color: string; when?:
   return (
     <span
       className="inline-flex items-center gap-1 rounded-full border px-2 py-[2px] text-[10.5px] font-bold leading-none"
-      style={{ borderColor: hexToRgba(color, 0.4), color, background: hexToRgba(color, 0.1) }}
+      style={{ borderColor: tint(color, 0.4), color: lift(color), background: tint(color, 0.1) }}
       title={when ? fmtDate(when) : undefined}
     >
       {name}
@@ -704,9 +705,9 @@ function FilterChip({ active, color, onClick, n, title, children }: { active: bo
       aria-pressed={active}
       className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors"
       style={{
-        borderColor: active ? hexToRgba(color, 0.5) : 'var(--line)',
-        color: active ? color : 'var(--muted)',
-        background: active ? hexToRgba(color, 0.12) : 'var(--surface-solid)',
+        borderColor: active ? tint(color, 0.5) : 'var(--line)',
+        color: active ? lift(color) : 'var(--muted)',
+        background: active ? tint(color, 0.12) : 'var(--surface-solid)',
       }}
     >
       {children}
@@ -719,11 +720,11 @@ function StatTile({ n, label, color, icon }: { n: number; label: string; color: 
   return (
     <div
       className="rounded-2xl border px-3.5 py-2.5 transition-transform hover:-translate-y-0.5"
-      style={{ borderColor: hexToRgba(color, 0.28), background: `linear-gradient(150deg, ${hexToRgba(color, 0.14)}, ${hexToRgba(color, 0.05)})` }}
+      style={{ borderColor: tint(color, 0.28), background: `linear-gradient(150deg, ${tint(color, 0.14)}, ${tint(color, 0.05)})` }}
     >
       <div className="flex items-center gap-1.5">
         <span className="inline-flex">{icon}</span>
-        <span className="text-[22px] font-black leading-none tabular-nums" style={{ color }}>
+        <span className="text-[22px] font-black leading-none tabular-nums" style={{ color: lift(color) }}>
           {n}
         </span>
       </div>

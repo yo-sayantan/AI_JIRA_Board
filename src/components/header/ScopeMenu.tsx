@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { currentYear, dateInputDaysAgo, hexToRgba } from '../../lib/format'
+import { currentYear, dateInputDaysAgo } from '../../lib/format'
 import { APP_CONFIG } from '../../lib/appConfig'
+import { onFill, tint } from '../../lib/tone'
 
 export type MenuScope = { scope: 'all' } | { scope: 'year'; year: number } | { scope: 'since'; since: string } | { scope: 'key'; key: string }
 
@@ -78,7 +79,7 @@ export function ScopeMenu({ color, trigger, title, subtitle, progress, served, o
           >
             <div
               className="relative overflow-hidden rounded-t-xl border-b border-[var(--line)] px-3.5 py-2.5"
-              style={{ background: hexToRgba(color, busy ? 0.16 : 0.08) }}
+              style={{ background: tint(color, busy ? 0.16 : 0.08) }}
               role={busy ? 'progressbar' : undefined}
               aria-valuenow={busy ? fill : undefined}
               aria-valuemin={busy ? 0 : undefined}
@@ -93,7 +94,7 @@ export function ScopeMenu({ color, trigger, title, subtitle, progress, served, o
                     initial={false}
                     animate={{ width: `${fill}%` }}
                     transition={SPRING}
-                    style={{ background: `linear-gradient(90deg, ${hexToRgba(color, 0.55)}, ${hexToRgba(color, 0.28)})` }}
+                    style={{ background: `linear-gradient(90deg, ${tint(color, 0.55)}, ${tint(color, 0.28)})` }}
                   />
                   <motion.span
                     aria-hidden
@@ -142,7 +143,7 @@ export function ScopeMenu({ color, trigger, title, subtitle, progress, served, o
 
 export function StopButton({ color, label, onClick }: { color: string; label: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="mt-1 rounded-lg border px-2.5 py-1.5 text-[12px] font-bold" style={{ borderColor: hexToRgba(color, 0.45), color }}>
+    <button type="button" onClick={onClick} className="mt-1 rounded-lg border px-2.5 py-1.5 text-[12px] font-bold" style={{ borderColor: tint(color, 0.45), color }}>
       {label}
     </button>
   )
@@ -251,8 +252,8 @@ function InputRow({
           type="button"
           onClick={onSubmit}
           disabled={!canSubmit}
-          className="shrink-0 rounded-lg px-2.5 py-1 text-[11.5px] font-bold text-white disabled:opacity-50"
-          style={{ background: color }}
+          className="shrink-0 rounded-lg px-2.5 py-1 text-[11.5px] font-bold disabled:opacity-50"
+          style={{ background: color, color: onFill(color) }}
         >
           Run
         </button>

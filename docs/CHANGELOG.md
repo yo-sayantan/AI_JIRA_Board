@@ -10,6 +10,16 @@ code does now, so a reader can check them against the tree.
   width, so the board overflowed sideways, and the "can't drop here" note popped into every refusing zone at full height, so the
   whole board jumped taller. Now the width and the note both ease in and back out together, and the extra room is taken
   unevenly — the wide columns (Blocked · In Progress · In Review) give up most, the narrow ones (To Do · QA · Done) only a little.
+- **Dark mode is readable, and actually dark.** The palette is the same in both themes, but a brand colour tuned for white
+  (a deep indigo, a blue, a green) went dim on black — worst on the API keys pages, in selected chips and on filled pills.
+  Dark now keeps each colour's **hue** and lifts its **tone**, by the least amount that clears 6.5:1 on the dark surface
+  (`src/lib/tone.ts`: `lift` for text / icons / lines, `tint` for washes and borders — a faint wash gets a little more body
+  in dark — and `onFill` for the text on a solid fill: near-black on a pale one, white as before elsewhere). It rides on one
+  CSS variable, `--tone-lift` (`styles/dark.css`), so it follows the theme switch with no re-render, and is 0 in light mode and
+  on paper (the PDF deck). The page is near-black (`#07080a`) and the surfaces that float over it — sheets, menus, bars,
+  fields — are deeper still, not grey; text and link tokens are brighter. Text selection is a solid blue band with white ink,
+  native controls (select popups, scrollbars, autofill) follow the in-app theme instead of the OS's, placeholders and the
+  focus ring are brighter. Light mode is unchanged.
 - **Drawer: branch cards, Copy link, a small refresh, more glass.** Branches are small glass cards — click one to copy its
   name — coloured by PR state (indigo when there is no PR), replacing the long dark bars. **Copy link** copies the ticket's Jira
   URL (Copy ID when a row has none); the long gradient "Refresh status" is a small round refresh button. The quick actions, the

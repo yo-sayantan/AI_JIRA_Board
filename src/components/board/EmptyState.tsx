@@ -1,7 +1,8 @@
 import { motion } from 'motion/react'
 import { CopyButton } from '../common/ui'
 import { FlaskIcon, KeyIcon, RefreshIcon } from '../common/Icons'
-import { hexToRgba } from '../../lib/format'
+import { lift, tint } from '../../lib/tone'
+
 
 export function EmptyState({
   served,
@@ -63,9 +64,9 @@ export function EmptyState({
               whileTap={{ scale: 0.95 }}
               onClick={onOpenKeys}
               className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-[13px] font-semibold"
-              style={{ color: '#f59e0b', borderColor: hexToRgba('#f59e0b', 0.45), background: hexToRgba('#f59e0b', 0.07) }}
+              style={{ color: lift('#f59e0b'), borderColor: tint('#f59e0b', 0.45), background: tint('#f59e0b', 0.07) }}
             >
-              <KeyIcon size={14} color="#f59e0b" />
+              <KeyIcon size={14} color={lift('#f59e0b')} />
               {keysMissing ? 'Add API keys first' : 'API keys'}
             </motion.button>
           )}
@@ -74,10 +75,10 @@ export function EmptyState({
               whileTap={{ scale: 0.95 }}
               onClick={onTryDemo}
               className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-[13px] font-semibold"
-              style={{ color: '#0d9488', borderColor: hexToRgba('#14b8a6', 0.5), background: hexToRgba('#14b8a6', 0.09) }}
+              style={{ color: lift('#0d9488'), borderColor: tint('#14b8a6', 0.5), background: tint('#14b8a6', 0.09) }}
               title="Look around a sample board of invented tickets — nothing reaches Jira, and it works without the server or any keys"
             >
-              <FlaskIcon size={14} color="#14b8a6" />
+              <FlaskIcon size={14} color={lift('#14b8a6')} />
               Try demo mode
             </motion.button>
           )}

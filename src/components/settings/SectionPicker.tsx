@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { hexToRgba } from '../../lib/format'
+import { lift, onFill, tint } from '../../lib/tone'
+
 
 /**
  * A compact multi-select for "which optional sections does my board show": the chosen ones sit in
@@ -128,7 +129,7 @@ export function SectionPicker({
               <span
                 key={o.key}
                 className="inline-flex items-center gap-1.5 rounded-full border py-0.5 pl-1.5 pr-2 text-[11px] font-bold"
-                style={{ borderColor: hexToRgba(o.color, 0.45), background: hexToRgba(o.color, 0.1), color: o.color }}
+                style={{ borderColor: tint(o.color, 0.45), background: tint(o.color, 0.1), color: lift(o.color) }}
               >
                 {o.icon(o.color)}
                 {o.chipLabel ?? o.label}
@@ -182,16 +183,16 @@ export function SectionPicker({
                   onMouseEnter={() => setActive(i)}
                   onClick={() => onToggle(o.key, !on)}
                   className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5"
-                  style={{ background: i === active ? hexToRgba(o.color, 0.09) : undefined }}
+                  style={{ background: i === active ? tint(o.color, 0.09) : undefined }}
                 >
                   <span
                     aria-hidden
-                    className="grid h-4 w-4 shrink-0 place-items-center rounded border text-[10px] font-black leading-none text-white"
-                    style={{ borderColor: on ? o.color : 'var(--line-strong)', background: on ? o.color : 'transparent' }}
+                    className="grid h-4 w-4 shrink-0 place-items-center rounded border text-[10px] font-black leading-none"
+                    style={{ borderColor: on ? lift(o.color) : 'var(--line-strong)', background: on ? o.color : 'transparent', color: onFill(o.color) }}
                   >
                     {on ? '✓' : ''}
                   </span>
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md" style={{ background: hexToRgba(on ? o.color : '#94a3b8', 0.16), filter: on ? undefined : 'grayscale(1)' }}>
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md" style={{ background: tint(on ? o.color : '#94a3b8', 0.16), filter: on ? undefined : 'grayscale(1)' }}>
                     {o.icon(on ? o.color : 'var(--muted)')}
                   </span>
                   <span className="min-w-0 flex-1">

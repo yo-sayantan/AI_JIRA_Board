@@ -2,7 +2,7 @@ import { useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { Ticket, LinkRef, Comment, PullRequest } from '../../types'
 import { COLUMN_META } from '../../lib/columns'
-import { fmtDate, fmtDateTime, relTime, prMeta, isMergedPr, isClosedPr, prListOf, primaryPrOf, prCommentStats, branchesOf, branchStatusOf, typeMeta, effectiveType, isAssignedToMe, hexToRgba, cycleTime, fmtDays, unwrapBrief } from '../../lib/format'
+import { fmtDate, fmtDateTime, relTime, prMeta, isMergedPr, isClosedPr, prListOf, primaryPrOf, prCommentStats, branchesOf, branchStatusOf, typeMeta, effectiveType, isAssignedToMe, cycleTime, fmtDays, unwrapBrief } from '../../lib/format'
 import { Pill, StatusBadge, PriorityBadge, TypeBadge, PrBadge, Approvals, PointsTag, CopyButton, SafeHtml, ExternalLink, safeHref } from '../common/ui'
 import { BranchCards } from './BranchCards'
 import { Pipeline } from './Pipeline'
@@ -30,6 +30,7 @@ import {
   TrophyIcon,
   FlaskIcon,
 } from '../common/Icons'
+import { lift, onFill, tint } from '../../lib/tone'
 
 /**
  * The one-click path from a ticket to its management-grade verdict. Three states: a report exists
@@ -41,7 +42,7 @@ import {
  * its colour under the sheen, and a coloured rim — colour comes from the content, the glass itself stays clear.
  */
 function glassChip(color: string): CSSProperties {
-  return { borderColor: hexToRgba(color, 0.45), backgroundImage: `var(--glass-sheen), linear-gradient(${hexToRgba(color, 0.07)}, ${hexToRgba(color, 0.07)})` }
+  return { borderColor: tint(color, 0.45), backgroundImage: `var(--glass-sheen), linear-gradient(${tint(color, 0.07)}, ${tint(color, 0.07)})` }
 }
 
 function PrReportButton({
@@ -66,13 +67,13 @@ function PrReportButton({
     return (
       <div
         className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border px-3.5 py-2.5 text-[12.5px]"
-        style={{ borderColor: hexToRgba(ai, 0.4), background: hexToRgba(ai, 0.08) }}
+        style={{ borderColor: tint(ai, 0.4), background: tint(ai, 0.08) }}
         role="status"
       >
         <motion.span className="inline-flex" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}>
-          <RefreshIcon size={13} color={ai} />
+          <RefreshIcon size={13} color={lift(ai)} />
         </motion.span>
-        <span className="font-bold" style={{ color: ai }}>
+        <span className="font-bold" style={{ color: lift(ai) }}>
           AI intern working…
         </span>
         <span className="text-[var(--muted)]"></span>
@@ -90,15 +91,15 @@ function PrReportButton({
           onClick={() => onOpen?.(ticketKey)}
           disabled={loading}
           className="glass-interactive flex min-w-0 flex-1 flex-wrap items-center gap-2.5 rounded-xl border bg-[var(--surface-solid)] px-3.5 py-2.5 text-left card-shadow disabled:opacity-70"
-          style={{ borderColor: hexToRgba(c, 0.45), backgroundImage: `var(--glass-sheen), linear-gradient(135deg, ${hexToRgba(c, 0.1)}, ${hexToRgba(c, 0.02)})` }}
+          style={{ borderColor: tint(c, 0.45), backgroundImage: `var(--glass-sheen), linear-gradient(135deg, ${tint(c, 0.1)}, ${tint(c, 0.02)})` }}
           title={v?.headline ?? 'Open the PR readiness report'}
         >
           <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: c }} />
-          <span className="text-[12.5px] font-extrabold" style={{ color: c }}>
+          <span className="text-[12.5px] font-extrabold" style={{ color: lift(c) }}>
             PR Readiness Report
           </span>
           {v && (
-            <span className="rounded-full px-2 py-[2px] text-[10.5px] font-bold" style={{ color: c, background: hexToRgba(c, 0.18) }}>
+            <span className="rounded-full px-2 py-[2px] text-[10.5px] font-bold" style={{ color: lift(c), background: tint(c, 0.18) }}>
               {v.label}
             </span>
           )}
@@ -114,10 +115,10 @@ function PrReportButton({
             type="button"
             onClick={() => onGenerate(ticketKey)}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-bold transition-colors hover:bg-[var(--surface-2)]"
-            style={{ borderColor: hexToRgba(ai, 0.45), color: ai }}
+            style={{ borderColor: tint(ai, 0.45), color: lift(ai) }}
             title="Rebuild this report from the latest Jira / Bitbucket state (runs in the background)"
           >
-            <RefreshIcon size={12} color={ai} />
+            <RefreshIcon size={12} color={lift(ai)} />
             Regenerate
           </button>
         )}
@@ -130,11 +131,11 @@ function PrReportButton({
         type="button"
         onClick={() => onGenerate(ticketKey)}
         className="mb-4 flex w-full flex-wrap items-center gap-2 rounded-xl border border-dashed px-3.5 py-2.5 text-left text-[12.5px] transition-colors hover:bg-[var(--surface-2)]"
-        style={{ borderColor: hexToRgba(ai, 0.5) }}
+        style={{ borderColor: tint(ai, 0.5) }}
         title="Build the PR readiness report for this ticket in the background"
       >
-        <SparkleIcon size={13} color={ai} />
-        <span className="font-bold" style={{ color: ai }}>
+        <SparkleIcon size={13} color={lift(ai)} />
+        <span className="font-bold" style={{ color: lift(ai) }}>
           Generate PR readiness report
         </span>
         <span className="text-[var(--muted)]">verdict · evidence · change assessment · risks · open scope — runs in the background</span>
@@ -234,7 +235,7 @@ export function TicketDetail({
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="font-mono text-[12px] font-bold" style={{ color: accent }}>
+                <span className="font-mono text-[12px] font-bold" style={{ color: lift(accent) }}>
                   {ticket.key}
                 </span>
                 <PointsTag points={ticket.storyPoints} />
@@ -285,7 +286,7 @@ export function TicketDetail({
                 title={refreshing ? 'Refreshing…' : 'Fetch the latest status of just this ticket (background)'}
               >
                 <motion.span className="inline-flex" animate={refreshing ? { rotate: 360 } : { rotate: 0 }} transition={refreshing ? { repeat: Infinity, duration: 0.8, ease: 'linear' } : { duration: 0.2 }}>
-                  <RefreshIcon size={13} color="#2684ff" />
+                  <RefreshIcon size={13} color={lift('#2684ff')} />
                 </motion.span>
               </motion.button>
             )}
@@ -293,7 +294,7 @@ export function TicketDetail({
               <button
                 onClick={() => onArchive(ticket.key)}
                 className="glass-interactive inline-flex items-center gap-1.5 rounded-lg border bg-[var(--surface-solid)] px-2.5 py-1 text-[11px] font-bold"
-                style={{ ...glassChip('#f59e0b'), color: '#b45309' }}
+                style={{ ...glassChip('#f59e0b'), color: lift('#b45309') }}
                 title="Move this ticket to the Completed archive now (removes it from the board)"
               >
                 <TrophyIcon size={12} /> Move to Completed
@@ -357,11 +358,11 @@ export function TicketDetail({
           {briefsEnabled !== false && ticket.aiSummary && ticket.column !== 'done' && (
             <div
               className="mb-4 overflow-hidden rounded-xl border border-[#7c3aed]/30 bg-[var(--surface-solid)] card-shadow"
-              style={{ backgroundImage: `var(--glass-sheen), linear-gradient(135deg, ${hexToRgba('#7c3aed', 0.07)}, ${hexToRgba('#6366f1', 0.025)})` }}
+              style={{ backgroundImage: `var(--glass-sheen), linear-gradient(135deg, ${tint('#7c3aed', 0.07)}, ${tint('#6366f1', 0.025)})` }}
             >
               <div className="flex items-center gap-2 border-b border-[#7c3aed]/20 px-3.5 py-2">
-                <SparkleIcon color="#a855f7" size={14} />
-                <span className="text-[12px] font-bold text-[#a855f7]">
+                <SparkleIcon color={lift('#a855f7')} size={14} />
+                <span className="text-[12px] font-bold text-[#a855f7] dark:text-[#c084fc]">
                   {ticket.column === 'todo' || ticket.column === 'prog' ? 'AI Brief' : 'AI Summary'}
                 </span>
                 <span className="ml-auto text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
@@ -374,21 +375,21 @@ export function TicketDetail({
 
           {/* 2. Description — full detail */}
           {ticket.description && (
-            <Section title="Description" icon={<DocIcon color={accent} size={14} />} accent={accent} defaultOpen={false}>
+            <Section title="Description" icon={<DocIcon color={lift(accent)} size={14} />} accent={accent} defaultOpen={false}>
               <SafeHtml html={ticket.description} />
             </Section>
           )}
 
           {/* 3. Acceptance criteria — definition of done */}
           {ticket.acceptanceCriteria && ticket.acceptanceCriteria.length > 0 && (
-            <Section title="Acceptance criteria" icon={<CheckIcon color={accent} size={14} />} accent={accent} count={ticket.acceptanceCriteria.length}>
+            <Section title="Acceptance criteria" icon={<CheckIcon color={lift(accent)} size={14} />} accent={accent} count={ticket.acceptanceCriteria.length}>
               <AcceptanceChecklist storageKey={ticket.key} items={ticket.acceptanceCriteria} accent={accent} />
             </Section>
           )}
 
           {/* 4. Sub-tasks — work breakdown */}
           {ticket.subtasks && ticket.subtasks.length > 0 && (
-            <Section title="Sub-tasks" icon={<TypeIcon type="sub-task" color={accent} size={14} />} accent={accent} count={ticket.subtasks.length}>
+            <Section title="Sub-tasks" icon={<TypeIcon type="sub-task" color={lift(accent)} size={14} />} accent={accent} count={ticket.subtasks.length}>
               <SubtaskTree root={ticket} onOpen={onOpen} user={user} />
             </Section>
           )}
@@ -397,7 +398,7 @@ export function TicketDetail({
           {prs.length > 0 && (
             <Section
               title={prs.length > 1 ? 'Pull requests' : 'Pull request'}
-              icon={<BranchIcon color={accent} size={14} />}
+              icon={<BranchIcon color={lift(accent)} size={14} />}
               accent={accent}
               count={prs.length > 1 ? prs.length : undefined}
             >
@@ -413,7 +414,7 @@ export function TicketDetail({
           {branches.length > 0 && (
             <Section
               title={branches.length > 1 ? 'Branches' : 'Branch'}
-              icon={<BranchIcon color={accent} size={14} />}
+              icon={<BranchIcon color={lift(accent)} size={14} />}
               accent={accent}
               count={branches.length > 1 ? branches.length : undefined}
             >
@@ -423,14 +424,14 @@ export function TicketDetail({
 
           {/* 6b. Proof — measured outside Jira: Checkmarx vulnerability fixes, latest Jenkins build per environment, what Dynatrace says about the ticket's links (more sources join in Proof.tsx) */}
           {proofCount(ticket) > 0 && (
-            <Section title="Proof" icon={<FlaskIcon color={accent} size={14} />} accent={accent} count={proofCount(ticket)}>
+            <Section title="Proof" icon={<FlaskIcon color={lift(accent)} size={14} />} accent={accent} count={proofCount(ticket)}>
               <ProofPanel ticket={ticket} now={now} timeZone={APP_CONFIG.timeZone} />
             </Section>
           )}
 
           {/* 7. Comments — discussion, decisions, blockers */}
           {ticket.comments && ticket.comments.length > 0 && (
-            <Section title="Comments" icon={<CommentIcon color={accent} size={14} />} accent={accent} count={ticket.commentCount ?? ticket.comments.length} defaultOpen={false}>
+            <Section title="Comments" icon={<CommentIcon color={lift(accent)} size={14} />} accent={accent} count={ticket.commentCount ?? ticket.comments.length} defaultOpen={false}>
               <div className="flex flex-col gap-2.5">
                 {ticket.comments.map((c, i) => (
                   <CommentItem key={i} c={c} now={now} />
@@ -441,17 +442,17 @@ export function TicketDetail({
 
           {/* 8. Proposed solution — approach / analysis */}
           {ticket.proposedSolution && (
-            <Section title="Proposed solution / changes" icon={<WrenchIcon color={accent} size={14} />} accent={accent}>
+            <Section title="Proposed solution / changes" icon={<WrenchIcon color={lift(accent)} size={14} />} accent={accent}>
               <SafeHtml html={ticket.proposedSolution} />
             </Section>
           )}
 
           {/* 8b. Effort estimate — sizing / how long */}
           {(ticket.effortEstimate || ticket.estDays) && (
-            <Section title="Effort estimate" icon={<ClockIcon color={accent} size={14} />} accent={accent} defaultOpen={false}>
+            <Section title="Effort estimate" icon={<ClockIcon color={lift(accent)} size={14} />} accent={accent} defaultOpen={false}>
               {ticket.estDays && (
-                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold" style={{ color: accent, background: hexToRgba(accent, 0.12) }}>
-                  <ClockIcon color={accent} size={12} /> {ticket.estDays}
+                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold" style={{ color: lift(accent), background: tint(accent, 0.12) }}>
+                  <ClockIcon color={lift(accent)} size={12} /> {ticket.estDays}
                 </div>
               )}
               {ticket.effortEstimate && <SafeHtml html={ticket.effortEstimate} />}
@@ -460,11 +461,11 @@ export function TicketDetail({
 
           {/* 9. Open questions — unknowns to resolve */}
           {ticket.openQuestions && ticket.openQuestions.length > 0 && (
-            <Section title="Open questions" icon={<QuestionIcon color={accent} size={14} />} accent={accent} count={ticket.openQuestions.length}>
+            <Section title="Open questions" icon={<QuestionIcon color={lift(accent)} size={14} />} accent={accent} count={ticket.openQuestions.length}>
               <ul className="flex flex-col gap-1.5">
                 {ticket.openQuestions.map((q, i) => (
                   <li key={i} className="flex gap-2 text-[13px] text-[var(--ink-soft)]">
-                    <span style={{ color: accent }}>•</span>
+                    <span style={{ color: lift(accent) }}>•</span>
                     {q}
                   </li>
                 ))}
@@ -474,21 +475,21 @@ export function TicketDetail({
 
           {/* 10. Related tickets — linked context */}
           {ticket.related && ticket.related.length > 0 && (
-            <Section title="Related tickets" icon={<LinkIcon color={accent} size={14} />} accent={accent} count={ticket.related.length} defaultOpen={false}>
+            <Section title="Related tickets" icon={<LinkIcon color={lift(accent)} size={14} />} accent={accent} count={ticket.related.length} defaultOpen={false}>
               <LinkList items={ticket.related} />
             </Section>
           )}
 
           {/* 11. Confluence & docs — reference */}
           {ticket.confluence && ticket.confluence.length > 0 && (
-            <Section title="Confluence & docs" icon={<BookIcon color={accent} size={14} />} accent={accent} count={ticket.confluence.length}>
+            <Section title="Confluence & docs" icon={<BookIcon color={lift(accent)} size={14} />} accent={accent} count={ticket.confluence.length}>
               <RefCards items={ticket.confluence} />
             </Section>
           )}
 
           {/* 12. External links — reference */}
           {ticket.externalLinks && ticket.externalLinks.length > 0 && (
-            <Section title="External links" icon={<GlobeIcon color={accent} size={14} />} accent={accent} count={ticket.externalLinks.length} defaultOpen={false}>
+            <Section title="External links" icon={<GlobeIcon color={lift(accent)} size={14} />} accent={accent} count={ticket.externalLinks.length} defaultOpen={false}>
               <RefCards items={ticket.externalLinks} />
             </Section>
           )}
@@ -498,7 +499,7 @@ export function TicketDetail({
 
           {/* 14. Update log — status history + last updated */}
           {((ticket.updateLog && ticket.updateLog.length > 0) || ticket.lastUpdate) && (
-            <Section title="Update log" icon={<ClockIcon color={accent} size={14} />} accent={accent} count={ticket.updateLog?.length || undefined}>
+            <Section title="Update log" icon={<ClockIcon color={lift(accent)} size={14} />} accent={accent} count={ticket.updateLog?.length || undefined}>
               {ticket.lastUpdate && (
                 <div className="mb-2.5 text-[12px] text-[var(--muted)]">
                   Last updated <span className="font-semibold text-[var(--ink-soft)]">{fmtDateTime(ticket.lastUpdate)}</span> ({relTime(ticket.lastUpdate, now)})
@@ -510,7 +511,7 @@ export function TicketDetail({
 
           {/* 15. Sources — provenance (least useful) */}
           {ticket.sources && ticket.sources.length > 0 && (
-            <Section title="Sources" icon={<PaperclipIcon color={accent} size={14} />} accent={accent} count={ticket.sources.length} defaultOpen={false}>
+            <Section title="Sources" icon={<PaperclipIcon color={lift(accent)} size={14} />} accent={accent} count={ticket.sources.length} defaultOpen={false}>
               <LinkList items={ticket.sources} />
             </Section>
           )}
@@ -557,7 +558,7 @@ function Section({
         <span className="inline-flex" aria-hidden>{icon}</span>
         <span className="text-[13px] font-bold text-[var(--ink)]">{title}</span>
         {typeof count === 'number' && (
-          <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ color: accent, background: hexToRgba(accent, 0.14) }}>
+          <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ color: lift(accent), background: tint(accent, 0.14) }}>
             {count}
           </span>
         )}
@@ -609,7 +610,7 @@ function OverviewGrid({ ticket }: { ticket: Ticket }) {
               className="ml-2 text-[var(--muted)]"
               title={`${fmtDays(ct.progressDays)} in progress · ${fmtDays(ct.reviewDays)} in review`}
             >
-              · <span className="font-semibold" style={{ color: '#8b5cf6' }}>{fmtDays(ct.devDays)}</span> dev
+              · <span className="font-semibold" style={{ color: lift('#8b5cf6') }}>{fmtDays(ct.devDays)}</span> dev
               <span className="text-[11px]">
                 {' '}
                 ({fmtDays(ct.progressDays)} progress, {fmtDays(ct.reviewDays)} review)
@@ -693,9 +694,9 @@ function AcceptanceChecklist({ storageKey, items, accent }: { storageKey: string
               <span
                 className="mt-[2px] grid h-4 w-4 shrink-0 place-items-center rounded border text-[10px]"
                 style={{
-                  borderColor: checked[i] ? accent : 'var(--line-strong)',
+                  borderColor: checked[i] ? lift(accent) : 'var(--line-strong)',
                   background: checked[i] ? accent : 'transparent',
-                  color: '#fff',
+                  color: onFill(accent),
                 }}
               >
                 {checked[i] ? '✓' : ''}
@@ -739,7 +740,7 @@ function PrRow({ pr }: { pr: PullRequest }) {
         {pr.title && <span className="min-w-0 truncate text-[var(--muted)]">{pr.title}</span>}
         {!closed && <Approvals approvals={pr.approvals} />}
         {closed && typeof pr.approvals === 'number' && (
-          <span className="font-semibold text-[#22c55e]">✓ {pr.approvals} approval{pr.approvals === 1 ? '' : 's'}</span>
+          <span className="font-semibold text-[#22c55e] dark:text-[#4ade80]">✓ {pr.approvals} approval{pr.approvals === 1 ? '' : 's'}</span>
         )}
         {cs && (
           <span className="text-[var(--muted)]">
@@ -834,7 +835,7 @@ function Timeline({ entries, accent }: { entries: { when?: string | null; text?:
     log.push(e)
   }
   return (
-    <ul className="relative ml-1 flex flex-col gap-3 border-l-2 pl-4" style={{ borderColor: hexToRgba(accent, 0.3) }}>
+    <ul className="relative ml-1 flex flex-col gap-3 border-l-2 pl-4" style={{ borderColor: tint(accent, 0.3) }}>
       {log.map((e, i) => (
         <li key={i} className="relative">
           <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full ring-2 ring-[var(--bg)]" style={{ background: i === 0 ? accent : 'var(--muted)' }} />
@@ -934,8 +935,8 @@ function TreeRow({ node, onOpen, isRoot = false, user }: { node: Ticket; onOpen?
   const nodeBranches = branchesOf(node)
   const label = (
     <>
-      <TypeIcon type={effectiveType(node)} color={typeMeta(effectiveType(node)).color} size={12} />
-      <span className="shrink-0 font-mono text-[11px] font-bold" style={{ color: accent }}>
+      <TypeIcon type={effectiveType(node)} color={lift(typeMeta(effectiveType(node)).color)} size={12} />
+      <span className="shrink-0 font-mono text-[11px] font-bold" style={{ color: lift(accent) }}>
         {node.key}
       </span>
       <span className="min-w-0 flex-1 truncate text-[12.5px] text-[var(--ink)]">{node.title}</span>
@@ -999,7 +1000,7 @@ function TreeRow({ node, onOpen, isRoot = false, user }: { node: Ticket; onOpen?
         {meta}
       </div>
       {kids.length > 0 && (
-        <div className="ml-3 mt-1.5 flex flex-col gap-1.5 border-l-2 pl-3" style={{ borderColor: hexToRgba(accent, 0.3) }}>
+        <div className="ml-3 mt-1.5 flex flex-col gap-1.5 border-l-2 pl-3" style={{ borderColor: tint(accent, 0.3) }}>
           {kids.map((k) => (
             <TreeRow key={k.key} node={k} onOpen={onOpen} user={user} />
           ))}
