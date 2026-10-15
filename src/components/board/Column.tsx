@@ -1,26 +1,14 @@
 import { memo, useRef, useState, type DragEvent, type Ref } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { HOLD_COLUMN, NEXT_SPRINT_SECTION, QA_IN_PROGRESS, columnMode, isQaInProgress, type ColumnMeta, type ColumnMode, type MoveTarget } from '../../lib/columns'
+import { HOLD_COLUMN, NEXT_SPRINT_SECTION, QA_IN_PROGRESS, columnMode, columnWidth, isQaInProgress, type ColumnMeta, type MoveTarget } from '../../lib/columns'
 import { MOVE_OK, checkMove, readinessOf, type MoveCheck, type TicketLookup } from '../../lib/moveRules'
 import type { Ticket } from '../../types'
 import { DRAG_MIME, TicketCard } from './TicketCard'
 import { futureSprintOf, sprintWhen } from '../../lib/format'
 import { CalendarIcon, ColumnIcon, PauseIcon } from '../common/Icons'
 import { SubSection } from './SubSection'
-import { DeniedNote, LandingSlot, SpaceHeader, dropBoxStyle, deniedOpacity } from './boardParts'
+import { DeniedNote, DeniedSlot, LandingSlot, SpaceHeader, dropBoxStyle, deniedOpacity } from './boardParts'
 import { lift, tint } from '../../lib/tone'
-
-// Widths per mode (lib/columns.ts::columnMode). Every column carries 6px of invisible padding per
-// side (see the section style) so the hit areas of neighbouring columns touch — a card dragged across
-// the gap between two columns is never over nothing — which is why each width is 0.75rem more than
-// what is drawn. Full columns come in two weights: the slim edges (To Do · QA · Done) start narrower
-// and grow less, so spare width goes to Blocked · In Progress · In Review, whose cards carry the most.
-const WIDTH: Record<ColumnMode, { flex: string; minWidth: string }> = {
-  full: { flex: '1.45 1 15.75rem', minWidth: '15.25rem' },
-  drop: { flex: '0 0 7.75rem', minWidth: '7.75rem' },
-  rail: { flex: '0 0 3.5rem', minWidth: '3.5rem' },
-}
-const WIDTH_SLIM = { flex: '0.55 1 12.25rem', minWidth: '11.75rem' } as const
 
 /** Which of a column's drop targets a card is over: the column itself, or its second space. */
 type DropTarget = 'col' | 'sub'
@@ -217,7 +205,7 @@ export const Column = memo(function Column({
   return (
     <section
       className={`jb-col jb-col-${mode} flex flex-col`}
-      style={{ ...(mode === 'full' && meta.slim ? WIDTH_SLIM : WIDTH[mode]), marginInline: -6, paddingInline: 6 }}
+      style={{ ...columnWidth(mode, { slim: meta.slim, calm }), marginInline: -6, paddingInline: 6 }}
       aria-label={
         mode === 'full'
           ? ownOff
@@ -260,7 +248,7 @@ export const Column = memo(function Column({
             style={{ ...dropBoxStyle(meta.accent, over === 'col'), opacity: deniedOpacity(ownDenied, over === 'col') }}
             title={ownDenied?.reason ?? undefined}
           >
-            {ownDenied && <DeniedNote check={ownDenied} alt={alt} active={over === 'col'} />}
+            <DeniedSlot check={ownDenied} alt={alt} active={over === 'col'} />
             <AnimatePresence mode="popLayout" initial={false}>
               {own.map(card)}
             </AnimatePresence>

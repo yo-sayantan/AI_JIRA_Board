@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useRef, type CSSProperties, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 
 import { shortReason, type MoveCheck } from '../../lib/moveRules'
@@ -106,6 +106,32 @@ export function deniedOpacity(denied: MoveCheck | null | undefined, active = fal
 
 const LANE_RED = '#e11d48'
 const GATE_AMBER = '#d97706'
+
+/**
+ * `DeniedNote` that grows in and folds away instead of popping. The notes appear in every zone that refuses the dragged
+ * card, the moment the drag starts: popping in at full height made the tallest column — and so the whole board — jump by
+ * the note's height while the empty columns were still opening.
+ *
+ * It is a CSS grid row easing 0fr → 1fr (the same curve and time as the columns' widths, index.css `.jb-col`), not a
+ * measured height: the note's text wraps differently once the columns have narrowed, so a height measured when the drag
+ * starts was 13px short when the widths settled, and the board snapped at the end. 0fr always lands on the live height.
+ * Closed, the slot is 0 high and a -0.5rem margin cancels the parent's `gap-2`, so it takes no room at rest. The last note
+ * stays rendered while the slot folds away.
+ */
+export function DeniedSlot({ check, alt, active, inline = false }: { check: MoveCheck | null | undefined; alt: boolean; active: boolean; inline?: boolean }) {
+  const last = useRef(check)
+  if (check) last.current = check
+  const shown = last.current
+  return (
+    <div
+      className="grid transition-[grid-template-rows,margin,opacity] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
+      style={{ gridTemplateRows: check ? '1fr' : '0fr', marginBottom: check ? 0 : '-0.5rem', opacity: check ? 1 : 0 }}
+      aria-hidden={!check}
+    >
+      <div className="min-h-0 overflow-hidden">{shown && <DeniedNote check={shown} alt={alt} active={active} inline={inline} />}</div>
+    </div>
+  )
+}
 
 /** Says why a zone will not take the dragged card — and, for a gate, that ⌥ forces it. */
 export function DeniedNote({ check, alt, active, inline = false }: { check: MoveCheck; alt: boolean; active: boolean; inline?: boolean }) {

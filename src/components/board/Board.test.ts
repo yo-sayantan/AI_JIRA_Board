@@ -19,7 +19,7 @@ afterEach(() => {
 const tickets: Ticket[] = [{ key: 'A-1', title: 'Card', status: 'To Do', column: 'todo' }]
 
 describe('Board — after a drag', () => {
-  it('stays calm (widths snap, cards hold still) briefly after a drop that changed nothing, then lets go', () => {
+  it('stays calm (columns keep their extra give, cards hold still) briefly after a drop that changed nothing, then lets go', () => {
     vi.useFakeTimers()
     host = document.createElement('div')
     document.body.appendChild(host)
@@ -31,7 +31,7 @@ describe('Board — after a drag', () => {
     act(() => { card.dispatchEvent(new Event('dragstart', { bubbles: true })) })
     expect(board.className).toContain('jb-dragging')
     act(() => { card.dispatchEvent(new Event('dragend', { bubbles: true })) })
-    expect(board.className).toContain('jb-dragging') // still calm: no width easing on top of the re-flow
+    expect(board.className).toContain('jb-dragging') // still calm: no card springs on top of the re-flow
     act(() => { vi.advanceTimersByTime(600) })
     expect(board.className).not.toContain('jb-dragging')
   })

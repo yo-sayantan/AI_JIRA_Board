@@ -2,7 +2,7 @@ import { memo, type ReactNode } from 'react'
 import { AnimatePresence } from 'motion/react'
 import type { Ticket } from '../../types'
 import type { MoveCheck } from '../../lib/moveRules'
-import { DeniedNote, LandingSlot, SpaceHeader, deniedOpacity, dropBoxStyle } from './boardParts'
+import { DeniedSlot, LandingSlot, SpaceHeader, deniedOpacity, dropBoxStyle } from './boardParts'
 import { lift } from '../../lib/tone'
 
 /**
@@ -75,7 +75,7 @@ export const SubSection = memo(function SubSection({
         title={denied?.reason ?? (empty ? hint : undefined)}
         style={{ ...dropBoxStyle(accent, droppable && over), opacity: deniedOpacity(denied, over) }}
       >
-        {denied && <DeniedNote check={denied} alt={alt} active={over} inline={empty} />}
+        <DeniedSlot check={denied} alt={alt} active={over} inline={empty} />
         {groups.map((g, i) => (
           <div key={g.cap?.text ?? `g${i}`} className="flex flex-col gap-2">
             {g.cap && (
