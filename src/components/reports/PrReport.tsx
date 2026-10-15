@@ -20,7 +20,7 @@ import type { AiInternStatus } from '../../lib/runner'
 import { hrefForKey, shareableLinks } from '../../lib/reportLinks'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { isSafeUrl, safeHref } from '../common/ui'
-import { lift, tint } from '../../lib/tone'
+import { lift, selectedText, tint } from '../../lib/tone'
 
 /**
  * PR Readiness Report overlay — renders a report GENERICALLY from its block kinds, so the
@@ -278,9 +278,9 @@ export function PrReportOverlay({
                     }}
                     className="relative flex shrink-0 items-center gap-2 rounded-t-lg px-3.5 py-2 text-[12.5px] font-semibold transition-colors"
                     style={{
-                      color: on ? lift(c) : 'var(--ink-soft)',
+                      color: on ? selectedText(c) : 'var(--ink-soft)',
                       background: on ? tint(c, 0.12) : 'transparent',
-                      boxShadow: on ? `inset 0 -2px 0 ${c}` : 'none',
+                      boxShadow: on ? `inset 0 -2px 0 ${lift(c)}` : 'none',
                     }}
                   >
                     <span className="inline-block h-2 w-2 rounded-full" style={{ background: c }} />

@@ -28,7 +28,7 @@ import type { SourceStatus } from '../../types'
 import type { ApiKeySave } from '../../lib/runner'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { CheckIcon, EyeIcon, EyeOffIcon, KeyIcon } from '../common/Icons'
-import { lift, onFill, tint } from '../../lib/tone'
+import { lift, onFill, selectedText, tint } from '../../lib/tone'
 
 type SaveFn = (name: string, value: string) => Promise<ApiKeySave>
 type TestFn = (service: string) => Promise<KeyTestResult>
@@ -297,14 +297,14 @@ function ServiceNavItem({
         title={service.details}
         className="flex w-full items-center gap-2.5 rounded-xl border px-2 py-2 text-left transition-[background-color,border-color] duration-150"
         style={{
-          borderColor: active ? tint(service.color, 0.45) : 'transparent',
-          background: active ? tint(service.color, 0.09) : undefined,
+          borderColor: active ? lift(service.color) : 'transparent',
+          background: active ? tint(service.color, 0.12) : undefined,
         }}
       >
         <ServiceIcon service={service} ready={ready} size={30} />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
-            <span className="text-[13px] font-bold" style={{ color: ready || active ? lift(service.color) : 'var(--ink-soft)' }}>
+            <span className="text-[13px] font-bold" style={{ color: active ? selectedText(service.color) : ready ? lift(service.color) : 'var(--ink-soft)' }}>
               {service.name}
             </span>
             {service.required && !ready && (

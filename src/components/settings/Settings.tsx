@@ -8,7 +8,7 @@ import fallbackCatalog from '../../../ai-intern/models.json'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { SectionPicker, type PickerOption } from './SectionPicker'
 import { CalendarIcon, CheckIcon, ColumnIcon, DocIcon, DownloadIcon, FlaskIcon, MegaphoneIcon, MoonIcon, MoveIcon, PauseIcon, QuestionIcon, RefreshIcon, SearchIcon, SparkleIcon, SunIcon, TrophyIcon } from '../common/Icons'
-import { lift, tint } from '../../lib/tone'
+import { lift, selectedStyle, selectedText, tint } from '../../lib/tone'
 
 const AI = '#a855f7'
 
@@ -101,7 +101,7 @@ function ReportSwatch({ style }: { style: 'light' | 'colorful' }) {
 
 function segmentStyle(active: boolean): React.CSSProperties {
   return active
-    ? { background: tint(AI, 0.14), color: lift(AI), boxShadow: `inset 0 0 0 1px ${tint(AI, 0.45)}` }
+    ? selectedStyle(AI)
     : { color: 'var(--ink-soft)' }
 }
 
@@ -202,7 +202,7 @@ function AiLevelPicker({ value, onChange }: { value: Settings['aiLevel']; onChan
               className={SEGMENT_BUTTON}
               style={segmentStyle(active)}
             >
-              <SparkleIcon size={11} color={lift(active ? AI : 'currentColor')} />
+              <SparkleIcon size={11} color={active ? selectedText(AI) : 'currentColor'} />
               <span className="truncate">{level.label}</span>
             </button>
             <AnimatePresence>

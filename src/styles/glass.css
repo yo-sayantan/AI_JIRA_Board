@@ -51,30 +51,37 @@
 
 .dark {
   /* Dark means DARK, not grey: the page is near-black, and the surfaces that float over it (sheets, menus, bars, wells) are
-     deeper still, so a popup reads as a hole in the glass rather than a grey card. Cards are a faint lift off the page. */
+     deeper still, so a popup reads as a hole in the glass rather than a grey card. Every white overlay is thin — a panel is
+     ~3% white, its sheen 3%, its top highlight 11% — because they stack (sheet → panel → chip), and each layer of white on
+     black adds grey; panels are told apart by their hairline edge, not by being lighter. Colour stays in the content. */
   --bg: #07080a;
   --bg-2: #0c0e11;
-  --surface-solid: rgba(255, 255, 255, 0.055);
-  --surface-2: rgba(255, 255, 255, 0.04);
-  --sheet: rgba(8, 9, 12, 0.9);
-  --pop: rgba(6, 7, 9, 0.985);
-  --bar: rgba(7, 8, 10, 0.74);
-  --field: rgba(0, 0, 0, 0.55);
-  --line: rgba(255, 255, 255, 0.12);
+  --surface-solid: rgba(255, 255, 255, 0.032);
+  --surface-2: rgba(255, 255, 255, 0.028);
+  --sheet: rgba(5, 6, 8, 0.95);
+  --pop: rgba(4, 5, 7, 0.99);
+  --bar: rgba(5, 6, 8, 0.8);
+  --field: rgba(0, 0, 0, 0.7);
+  --line: rgba(255, 255, 255, 0.11);
   --line-strong: rgba(255, 255, 255, 0.22);
-  --spec: rgba(255, 255, 255, 0.2);
-  --spec-soft: rgba(255, 255, 255, 0.05);
-  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 42%);
+  --spec: rgba(255, 255, 255, 0.11);
+  --spec-soft: rgba(255, 255, 255, 0.03);
+  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 42%);
   --rim: linear-gradient(135deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.1) 30%, rgba(255, 255, 255, 0.03) 62%, rgba(255, 255, 255, 0.16) 100%);
-  --pointer-spec: rgba(255, 255, 255, 0.1);
+  --pointer-spec: rgba(255, 255, 255, 0.07);
   --glass-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .045 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-  --glass-reflect: linear-gradient(115deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 26%);
+  --glass-reflect: linear-gradient(115deg, rgba(255, 255, 255, 0.025) 0%, rgba(255, 255, 255, 0) 26%);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 14px 36px -14px rgba(0, 0, 0, 0.75);
   --shadow-sheet: 0 2px 6px rgba(0, 0, 0, 0.55), 0 34px 90px -24px rgba(0, 0, 0, 0.85);
   --scrim: rgba(0, 0, 0, 0.62);
   --close: #fca5a5;
   --close-soft: rgba(248, 113, 113, 0.14);
   --close-line: rgba(248, 113, 113, 0.55);
+}
+
+/* In dark, the backdrop's saturate() pulls the board's colours up through the (nearly opaque) sheets as a muddy tint. */
+.dark {
+  --glass-sat: 115%;
 }
 
 /* ── Ambient background: a faint hint of colour for the glass to pick up — mostly white / near-black ─────────────── */

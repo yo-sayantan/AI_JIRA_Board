@@ -6,7 +6,7 @@ import { matchRow, parseQuery } from '../../lib/search'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { Pill, PrBadge, BranchStatusPill, PointsTag, safeHref } from '../common/ui'
 import { BranchIcon, ChevronIcon, CommentIcon, ExpandAllIcon, PersonIcon, PrStateIcon, SearchIcon, SparkleIcon, TrophyIcon, TypeIcon } from '../common/Icons'
-import { lift, tint } from '../../lib/tone'
+import { lift, selectedText, tint } from '../../lib/tone'
 
 const DONE = '#22c55e'
 const CONTEXT = '#8b5cf6' // parent tickets owned by others, shown for lineage
@@ -703,9 +703,9 @@ function FilterChip({ active, color, onClick, n, title, children }: { active: bo
       aria-pressed={active}
       className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors"
       style={{
-        borderColor: active ? tint(color, 0.5) : 'var(--line)',
-        color: active ? lift(color) : 'var(--muted)',
-        background: active ? tint(color, 0.12) : 'var(--surface-solid)',
+        borderColor: active ? lift(color) : 'var(--line)',
+        color: active ? selectedText(color) : 'var(--muted)',
+        background: active ? tint(color, 0.14) : 'var(--surface-solid)',
       }}
     >
       {children}

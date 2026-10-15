@@ -16,10 +16,14 @@ import { hexToRgba } from './format'
 
 /** The lightest surface text sits on in dark mode (a hovered card with its column tint, a chip's own wash). */
 const DARK_SURFACE = '#23262d'
-/** WCAG AA is 4.5:1 for small text; 7:1 is the "enhanced" level — 10–12px badge labels deserve the stronger one. */
-const TARGET_CONTRAST = 6.5
+/**
+ * WCAG AA is 4.5:1 for small text and 7:1 "enhanced". Coloured text on the dark board goes well past both: a deep blue or
+ * violet that merely passes still looks dim next to white body text, so it is lifted to a light, clearly-tinted tone
+ * (9:1) — readable at 10–12px and still unmistakably its colour.
+ */
+const TARGET_CONTRAST = 9
 /** More white than this and the hue is lost. */
-const MAX_LIFT = 0.72
+const MAX_LIFT = 0.82
 
 type Rgb = [number, number, number]
 
@@ -127,5 +131,35 @@ const DARK_INK = '#0b0c0f'
 export function onFill(color: string): string {
   if (!parseHex(color) || contrastRatio('#ffffff', color) >= FILL_WHITE_MIN) return '#fff'
   return `color-mix(in srgb, #ffffff, ${DARK_INK} calc(var(--tone-lift, 0) * 100%))`
+}
+
+/** How far toward white the label of a SELECTED control goes in dark mode: near-white, with only a hint of its colour. */
+const SELECTED_TEXT_LIFT = 0.86
+
+/**
+ * The look of a selected / pressed option (a segment of a segmented control, an active filter chip, the chosen row of a
+ * list) in `color`. Light theme: exactly as before — coloured text on a faint wash, a coloured hairline. Dark theme: the
+ * colour moves OFF the text and ONTO the edge — a near-white label, a clear coloured ring and a slightly stronger wash —
+ * because coloured text on a coloured wash on black is the least readable thing on the board.
+ * Not a plain hex → just its text colour (the caller's own value), nothing else.
+ */
+export function selectedStyle(color: string, o: { fill?: number; edge?: number } = {}): { color: string; background?: string; boxShadow?: string } {
+  if (!parseHex(color)) return { color }
+  const fill = o.fill ?? 0.14
+  const edge = o.edge ?? 0.45
+  const edgePct = Math.round(edge * 100)
+  // Dark: the ring is the lifted colour, nearly opaque (edge + up to 45 points, never past 100%).
+  const ringBoost = Math.min(45, 100 - edgePct)
+  return {
+    color: selectedText(color),
+    background: tint(color, fill),
+    boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${lift(color)} calc(${edgePct}% + ${ringBoost}% * var(--tone-lift, 0)), transparent)`,
+  }
+}
+
+/** The label colour of a selected option: the colour itself in light mode, near-white tinted with it in dark mode. */
+export function selectedText(color: string): string {
+  if (!parseHex(color)) return color
+  return `color-mix(in srgb, ${color}, white calc(var(--tone-lift, 0) * ${Math.round(SELECTED_TEXT_LIFT * 100)}%))`
 }
 

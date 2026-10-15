@@ -4,7 +4,7 @@ import { BOARD_COLUMNS } from '../../lib/columns'
 import type { ColumnKey, Ticket } from '../../types'
 
 import { MegaphoneIcon, TrophyIcon, TicketGlyph } from '../common/Icons'
-import { lift, tint } from '../../lib/tone'
+import { lift, selectedText, tint } from '../../lib/tone'
 
 // Identity of the Raised-by-me view — indigo, deliberately not a red/alarm family.
 const RAISED = '#6366f1'
@@ -81,8 +81,8 @@ export const Stats = memo(function Stats({
             style={{
               borderColor: isActive ? lift(c.accent) : 'var(--line)',
               background: isActive ? tint(c.accent, 0.16) : 'var(--surface-solid)',
-              color: isActive ? lift(c.accent) : 'var(--ink-soft)',
-              boxShadow: isActive ? `0 0 0 1px ${tint(c.accent, 0.4)}` : 'none',
+              color: isActive ? selectedText(c.accent) : 'var(--ink-soft)',
+              boxShadow: isActive ? `0 0 0 1px ${tint(c.accent, 0.55)}` : 'none',
             }}
           >
             <span className="inline-block h-2 w-2 rounded-full" style={{ background: c.accent }} />
