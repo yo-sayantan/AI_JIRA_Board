@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import type { PrState } from '../../types'
-import { branchStatusMeta, hexToRgba } from '../../lib/format'
+import { branchStatusMeta } from '../../lib/format'
 import { copyText } from '../common/ui'
 import { BranchIcon, CheckIcon, CopyIcon } from '../common/Icons'
+import { lift, tint } from '../../lib/tone'
 
 /** A branch with no pull request of its own: a calm indigo, so a plain branch still has a colour of its own. */
 const PLAIN = { label: 'branch', color: '#6d7cff' }
@@ -53,19 +54,19 @@ function BranchCard({ name, state }: { name: string; state?: PrState | null }) {
       aria-label={`Copy branch name ${name}`}
       title={failed ? `Copy failed — select and copy by hand: ${name}` : `${name}\nClick to copy`}
       className="glass-interactive relative flex h-full w-full min-w-0 flex-col gap-1.5 overflow-hidden rounded-xl border bg-[var(--surface-solid)] px-3 pb-2.5 pt-3 text-left card-shadow"
-      style={{ borderColor: done ? hexToRgba('#22c55e', 0.6) : hexToRgba(color, 0.32) }}
+      style={{ borderColor: done ? tint('#22c55e', 0.6) : tint(color, 0.32) }}
     >
       {/* the state's colour, as light catching the top edge */}
-      <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[2px]" style={{ background: `linear-gradient(90deg, ${color}, ${hexToRgba(color, 0.15)} 70%, transparent)` }} />
+      <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[2px]" style={{ background: `linear-gradient(90deg, ${color}, ${tint(color, 0.15)} 70%, transparent)` }} />
       <span className="flex items-center gap-1.5">
-        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md" style={{ background: hexToRgba(color, 0.14), boxShadow: `inset 0 0 0 1px ${hexToRgba(color, 0.22)}` }} aria-hidden>
-          <BranchIcon size={11} color={color} />
+        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md" style={{ background: tint(color, 0.14), boxShadow: `inset 0 0 0 1px ${tint(color, 0.22)}` }} aria-hidden>
+          <BranchIcon size={11} color={lift(color)} />
         </span>
-        <span className="truncate text-[10px] font-bold uppercase tracking-wide" style={{ color }}>
+        <span className="truncate text-[10px] font-bold uppercase tracking-wide" style={{ color: lift(color) }}>
           {label}
         </span>
-        <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold" style={{ color: done ? '#16a34a' : failed ? '#ef4444' : 'var(--muted)' }} aria-live="polite">
-          {done ? <CheckIcon size={11} color="#22c55e" /> : <CopyIcon size={11} color={failed ? '#ef4444' : undefined} />}
+        <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold" style={{ color: done ? lift('#16a34a') : failed ? lift('#ef4444') : 'var(--muted)' }} aria-live="polite">
+          {done ? <CheckIcon size={11} color={lift('#22c55e')} /> : <CopyIcon size={11} color={failed ? lift('#ef4444') : undefined} />}
           {done ? 'Copied' : failed ? 'Copy failed' : 'Copy'}
         </span>
       </span>

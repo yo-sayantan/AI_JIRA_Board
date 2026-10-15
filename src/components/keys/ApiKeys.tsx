@@ -22,12 +22,13 @@ import {
   type KeyStatus,
   type KeyTestResult,
 } from '../../lib/apiKeys'
-import { hexToRgba } from '../../lib/format'
+
 import { PROOF_SOURCES, lastFetchView } from '../../lib/proofStatus'
 import type { SourceStatus } from '../../types'
 import type { ApiKeySave } from '../../lib/runner'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { CheckIcon, EyeIcon, EyeOffIcon, KeyIcon } from '../common/Icons'
+import { lift, onFill, tint } from '../../lib/tone'
 
 type SaveFn = (name: string, value: string) => Promise<ApiKeySave>
 type TestFn = (service: string) => Promise<KeyTestResult>
@@ -155,7 +156,7 @@ export function ApiKeysDialog({
             transition={{ type: 'spring', stiffness: 320, damping: 32 }}
           >
             <header className="flex shrink-0 items-center gap-2.5 border-b border-[var(--line)] px-5 py-3">
-              <KeyIcon size={15} color="#f59e0b" />
+              <KeyIcon size={15} color={lift('#f59e0b')} />
               <h2 className="text-[15px] font-extrabold text-[var(--ink)]">API keys</h2>
               <span className="text-[12px] font-semibold tabular-nums text-[var(--muted)]">
                 {status ? `${counts.ready} of ${counts.total} set` : failed ? '' : 'loading…'}
@@ -171,7 +172,7 @@ export function ApiKeysDialog({
             </header>
 
             {failed && (
-              <p className="flex shrink-0 items-center gap-2 border-b border-[var(--line)] px-5 py-2 text-[12px] text-[#e11d48]" role="alert">
+              <p className="flex shrink-0 items-center gap-2 border-b border-[var(--line)] px-5 py-2 text-[12px] text-[#e11d48] dark:text-[#fb7185]" role="alert">
                 Could not read the saved keys{status ? ' — showing the last known state' : ''}.
                 <button type="button" onClick={onRefresh} className="font-bold underline">
                   Retry
@@ -194,7 +195,7 @@ export function ApiKeysDialog({
                         {bad > 0 && (
                           <span
                             className="ml-auto rounded-full px-1.5 text-[10px] font-bold tabular-nums"
-                            style={{ color: badColor, background: hexToRgba(badColor, 0.12) }}
+                            style={{ color: lift(badColor), background: tint(badColor, 0.12) }}
                             title={`${bad} in this group ${bad === 1 ? 'needs' : 'need'} attention`}
                           >
                             {bad} ⚠
@@ -261,10 +262,10 @@ function ServiceIcon({ service, ready, size = 32 }: { service: ApiService; ready
       style={{
         width: size,
         height: size,
-        background: ready ? `linear-gradient(135deg, ${service.color}, ${hexToRgba(service.color, 0.65)})` : hexToRgba(QUIET, 0.16),
+        background: ready ? `linear-gradient(135deg, ${service.color}, ${tint(service.color, 0.65)})` : tint(QUIET, 0.16),
       }}
     >
-      {ready ? <CheckIcon size={size > 32 ? 14 : 11} color="#fff" /> : <KeyIcon size={size > 32 ? 14 : 11} color={QUIET} />}
+      {ready ? <CheckIcon size={size > 32 ? 14 : 11} color={onFill(service.color)} /> : <KeyIcon size={size > 32 ? 14 : 11} color={lift(QUIET)} />}
     </span>
   )
 }
@@ -296,18 +297,18 @@ function ServiceNavItem({
         title={service.details}
         className="flex w-full items-center gap-2.5 rounded-xl border px-2 py-2 text-left transition-[background-color,border-color] duration-150"
         style={{
-          borderColor: active ? hexToRgba(service.color, 0.45) : 'transparent',
-          background: active ? hexToRgba(service.color, 0.09) : undefined,
+          borderColor: active ? tint(service.color, 0.45) : 'transparent',
+          background: active ? tint(service.color, 0.09) : undefined,
         }}
       >
         <ServiceIcon service={service} ready={ready} size={30} />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
-            <span className="text-[13px] font-bold" style={{ color: ready || active ? service.color : 'var(--ink-soft)' }}>
+            <span className="text-[13px] font-bold" style={{ color: ready || active ? lift(service.color) : 'var(--ink-soft)' }}>
               {service.name}
             </span>
             {service.required && !ready && (
-              <span className="text-[10px] font-bold" style={{ color: '#f59e0b' }}>
+              <span className="text-[10px] font-bold" style={{ color: lift('#f59e0b') }}>
                 required
               </span>
             )}
@@ -321,7 +322,7 @@ function ServiceNavItem({
               role="img"
               aria-label={health.detail}
               className="h-2 w-2 rounded-full"
-              style={{ background: dot, boxShadow: `0 0 0 3px ${hexToRgba(dot, 0.18)}` }}
+              style={{ background: dot, boxShadow: `0 0 0 3px ${tint(dot, 0.18)}` }}
             />
           ) : (
             <span className="sr-only">{`${pill.text}. ${health.detail}`}</span>
@@ -370,18 +371,18 @@ function ServicePanel({
     >
       <section
         className="rounded-2xl border p-5"
-        style={{ borderColor: hexToRgba(ready ? service.color : QUIET, 0.35), background: hexToRgba(ready ? service.color : QUIET, 0.05) }}
+        style={{ borderColor: tint(ready ? service.color : QUIET, 0.35), background: tint(ready ? service.color : QUIET, 0.05) }}
       >
         <div className="flex flex-wrap items-start gap-3">
           <ServiceIcon service={service} ready={ready} size={40} />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-[17px] font-extrabold [text-wrap:balance]" style={{ color: ready ? service.color : 'var(--ink)' }}>
+              <h3 className="text-[17px] font-extrabold [text-wrap:balance]" style={{ color: ready ? lift(service.color) : 'var(--ink)' }}>
                 {service.name}
               </h3>
               <span
                 className="rounded-full px-2.5 py-0.5 text-[11px] font-bold"
-                style={{ color: pill.color, background: hexToRgba(pill.color, 0.12), border: `1px solid ${hexToRgba(pill.color, 0.4)}` }}
+                style={{ color: lift(pill.color), background: tint(pill.color, 0.12), border: `1px solid ${tint(pill.color, 0.4)}` }}
               >
                 {pill.text}
               </span>
@@ -398,7 +399,7 @@ function ServicePanel({
             aria-busy={busy || undefined}
             title={blocker ?? `Check the saved ${service.name} key against its host`}
             className="h-9 shrink-0 rounded-lg border px-4 text-[12.5px] font-bold transition-[background-color] duration-150 disabled:cursor-default disabled:opacity-45"
-            style={{ color: testColor, borderColor: hexToRgba(testColor, 0.45), background: hexToRgba(testColor, 0.08) }}
+            style={{ color: lift(testColor), borderColor: tint(testColor, 0.45), background: tint(testColor, 0.08) }}
           >
             {busy ? 'Testing…' : 'Test connection'}
           </motion.button>
@@ -414,25 +415,25 @@ function ServicePanel({
           title={view?.title ?? (blocker || undefined)}
           style={
             view
-              ? { color: viewColor, background: hexToRgba(viewColor, 0.08), border: `1px solid ${hexToRgba(viewColor, 0.3)}` }
-              : { color: 'var(--muted)', background: hexToRgba(QUIET, 0.06), border: `1px dashed ${hexToRgba(QUIET, 0.35)}` }
+              ? { color: lift(viewColor), background: tint(viewColor, 0.08), border: `1px solid ${tint(viewColor, 0.3)}` }
+              : { color: 'var(--muted)', background: tint(QUIET, 0.06), border: `1px dashed ${tint(QUIET, 0.35)}` }
           }
         >
           <span className="min-w-0 truncate">{busy ? 'Testing…' : view ? view.text : blocker ? `Can't test yet — ${blocker}` : 'Not tested yet'}</span>
         </p>
         {/* The latest real call by anything (fetch, AI worker, Test) — a fixed one-line row, so it never resizes the card. */}
-        <p className="mt-2 flex h-7 items-center gap-2 px-1 text-[11.5px] font-semibold" title={health.detail} style={{ color: health.color ?? 'var(--muted)' }}>
+        <p className="mt-2 flex h-7 items-center gap-2 px-1 text-[11.5px] font-semibold" title={health.detail} style={{ color: lift(health.color ?? 'var(--muted)') }}>
           <span className="grid h-3 w-3 shrink-0 place-items-center" aria-hidden="true">
-            {health.color && <span className="h-2 w-2 rounded-full" style={{ background: health.color, boxShadow: `0 0 0 3px ${hexToRgba(health.color, 0.18)}` }} />}
+            {health.color && <span className="h-2 w-2 rounded-full" style={{ background: health.color, boxShadow: `0 0 0 3px ${tint(health.color, 0.18)}` }} />}
           </span>
           <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">Live status</span>
           <span className="min-w-0 truncate">{health.tone === 'none' ? 'Not called yet' : health.detail}</span>
         </p>
         {/* What the last fetch did with this source (looked up N tickets / not configured / carried forward) — a fixed one-line row too. */}
         {proofSource && (
-          <p data-last-fetch className="flex h-7 items-center gap-2 px-1 text-[11.5px] font-semibold" title={fetched.text} style={{ color: fetched.color ?? 'var(--muted)' }}>
+          <p data-last-fetch className="flex h-7 items-center gap-2 px-1 text-[11.5px] font-semibold" title={fetched.text} style={{ color: lift(fetched.color ?? 'var(--muted)') }}>
             <span className="grid h-3 w-3 shrink-0 place-items-center" aria-hidden="true">
-              {fetched.color && <span className="h-2 w-2 rounded-full" style={{ background: fetched.color, boxShadow: `0 0 0 3px ${hexToRgba(fetched.color, 0.18)}` }} />}
+              {fetched.color && <span className="h-2 w-2 rounded-full" style={{ background: fetched.color, boxShadow: `0 0 0 3px ${tint(fetched.color, 0.18)}` }} />}
             </span>
             <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">Last fetch</span>
             <span className="min-w-0 truncate">{fetched.text}</span>
@@ -448,7 +449,7 @@ function ServicePanel({
               <span
                 key={u}
                 className="rounded-md px-2 py-0.5 text-[11.5px] font-medium"
-                style={{ color: service.color, background: hexToRgba(service.color, 0.08), border: `1px solid ${hexToRgba(service.color, 0.3)}` }}
+                style={{ color: lift(service.color), background: tint(service.color, 0.08), border: `1px solid ${tint(service.color, 0.3)}` }}
               >
                 {u}
               </span>
@@ -476,7 +477,7 @@ function ServicePanel({
 /** Small quiet tag beside a field label (optional · not used yet). */
 function Tag({ text }: { text: string }) {
   return (
-    <span className="rounded-full border px-2 py-px text-[10.5px] font-medium" style={{ color: QUIET, borderColor: hexToRgba(QUIET, 0.4), background: hexToRgba(QUIET, 0.08) }}>
+    <span className="rounded-full border px-2 py-px text-[10.5px] font-medium" style={{ color: lift(QUIET), borderColor: tint(QUIET, 0.4), background: tint(QUIET, 0.08) }}>
       {text}
     </span>
   )
@@ -545,7 +546,7 @@ function KeyField({
           aria-hidden="true"
           className="ml-auto max-w-[50%] truncate text-[11.5px] font-semibold"
           title={note?.text}
-          style={{ color: note?.error ? '#e11d48' : color }}
+          style={{ color: lift(note?.error ? '#e11d48' : color) }}
         >
           {note?.text ?? ''}
         </span>
@@ -595,8 +596,8 @@ function KeyField({
           onClick={() => void submit(draft.trim())}
           aria-label={`Save ${field.label}`}
           aria-busy={busy || undefined}
-          className="h-9 rounded-lg px-4 text-[12.5px] font-bold text-white transition-opacity disabled:cursor-default disabled:opacity-35"
-          style={{ background: enabled ? `linear-gradient(135deg, ${color}, ${hexToRgba(color, 0.75)})` : QUIET }}
+          className="h-9 rounded-lg px-4 text-[12.5px] font-bold transition-opacity disabled:cursor-default disabled:opacity-35"
+          style={{ background: enabled ? `linear-gradient(135deg, ${color}, ${tint(color, 0.75)})` : QUIET, color: onFill(enabled ? color : QUIET) }}
           title={enabled ? `Save ${field.env}` : saved.set ? 'Type a new value to replace the saved one' : 'Paste a value first'}
         >
           {busy ? 'Saving…' : 'Save'}
@@ -608,7 +609,7 @@ function KeyField({
             onClick={() => (confirmRemove ? void submit('') : setConfirmRemove(true))}
             onBlur={() => setConfirmRemove(false)}
             className="h-9 rounded-lg border px-3 text-[12px] font-semibold"
-            style={{ color: '#e11d48', borderColor: hexToRgba('#e11d48', confirmRemove ? 0.6 : 0.3), background: hexToRgba('#e11d48', confirmRemove ? 0.1 : 0.03) }}
+            style={{ color: lift('#e11d48'), borderColor: tint('#e11d48', confirmRemove ? 0.6 : 0.3), background: tint('#e11d48', confirmRemove ? 0.1 : 0.03) }}
             aria-label={confirmRemove ? `Confirm removing ${field.env}` : `Remove ${field.env}`}
           >
             {confirmRemove ? 'Confirm' : 'Remove'}

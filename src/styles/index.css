@@ -36,22 +36,22 @@
   --pr-link: #9333ea; /* bright PR violet */
 }
 
-/* Night mode: neutral grays (less blue/black), higher text contrast for readability. */
+/* Night mode: near-black (styles/glass.css deepens the surfaces further), text pushed toward white for readability. */
 .dark {
-  --bg: #11141a;
-  --bg-2: #181c23;
-  --surface: rgba(32, 37, 46, 0.72);
-  --surface-solid: #1d222b;
-  --surface-2: rgba(46, 52, 63, 0.55);
-  --ink: #f3f6fb;
-  --ink-soft: #d4dbe8;
-  --muted: #9da7b8;
+  --bg: #07080a;
+  --bg-2: #0c0e11;
+  --surface: rgba(20, 22, 27, 0.72);
+  --surface-solid: #101216;
+  --surface-2: rgba(36, 40, 48, 0.55);
+  --ink: #f6f8fc;
+  --ink-soft: #dfe5f0;
+  --muted: #aeb8c9;
   --line: rgba(255, 255, 255, 0.12);
   --line-strong: rgba(255, 255, 255, 0.22);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 16px 40px -12px rgba(0, 0, 0, 0.6);
   --glow: 0 14px 50px -14px;
-  --link: #5aa2ff; /* brighter blue for dark bg */
-  --pr-link: #c084fc; /* bright PR violet for dark bg */
+  --link: #6fb0ff; /* brighter blue for dark bg */
+  --pr-link: #cfa0ff; /* bright PR violet for dark bg */
 }
 
 * {

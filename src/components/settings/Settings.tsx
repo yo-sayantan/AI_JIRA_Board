@@ -4,10 +4,11 @@ import { ACTIVE_CADENCE, AI_LEVELS, BOARD_CADENCE, FEATURES, LIMITS, REPORT_STYL
 import { getAiModels, getCloudModels, pullAiModel, guideUrl, type AiCatalogModel, type AiInternStatus, type AiPullProgress, type CloudModelChoice, type CloudListInfo, type CloudPrice, type OllamaContainerInfo } from '../../lib/runner'
 import { DEFAULT_COSTLY_USD, groupByProvider, isPricey, levelAllows, levelPriceText, usd } from '../../lib/cloudModels'
 import fallbackCatalog from '../../../ai-intern/models.json'
-import { hexToRgba } from '../../lib/format'
+
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { SectionPicker, type PickerOption } from './SectionPicker'
 import { CalendarIcon, CheckIcon, ColumnIcon, DocIcon, DownloadIcon, FlaskIcon, MegaphoneIcon, MoonIcon, MoveIcon, PauseIcon, QuestionIcon, RefreshIcon, SearchIcon, SparkleIcon, SunIcon, TrophyIcon } from '../common/Icons'
+import { lift, tint } from '../../lib/tone'
 
 const AI = '#a855f7'
 
@@ -100,7 +101,7 @@ function ReportSwatch({ style }: { style: 'light' | 'colorful' }) {
 
 function segmentStyle(active: boolean): React.CSSProperties {
   return active
-    ? { background: hexToRgba(AI, 0.14), color: AI, boxShadow: `inset 0 0 0 1px ${hexToRgba(AI, 0.45)}` }
+    ? { background: tint(AI, 0.14), color: lift(AI), boxShadow: `inset 0 0 0 1px ${tint(AI, 0.45)}` }
     : { color: 'var(--ink-soft)' }
 }
 
@@ -201,7 +202,7 @@ function AiLevelPicker({ value, onChange }: { value: Settings['aiLevel']; onChan
               className={SEGMENT_BUTTON}
               style={segmentStyle(active)}
             >
-              <SparkleIcon size={11} color={active ? AI : 'currentColor'} />
+              <SparkleIcon size={11} color={lift(active ? AI : 'currentColor')} />
               <span className="truncate">{level.label}</span>
             </button>
             <AnimatePresence>
@@ -214,18 +215,18 @@ function AiLevelPicker({ value, onChange }: { value: Settings['aiLevel']; onChan
                   exit={{ opacity: 0, y: 4 }}
                   transition={{ duration: 0.14 }}
                   className={`pointer-events-none absolute top-[calc(100%+8px)] z-30 w-[220px] rounded-lg border px-2.5 py-2 text-[11px] leading-snug shadow-xl ${i >= 2 ? 'right-0' : 'left-0'}`}
-                  style={{ borderColor: hexToRgba(AI, 0.4), background: 'var(--surface-solid)', color: 'var(--ink-soft)' }}
+                  style={{ borderColor: tint(AI, 0.4), background: 'var(--surface-solid)', color: 'var(--ink-soft)' }}
                 >
-                  <p className="mb-1.5 text-[11px] font-bold" style={{ color: AI }}>
+                  <p className="mb-1.5 text-[11px] font-bold" style={{ color: lift(AI) }}>
                     {level.label} · {level.hint}
                   </p>
-                  <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-[#16a34a]">Pros</p>
+                  <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-[#16a34a] dark:text-[#4ade80]">Pros</p>
                   <ul className="mb-1.5 list-disc pl-3.5">
                     {level.plus.map((p) => (
                       <li key={p}>{p}</li>
                     ))}
                   </ul>
-                  <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-[#dc2626]">Cons</p>
+                  <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-[#dc2626] dark:text-[#f87171]">Cons</p>
                   <ul className="list-disc pl-3.5">
                     {level.cons.map((c) => (
                       <li key={c}>{c}</li>
@@ -267,7 +268,7 @@ const OLLAMA_FEATURE = {
   detail:
     'Runs the AI-Ollama Docker container for Local AI. It only starts when this is on AND jira-intern/models/ contains a model — one pulled from the AI section, or a .gguf file you place there yourself. Off stops the container at once and keeps it off across restarts and deploys. Cloud AI never needs it.',
 } as const
-const OLLAMA_STYLE = { color: '#0ea5e9', icon: (c: string) => <SparkleIcon size={13} color={c} /> }
+const OLLAMA_STYLE = { color: '#0ea5e9', icon: (c: string) => <SparkleIcon size={13} color={lift(c)} /> }
 
 /**
  * The two master switches. Like the Ollama container they are SERVER settings (`aiEnabled`, `jobsEnabled`), not
@@ -281,7 +282,7 @@ const AI_FEATURE = {
   detail:
     'Master switch for every AI feature. Off greys out the AI section and nothing AI runs: no ticket briefs, no AI write-up on PR reports (the deterministic report and its verdict are unchanged), no model downloads, and the AI-Ollama container is stopped. Your AI choices are kept — turn it back on and everything works as before.',
 } as const
-const AI_STYLE = { color: AI, icon: (c: string) => <SparkleIcon size={13} color={c} /> }
+const AI_STYLE = { color: AI, icon: (c: string) => <SparkleIcon size={13} color={lift(c)} /> }
 const JOBS_FEATURE = {
   key: 'jobsEnabled',
   label: 'Background jobs',
@@ -289,7 +290,7 @@ const JOBS_FEATURE = {
   detail:
     'Master switch for the jobs the server starts on its own: the active-ticket refresh, the whole-board rebuild, scheduled PR report runs, and the report pass that follows a fetch. Off greys out the Background jobs section. A refresh or report you start yourself still runs. Turning it back on restarts every schedule from that moment, so overdue jobs do not all fire at once.',
 } as const
-const JOBS_STYLE = { color: '#06b6d4', icon: (c: string) => <RefreshIcon size={13} color={c} /> }
+const JOBS_STYLE = { color: '#06b6d4', icon: (c: string) => <RefreshIcon size={13} color={lift(c)} /> }
 
 const ORDERED_FEATURES = FEATURES.filter((f) => !SECTION_KEYS.includes(f.key)).sort((a, b) => {
   const rank = (k: FeatureKey) => (FEATURE_ORDER.includes(k) ? FEATURE_ORDER.indexOf(k) : FEATURE_ORDER.length)
@@ -513,7 +514,7 @@ export function SettingsPanel({
                       <OffNote what="Background jobs" />
                     ) : (
                       !aiLevelSynced && (
-                        <span className="truncate font-semibold text-[#d97706]" title="Schedules and parallel limits apply only while the local server is running.">
+                        <span className="truncate font-semibold text-[#d97706] dark:text-[#fbbf24]" title="Schedules and parallel limits apply only while the local server is running.">
                           Server offline — not applied
                         </span>
                       )
@@ -640,21 +641,21 @@ export function SettingsPanel({
 /** Each feature carries its own accent so an enabled board reads as a set of live controls
  *  rather than six identical purple boxes. Off = no accent at all, deliberately inert. */
 const FEATURE_STYLE: Record<FeatureKey, { color: string; icon: (c: string) => React.ReactNode }> = {
-  prReports: { color: '#a855f7', icon: (c) => <DocIcon size={13} color={c} /> },
-  nextSprint: { color: '#2684ff', icon: (c) => <CalendarIcon size={13} color={c} /> },
+  prReports: { color: '#a855f7', icon: (c) => <DocIcon size={13} color={lift(c)} /> },
+  nextSprint: { color: '#2684ff', icon: (c) => <CalendarIcon size={13} color={lift(c)} /> },
   completedArchive: { color: '#b45309', icon: () => <TrophyIcon size={13} /> },
-  raisedTickets: { color: '#6366f1', icon: (c) => <MegaphoneIcon size={13} color={c} /> },
-  animations: { color: '#ec4899', icon: (c) => <SparkleIcon size={13} color={c} /> },
-  shortcuts: { color: '#14b8a6', icon: (c) => <SearchIcon size={13} color={c} /> },
-  autoRefresh: { color: '#10b981', icon: (c) => <RefreshIcon size={13} color={c} /> },
-  aiBriefs: { color: '#a855f7', icon: (c) => <SparkleIcon size={13} color={c} /> },
-  onHold: { color: '#ff8a1f', icon: (c) => <PauseIcon size={13} color={c} /> },
-  blocked: { color: '#fb3f5f', icon: (c) => <ColumnIcon col="blocked" color={c} size={13} /> },
-  qaInProgress: { color: '#5f9a93', icon: (c) => <ColumnIcon col="qa" color={c} size={13} /> },
-  dragMove: { color: '#8b5cf6', icon: (c) => <MoveIcon size={13} color={c} /> },
-  moveReadiness: { color: '#17c47a', icon: (c) => <CheckIcon size={13} color={c} /> },
-  demoMode: { color: '#f59e0b', icon: (c) => <FlaskIcon size={13} color={c} /> },
-  reloadActive: { color: '#0ea5e9', icon: (c) => <DownloadIcon size={13} color={c} /> },
+  raisedTickets: { color: '#6366f1', icon: (c) => <MegaphoneIcon size={13} color={lift(c)} /> },
+  animations: { color: '#ec4899', icon: (c) => <SparkleIcon size={13} color={lift(c)} /> },
+  shortcuts: { color: '#14b8a6', icon: (c) => <SearchIcon size={13} color={lift(c)} /> },
+  autoRefresh: { color: '#10b981', icon: (c) => <RefreshIcon size={13} color={lift(c)} /> },
+  aiBriefs: { color: '#a855f7', icon: (c) => <SparkleIcon size={13} color={lift(c)} /> },
+  onHold: { color: '#ff8a1f', icon: (c) => <PauseIcon size={13} color={lift(c)} /> },
+  blocked: { color: '#fb3f5f', icon: (c) => <ColumnIcon col="blocked" color={lift(c)} size={13} /> },
+  qaInProgress: { color: '#5f9a93', icon: (c) => <ColumnIcon col="qa" color={lift(c)} size={13} /> },
+  dragMove: { color: '#8b5cf6', icon: (c) => <MoveIcon size={13} color={lift(c)} /> },
+  moveReadiness: { color: '#17c47a', icon: (c) => <CheckIcon size={13} color={lift(c)} /> },
+  demoMode: { color: '#f59e0b', icon: (c) => <FlaskIcon size={13} color={lift(c)} /> },
+  reloadActive: { color: '#0ea5e9', icon: (c) => <DownloadIcon size={13} color={lift(c)} /> },
 }
 
 /** The picker's rows, built from the registry so the label/hint/detail never drift from FEATURES. */
@@ -691,13 +692,13 @@ function FeatureCard({
       onClick={() => !disabled && onToggle(!on)}
       className={`glass-interactive flex h-11 w-full min-w-0 items-center gap-2 rounded-lg border px-2.5 text-left transition-colors ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
       style={{
-        borderColor: on ? hexToRgba(color, 0.45) : 'var(--line)',
-        background: on ? hexToRgba(color, 0.08) : 'var(--surface-2)',
+        borderColor: on ? tint(color, 0.45) : 'var(--line)',
+        background: on ? tint(color, 0.08) : 'var(--surface-2)',
       }}
     >
       <span
         className="grid h-6 w-6 shrink-0 place-items-center rounded-md"
-        style={{ background: hexToRgba(on ? color : '#94a3b8', 0.16), filter: on ? undefined : 'grayscale(1)', opacity: on ? 1 : 0.7 }}
+        style={{ background: tint(on ? color : '#94a3b8', 0.16), filter: on ? undefined : 'grayscale(1)', opacity: on ? 1 : 0.7 }}
       >
         {icon(on ? color : 'var(--muted)')}
       </span>
@@ -1189,14 +1190,14 @@ function CloudModelPicker({
               role="img"
               aria-label={`Costly model: at or above $${costlyLine} per 1M output tokens`}
               title={`Costly model: at or above $${costlyLine} per 1M output tokens`}
-              className="text-[16px] leading-none text-[#dc2626]"
+              className="text-[16px] leading-none text-[#dc2626] dark:text-[#f87171]"
             >
               ⚠
             </span>
           )}
         </span>
       </div>
-      <p className={`h-8 line-clamp-2 text-[10.5px] leading-4 ${pricey ? 'text-[#dc2626]' : 'text-[var(--muted)]'}`} title={hint}>
+      <p className={`h-8 line-clamp-2 text-[10.5px] leading-4 ${pricey ? 'text-[#dc2626] dark:text-[#f87171]' : 'text-[var(--muted)]'}`} title={hint}>
         {hint}
       </p>
     </>
@@ -1214,7 +1215,7 @@ function FactTile({ label, value, hint, warn = false }: { label: string; value: 
       <span className="flex items-center justify-between gap-1">
         <span className="truncate text-[12.5px] font-semibold tabular-nums text-[var(--ink)]">{value}</span>
         {warn && (
-          <span role="img" aria-label="Above $10" className="shrink-0 text-[13px] leading-none text-[#dc2626]">
+          <span role="img" aria-label="Above $10" className="shrink-0 text-[13px] leading-none text-[#dc2626] dark:text-[#f87171]">
             ⚠
           </span>
         )}
@@ -1401,7 +1402,7 @@ function LocalModelPicker({
         >
           <div
             className="h-1.5 w-full overflow-hidden rounded-full"
-            style={{ background: hexToRgba(AI, 0.18) }}
+            style={{ background: tint(AI, 0.18) }}
             role={downloading ? 'progressbar' : undefined}
             aria-valuemin={downloading ? 0 : undefined}
             aria-valuemax={downloading ? 100 : undefined}
@@ -1426,7 +1427,7 @@ function LocalModelPicker({
           </p>
         </div>
         <p
-          className={`absolute inset-0 line-clamp-2 overflow-hidden text-[10.5px] leading-4 ${failed ? 'font-semibold text-red-500' : 'text-[var(--muted)]'} ${downloading ? 'invisible' : ''}`}
+          className={`absolute inset-0 line-clamp-2 overflow-hidden text-[10.5px] leading-4 ${failed ? 'font-semibold text-red-500 dark:text-red-400' : 'text-[var(--muted)]'} ${downloading ? 'invisible' : ''}`}
           title={failed ? undefined : selected?.why || undefined}
           role={failed && !downloading ? 'alert' : undefined}
         >
