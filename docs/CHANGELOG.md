@@ -5,6 +5,17 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Move notifications are reliable, and Undo stays long enough to press.** Every move's notification has its Undo, and a
+  refused one its Move anyway — and those now come first: they never wait behind progress notices (the refresh a move
+  starts no longer posts "Fetching… / updated" toasts at all unless it fails), they push out the oldest plain notification
+  when the stack is full, and they stay twice your "Close after" time, at least 12 s (before: a fixed 8 s, shorter than
+  the default). Plain notifications follow the Settings time exactly. Nothing closes while the pointer is on the
+  notifications or while the tab is in the background; the clock picks up where it stopped.
+- **Drop notes are one short line, and say "move anyway", not "force".** "No pull request raised; no QA ticket raised" is
+  now "No PR and QA ticket found"; "#412 still open (merge or decline it)" is "#412 still open"; "No pull request raised yet"
+  is "No PR yet" — every note fits one line of the narrowest lane. The full sentence is still the tooltip. A note that can
+  be overridden no longer shows "⌥ + drop to force" on every lane: the lane under the pointer says "Hold ⌥ to move anyway",
+  and "Release to move anyway" once ⌥ is down. The confirmation and its button say "Move … anyway?" / "Move anyway".
 - **Sticky board header and lane titles.** With full lanes you scroll the BOARD, not the page: the header, the demo banner
   and the filter chips stay where they are, and each lane's title stays pinned at the top of the board while its cards
   scroll underneath (frosted, so cards blur away behind it). Dragging near the board's edge scrolls it with the targets'

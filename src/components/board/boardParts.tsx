@@ -56,7 +56,7 @@ export function SpaceHeader({
   denied?: MoveCheck | null
   /** ⌥ is held (a gate can then be forced). */
   alt?: boolean
-  /** The card is over this space right now. */
+  /** The pointer is on this space right now (whether or not it will take the card). */
   active?: boolean
 }) {
   return (
@@ -110,7 +110,7 @@ export function LandingSlot({ accent, show, label }: { accent: string; show: boo
 
 /**
  * How far a refusing zone fades while a card is dragged: the QA lane (never possible) almost out of the
- * way; a PR / QA gate (⌥ forces it) less, and not at all while ⌥ has armed it under the pointer.
+ * way; a PR / QA gate (⌥ passes it) less, and not at all while ⌥ has armed it under the pointer.
  */
 export function deniedOpacity(denied: MoveCheck | null | undefined, active = false): number {
   if (!denied) return 1
@@ -124,9 +124,11 @@ const GATE_AMBER = '#d97706'
 /**
  * The header form of `DeniedNote`: a small callout that hangs just below a space's title while a card is dragged. It is
  * absolutely positioned — it floats over the top of the (dimmed, refusing) space instead of taking room — so it never
- * pushes a card down, and it wraps, so the whole reason is always readable ("#412 still open (merge or decline it); no QA
- * ticket raised" does not fit on one line of a 200px lane). A gate adds "⌥ + drop to force", or "Release to force" once
- * ⌥ has armed it. Clicks and drags pass through it to the space underneath.
+ * pushes a card down. Its text is the refusal's SHORT form (`MoveCheck.short`: "No PR and QA ticket found", "#412 still
+ * open"), written to fit one line of a ~180px lane; it still wraps rather than truncating if a lane is narrower. A gate
+ * is amber (red = never allowed); the lane under the pointer adds "Hold ⌥ to move anyway", and says "Release to move
+ * anyway" once ⌥ has armed it — the instruction only where it is needed, since on every lane it would double the height.
+ * Clicks and drags pass through it to the space underneath.
  */
 export function DeniedChip({ check, alt, active }: { check: MoveCheck; alt: boolean; active: boolean }) {
   const gate = check.kind === 'gate'
@@ -135,27 +137,37 @@ export function DeniedChip({ check, alt, active }: { check: MoveCheck; alt: bool
   return (
     <motion.span
       role="note"
-      title={gate ? `${check.reason ?? ''} Hold ⌥ (Option) and drop to force it.`.trim() : (check.reason ?? undefined)}
+      title={gate ? `${check.reason ?? ''} Hold ⌥ (Option) while dropping to move it anyway.`.trim() : (check.reason ?? undefined)}
       initial={{ opacity: 0, y: -3 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18 }}
-      className="jb-float pointer-events-none absolute inset-x-0 top-[calc(100%+4px)] z-30 flex flex-col items-center gap-0.5 rounded-lg border px-2 py-1 text-center leading-snug shadow-lg"
+      className="jb-float pointer-events-none absolute inset-x-0 top-[calc(100%+4px)] z-30 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 rounded-lg border px-1.5 py-[3px] text-center text-[10.5px] font-bold leading-snug shadow-lg"
       style={{ borderColor: tint(color, 0.5), color: lift(color) }}
     >
-      <span className="text-[10.5px] font-bold [overflow-wrap:anywhere]">{armed ? 'Release to force' : shortReason(check)}</span>
-      {gate && !armed && (
-        <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold opacity-85">
-          <kbd className="rounded border px-[3px] font-sans text-[9.5px] leading-[12px]" style={{ borderColor: tint(color, 0.5) }}>
-            ⌥
-          </kbd>
-          + drop to force
-        </span>
-      )}
+      <span className="[overflow-wrap:anywhere]">{armed ? 'Release to move anyway' : shortReason(check)}</span>
+      {/* The instruction goes only where the pointer is: on every lane it would double the note's height. */}
+      {gate && active && !alt && <span className="w-full text-[9.5px] font-semibold opacity-85">Hold ⌥ to move anyway</span>}
     </motion.span>
   )
 }
 
-/** Says why a zone will not take the dragged card — and, for a gate, that ⌥ forces it. */
+/**
+ * A PR / QA gate can be passed on purpose: hold ⌥ (Option) while dropping. The hint is a ⌥ key cap and a soft "anyway" —
+ * the same words as the toast's "Move anyway" button, so the board speaks one language about it — on the reason's own line
+ * where it fits (wrapping, not truncating, where it doesn't). Holding ⌥ turns the note into "Release to move anyway".
+ */
+function AnywayHint({ color }: { color: string }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 text-[9.5px] font-semibold opacity-85" aria-label="hold Option while dropping to move anyway">
+      <kbd className="rounded border px-[3px] font-sans text-[9.5px] leading-[12px]" style={{ borderColor: tint(color, 0.5) }}>
+        ⌥
+      </kbd>
+      anyway
+    </span>
+  )
+}
+
+/** Says why a zone will not take the dragged card — and, for a gate, that ⌥ moves it anyway. */
 export function DeniedNote({ check, alt, active, inline = false }: { check: MoveCheck; alt: boolean; active: boolean; inline?: boolean }) {
   const gate = check.kind === 'gate'
   const color = gate ? GATE_AMBER : LANE_RED
@@ -165,8 +177,8 @@ export function DeniedNote({ check, alt, active, inline = false }: { check: Move
       className={`${inline ? '' : 'mb-1'} flex flex-col items-center gap-0.5 rounded-lg border px-2 py-1 text-center leading-tight`}
       style={{ borderColor: tint(color, 0.4), background: tint(color, 0.08), color: lift(color) }}
     >
-      <span className="text-[10.5px] font-bold">{gate && active && alt ? 'Release to force' : shortReason(check)}</span>
-      {gate && !(active && alt) && <span className="text-[9.5px] font-semibold opacity-80">⌥ + drop to force</span>}
+      <span className="text-[10.5px] font-bold">{gate && active && alt ? 'Release to move anyway' : shortReason(check)}</span>
+      {gate && !(active && alt) && <AnywayHint color={color} />}
     </div>
   )
 }

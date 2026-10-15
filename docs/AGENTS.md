@@ -197,8 +197,12 @@ ticket's branches, and that has its own status words):
   0.75, so the cards with room give up most and the narrow ones re-wrap least — and `.jb-col` eases EVERY property that
   changes (basis, grow, shrink, min-width; list a new one there or some columns ease and others snap). **The note a space
   shows when it refuses the dragged card lives in its header** (`SpaceHeader`'s `denied` → `boardParts::DeniedChip`): an
-  absolutely positioned callout hanging just below the title, over the (dimmed) space, wrapping to as many lines as the full
-  reason needs, pointer-events none. Never put it in the box above the cards (it pushed every card down when a drag started)
+  absolutely positioned callout hanging just below the title, over the (dimmed) space, pointer-events none. Its text is the
+  refusal's SHORT form — `MoveCheck.short`, set where each refusal is made ("No PR yet", "#412 still open", "No PR and QA
+  ticket found"); `reason` stays the full sentence (tooltip, toast, and the wording `transition.py` mirrors). Keep each short
+  form to one line of a ~165px lane (`moveRules.test.ts` caps them at 28 characters). The UI never says "force": a gate
+  is passed with "Move anyway" (the toast button), and the note says "Hold ⌥ to move anyway" only on the lane under the
+  pointer (`Column.tsx` tracks `hot` separately from `over`: a gate never arms without ⌥), "Release to move anyway" with ⌥. Never put it in the box above the cards (it pushed every card down when a drag started)
   and never truncate it to one line (the reason got cut mid-sentence). An empty space keeps its placeholder while refusing,
   or its box would collapse. An empty column that opened to a drop zone still says it inside the zone (fixed height).
 - **The board is an app shell** (`App.tsx`): header, demo banner and filter chips stay put and only `<main class="jb-board-scroll">`
@@ -389,6 +393,11 @@ deployed from** (see `docs/DEPLOYMENT.md` → "the data mount follows the deploy
   Under `unittest` nothing is written unless `JB_HEALTH_DIR` is set, so suites never touch a real `.health/`.
 - localStorage keys in use: `jb-settings`, `jb-archived`, `jb-completed-show-context`,
   `jb-guide-os` (+ legacy `jb-theme`, `jb-hidden` migrations). No cookies anywhere.
+- Toasts with a button (Undo, Move anyway) are priority toasts in `useToasts`: never queued behind plain ones, never
+  bumped by them, twice the Settings time (≥ 12 s), paused under the pointer / focus and while the tab is hidden. Do NOT
+  pass `seconds` to make an Undo "long enough" — that is what overrode the Settings value before (a fixed 8 s, shorter
+  than the default plain toast). A background job a user action triggers (the per-ticket refresh after a move) calls
+  `refreshTicket(key, { quiet: true })`, so its progress toasts do not crowd the action's own notification out.
 - The board can run from `file://` — every feature must degrade: served-only controls hide or
   toast, data comes from `data.js`, reports from `reports/index.js`.
 - Models sometimes return `{"html": "..."}` for briefs despite the prompt — `_clean_brief`

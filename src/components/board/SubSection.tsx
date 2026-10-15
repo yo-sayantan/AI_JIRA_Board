@@ -23,6 +23,7 @@ export const SubSection = memo(function SubSection({
   droppable,
   denied = null,
   alt = false,
+  hot = false,
   texts,
   hint,
   bare = false,
@@ -45,6 +46,8 @@ export const SubSection = memo(function SubSection({
   denied?: MoveCheck | null
   /** ⌥ is held: a gated section can be forced. */
   alt?: boolean
+  /** The pointer is on this space (even one that will not take the card), so its header can say how to move it anyway. */
+  hot?: boolean
   texts: { idle: string; dragging: string; slot: string }
   /** Tooltip while empty. */
   hint?: string
@@ -69,7 +72,7 @@ export const SubSection = memo(function SubSection({
       className={bare ? 'flex flex-1 flex-col' : undefined}
       aria-label={`${label} · ${tickets.length}${droppable && dragging ? ' — drop here' : ''}`}
     >
-      {!bare && <SpaceHeader accent={accent} icon={icon} label={label} count={tickets.length} denied={denied} alt={alt} active={over} />}
+      {!bare && <SpaceHeader accent={accent} icon={icon} label={label} count={tickets.length} denied={denied} alt={alt} active={hot} />}
       <div
         className={`flex flex-col gap-2 ${bare ? 'flex-1' : ''} rounded-2xl border border-dashed p-2 transition-[background,border-color,box-shadow,opacity] duration-150`}
         title={denied?.reason ?? (empty ? hint : undefined)}

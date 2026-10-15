@@ -58,7 +58,7 @@ export default function App() {
   // off. Set during render, not in an effect, so no fetch can slip out before the flag lands.
   const demo = features.demoMode
   setDemoMode(demo)
-  const { toasts, toast, dismiss, clear: clearToasts } = useToasts(settings.toastSeconds, settings.toastMax)
+  const { toasts, toast, dismiss, clear: clearToasts, pause: pauseToasts, resume: resumeToasts } = useToasts(settings.toastSeconds, settings.toastMax)
   toastRef.current = toast
   const { data, source, userArchived, reload, archive, restoreArchived, resetDemo } = useBoardData(served, (m) => toast(m, 'error'), demo)
   const jobs = useInternJobs({ served, toast, dismiss, reload, demo })
@@ -227,7 +227,7 @@ export default function App() {
         />
         {keysDialog}
         <Footer />
-        <Toasts toasts={toasts} onDismiss={dismiss} />
+        <Toasts toasts={toasts} onDismiss={dismiss} onPause={pauseToasts} onResume={resumeToasts} />
       </div>
     )
   }
@@ -397,7 +397,7 @@ export default function App() {
       </ErrorBoundary>
 
       <NoticesDock notes={data.notes ?? []} seconds={settings.toastSeconds} />
-      <Toasts toasts={toasts} onDismiss={dismiss} />
+      <Toasts toasts={toasts} onDismiss={dismiss} onPause={pauseToasts} onResume={resumeToasts} />
     </div>
   )
 }

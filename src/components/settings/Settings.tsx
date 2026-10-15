@@ -496,12 +496,12 @@ export function SettingsPanel({
                   <div className="grid grid-cols-2 gap-x-3">
                     <label className="flex h-8 min-w-0 items-center gap-2 text-[11.5px] font-semibold text-[var(--ink-soft)]">
                       <span className="shrink-0">Close after</span>
-                      <NumberBox label="Seconds a notification stays" hint="Seconds a notification stays before it closes itself" limit="toastSeconds" value={settings.toastSeconds} onChange={(v) => set('toastSeconds', v)} className="w-[4.75rem]" />
+                      <NumberBox label="Seconds a notification stays" hint="Seconds a notification stays before it closes itself. One with a button (Undo, Move anyway) stays twice as long, at least 12 s; every notification waits while the pointer is on it." limit="toastSeconds" value={settings.toastSeconds} onChange={(v) => set('toastSeconds', v)} className="w-[4.75rem]" />
                       <span className="shrink-0 font-normal text-[var(--muted)]">sec</span>
                     </label>
                     <label className="flex h-8 min-w-0 items-center gap-2 text-[11.5px] font-semibold text-[var(--ink-soft)]">
                       <span className="shrink-0">Show at most</span>
-                      <NumberBox label="Notifications on screen" hint="More than this wait their turn and appear as earlier ones close" limit="toastMax" value={settings.toastMax} onChange={(v) => set('toastMax', v)} className="w-[4.75rem]" />
+                      <NumberBox label="Notifications on screen" hint="More than this wait their turn and appear as earlier ones close. Undo and Move anyway never wait: they take the place of the oldest plain notification." limit="toastMax" value={settings.toastMax} onChange={(v) => set('toastMax', v)} className="w-[4.75rem]" />
                     </label>
                   </div>
                 </Section>

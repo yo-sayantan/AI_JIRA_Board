@@ -6,12 +6,9 @@ import { demoMoveVerdict } from '../demo'
 import { moveTicketInJira, type MoveMode } from '../lib/runner'
 import type { ToastFn } from './useToasts'
 
-/** How long a finished move can be undone, and a refused one forced from its toast. */
-export const UNDO_SECONDS = 8
-
 export interface MoveRequest {
   mode?: MoveMode
-  /** ⌥ was held on drop: the user asked to force past a PR / QA gate — confirm first. */
+  /** ⌥ was held on drop: the user asked to move past a PR / QA gate anyway — confirm first. */
   forceAsk?: boolean
   /** The tickets the board knows, so a sub-ticket's parent can be read for the gates. */
   lookup?: TicketLookup
@@ -35,7 +32,8 @@ interface Pin {
  * (lib/moveRules.ts) are checked first against the cached data: the QA lane refuses outright; a PR /
  * QA gate refuses with a "Move anyway" button (⌥ on drop asks the same question up front). When Jira
  * refuses, the pin is dropped and the card slides back — with "Move anyway" when the refusal was a
- * gate. A finished move offers Undo for UNDO_SECONDS. A successful move keeps the card where it was
+ * gate. A finished move offers Undo. Toasts with a button are priority toasts (useToasts): they show at
+ * once, stay longer than plain ones and pause under the pointer, so Undo is always there to press. A successful move keeps the card where it was
  * dropped: the column override lasts until the follow-up refresh brings the real status through,
  * the bottom-of-column order for the rest of the session.
  */
@@ -48,7 +46,7 @@ export function useTicketMoves({
   served: boolean
   toast: ToastFn
   /** Watches the server-side refresh queued by the move and swaps the fresh data in. */
-  refreshTicket: (key: string) => Promise<void>
+  refreshTicket: (key: string, opts?: { quiet?: boolean }) => Promise<void>
   /** Demo mode: judge the move locally (same gates) and never call the server. */
   demo?: boolean
 }) {
@@ -94,9 +92,9 @@ export function useTicketMoves({
         const c = checkMove(ticket, to, req.lookup)
         if (c.kind === 'lane') return void toast(`${key} stays where it is. ${c.reason}`, 'error')
         if (c.kind === 'gate' && mode === 'normal') {
-          const force = { label: req.forceAsk ? 'Force move' : 'Move anyway', run: () => void moveRef.current(ticket, to, { ...req, mode: 'force' }) }
-          const msg = req.forceAsk ? `Force ${key} to ${label}? ${shortReason(c)}.` : `${key} stays in ${targetLabel(from)}. ${c.reason}`
-          return void toast(msg, req.forceAsk ? 'info' : 'error', { action: force, seconds: UNDO_SECONDS + 4 })
+          const force = { label: 'Move anyway', run: () => void moveRef.current(ticket, to, { ...req, mode: 'force' }) }
+          const msg = req.forceAsk ? `Move ${key} to ${label} anyway? ${shortReason(c)}.` : `${key} stays in ${targetLabel(from)}. ${c.reason}`
+          return void toast(msg, req.forceAsk ? 'info' : 'error', { action: force })
         }
       }
       if (inFlight.current.has(key)) return void toast(`${key} is already being moved.`, 'info')
@@ -120,18 +118,19 @@ export function useTicketMoves({
         })
         if (verdict.blocked) {
           const anyway = verdict.forcible && mode === 'normal'
-          toast(`${key} stays in ${targetLabel(from)}. ${verdict.reason ?? ''}`.trim(), 'error', anyway ? { action: { label: 'Move anyway', run: () => void moveRef.current(ticket, to, { ...req, mode: 'force' }) }, seconds: UNDO_SECONDS + 4 } : undefined)
+          toast(`${key} stays in ${targetLabel(from)}. ${verdict.reason ?? ''}`.trim(), 'error', anyway ? { action: { label: 'Move anyway', run: () => void moveRef.current(ticket, to, { ...req, mode: 'force' }) } } : undefined)
         } else toast(`Couldn't move ${key} to ${label}: ${verdict.error ?? 'unknown error'}.`, 'error')
         return
       }
       const where = demo ? 'on the demo board' : 'in Jira'
-      const done = verdict.moved ? `${key} → ${verdict.status ?? label} ${where}${mode === 'force' ? ' (forced)' : ''}.` : `${key} was already in ${label}.`
+      const done = verdict.moved ? `${key} → ${verdict.status ?? label} ${where}${mode === 'force' ? ' (moved anyway)' : ''}.` : `${key} was already in ${label}.`
       // Undo puts it back where it came from — no rules: it is only returning.
-      const undo = verdict.moved && mode !== 'undo' ? { action: { label: 'Undo', run: () => void moveRef.current(ticket, from, { lookup: req.lookup, mode: 'undo', from: to }) }, seconds: UNDO_SECONDS } : undefined
+      const undo = verdict.moved && mode !== 'undo' ? { action: { label: 'Undo', run: () => void moveRef.current(ticket, from, { lookup: req.lookup, mode: 'undo', from: to }) } } : undefined
       toast(done, 'success', undo)
       for (const w of verdict.warnings ?? []) toast(`${key}: ${w}`, 'info')
-      // The server queued this ticket's refresh; attach to it so the real status lands on the board.
-      if (verdict.moved && !demo) void refreshTicket(key)
+      // The server queued this ticket's refresh; attach to it so the real status lands on the board. Quietly: its own
+      // "Fetching… / updated" toasts would only crowd the Undo out; a failure still says so.
+      if (verdict.moved && !demo) void refreshTicket(key, { quiet: true })
     },
     [served, demo, toast, refreshTicket, pins, setPin, markMoving],
   )

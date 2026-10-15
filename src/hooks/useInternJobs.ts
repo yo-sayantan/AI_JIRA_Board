@@ -204,25 +204,28 @@ export function useInternJobs({
   }, [])
 
   // Every click queues FIFO on the server; each key is watched until IT leaves the pending list.
+  // `quiet` (the refresh a drag-and-drop move queues): no progress or success toasts — they would crowd out the move's own
+  // Undo notification — but a failure still says so. The card's own refresh button keeps every toast.
   const refreshTicket = useCallback(
-    async (key: string) => {
+    async (key: string, opts: { quiet?: boolean } = {}) => {
+      const quiet = !!opts.quiet
       if (demo) return void toast(DEMO_REFUSED, 'info')
       if (!served) return void toast('Single-ticket refresh needs the local server — run `npm run serve`.', 'info')
-      if (refreshingKeysRef.current.has(key)) return void toast(`${key} is already queued.`, 'info')
+      if (refreshingKeysRef.current.has(key)) return void (quiet ? undefined : toast(`${key} is already queued.`, 'info'))
       setRefreshingKeys((prev) => new Set(prev).add(key))
-      const toastId = toast(`Fetching latest status for ${key}…`, 'loading')
+      const toastId = quiet ? -1 : toast(`Fetching latest status for ${key}…`, 'loading')
       const finish = (msg: string, kind: 'info' | 'success' | 'error') => {
-        dismiss(toastId)
+        if (toastId >= 0) dismiss(toastId)
         dropRefreshingKey(key)
-        toast(msg, kind)
+        if (!quiet || kind === 'error') toast(msg, kind)
       }
 
       const start = await startTicketRefresh(key)
       if (start?.queueFull) return finish('The refresh queue is full — try again in a moment.', 'info')
       if (!start?.ok) return finish(`Couldn't start refresh for ${key}.`, 'error')
       const position = start.position ?? 0
-      if (start.already) toast(`${key} is already in the refresh queue.`, 'info')
-      else if (position > 0) toast(`${key} queued (#${position + 1}) — will run next.`, 'info')
+      if (!quiet && start.already) toast(`${key} is already in the refresh queue.`, 'info')
+      else if (!quiet && position > 0) toast(`${key} queued (#${position + 1}) — will run next.`, 'info')
 
       const startedAt = Date.now()
       const ceiling = TICKET_CEILING_MS + Math.max(0, position) * TICKET_QUEUE_STEP_MS

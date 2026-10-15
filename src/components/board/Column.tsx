@@ -107,6 +107,10 @@ export const Column = memo(function Column({
   // steady at the boundary instead of flipping back and forth.
   const ownBox = useRef<HTMLDivElement>(null)
   const [over, setOver] = useState<DropTarget | null>(null)
+  // Where the pointer is, whether or not that target may take the card: a gated lane never ARMS without ⌥ (so `over`
+  // stays null and nothing lights up), but its header still wants to say how to move the card anyway while the pointer
+  // is on it.
+  const [hot, setHot] = useState<DropTarget | null>(null)
   // Whether the ticket being dragged may land on each of this column's zones (lib/moveRules.ts). A zone
   // it may not use is dimmed and says why; it never arms, so the cursor shows "not allowed" instead of a
   // false promise — except a PR / QA gate with ⌥ held, which arms and forces (after a confirm).
@@ -130,6 +134,7 @@ export const Column = memo(function Column({
   const arm = (e: DragEvent) => {
     if (!accepts(e)) return
     const t = targetOf(e)
+    setHot((cur) => (cur === t ? cur : t))
     setAlt((cur) => (cur === e.altKey ? cur : e.altKey))
     if (!usable(t === 'sub' ? subCheck : ownCheck, e.altKey)) {
       // Not allowed here: do not cancel the event, so the browser shows "no drop" and nothing highlights.
@@ -149,6 +154,7 @@ export const Column = memo(function Column({
     if (e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom) return
     if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
     setOver(null)
+    setHot(null)
   }
   const onDrop = (e: DragEvent) => {
     if (!accepts(e)) return
@@ -157,6 +163,7 @@ export const Column = memo(function Column({
     const to: MoveTarget = where === 'sub' && sub ? sub.id : ownTarget
     const c = where === 'sub' ? subCheck : ownCheck
     setOver(null)
+    setHot(null)
     setAlt(false)
     if (!usable(c, e.altKey)) return
     const key = e.dataTransfer.getData(DRAG_MIME)
@@ -231,7 +238,7 @@ export const Column = memo(function Column({
           title={mode === 'rail' ? `${name} — empty. Drag a card here to move it in Jira.` : undefined}
           denied={mode === 'full' ? (ownOff ? subDenied : ownDenied) : null}
           alt={alt}
-          active={over === (ownOff ? 'sub' : 'col')}
+          active={dragActive && hot === (ownOff ? 'sub' : 'col')}
         />
       </div>
 
@@ -283,6 +290,7 @@ export const Column = memo(function Column({
               tickets={subTickets}
               card={card}
               over={over === 'sub'}
+              hot={dragActive && hot === 'sub'}
               dragging={dragging}
               droppable={sub.droppable}
               denied={subDenied}

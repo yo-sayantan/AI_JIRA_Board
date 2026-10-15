@@ -80,13 +80,13 @@ describe('the QA lane in the move hook', () => {
   })
 })
 
-describe('gates, force and undo', () => {
+describe('gates, move anyway and undo', () => {
   const dev: Ticket = { key: 'D-1', title: 'Build it', type: 'Story', status: 'In Progress', column: 'prog' }
   type Opts = { action?: { label: string; run: () => void }; seconds?: number }
   const last = (toast: ReturnType<typeof vi.fn>) => toast.mock.calls[toast.mock.calls.length - 1]
   const lastOpts = (toast: ReturnType<typeof vi.fn>) => last(toast)[2] as Opts | undefined
 
-  it('a gate refuses before Jira is asked, offering "Move anyway" — which forces it', async () => {
+  it('a gate refuses before Jira is asked, offering "Move anyway" — which moves it', async () => {
     const { moves, toast } = mountMoves()
     await act(async () => moves().moveTicket(dev, 'rev'))
     expect(last(toast)[0]).toContain('no pull request raised')
@@ -95,14 +95,15 @@ describe('gates, force and undo', () => {
     expect(opts.action!.label).toBe('Move anyway')
     await act(async () => opts.action!.run())
     expect(moves().applyOverrides([dev])[0].column).toBe('rev')
-    expect(last(toast)[0]).toContain('(forced)')
+    expect(last(toast)[0]).toContain('(moved anyway)')
+    expect(last(toast)[0]).not.toMatch(/forc/i)
   })
 
-  it('⌥ on drop asks to force rather than reporting a refusal', async () => {
+  it('⌥ on drop asks to move anyway rather than reporting a refusal', async () => {
     const { moves, toast } = mountMoves()
     await act(async () => moves().moveTicket(dev, 'done', { forceAsk: true }))
-    expect(last(toast)[0]).toMatch(/^Force D-1 to Done\?/)
-    expect(lastOpts(toast)!.action!.label).toBe('Force move')
+    expect(last(toast)[0]).toMatch(/^Move D-1 to Done anyway\?/)
+    expect(lastOpts(toast)!.action!.label).toBe('Move anyway')
   })
 
   it('a lane refusal can never be forced', async () => {
@@ -117,7 +118,7 @@ describe('gates, force and undo', () => {
     expect(moves().applyOverrides([dev])[0].column).toBe('blocked')
     const opts = lastOpts(toast)!
     expect(opts.action!.label).toBe('Undo')
-    expect(opts.seconds).toBeGreaterThan(0)
+    expect(opts.seconds).toBeUndefined() // how long it stays is the toast system's call: a button makes it a priority toast
     await act(async () => opts.action!.run())
     expect(moves().applyOverrides([dev])[0].column).toBe('prog')
     expect(lastOpts(toast)).toBeUndefined() // an undo is not itself undoable
