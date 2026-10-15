@@ -380,7 +380,12 @@ Overlay with three areas (`src/components/settings/Settings.tsx`):
   one shared status poller (`lib/statusPoller.ts`: 12s idle / 4s busy / 1s pulls; pauses when
   the tab is hidden). Toast lifecycle per job; stale-run attach on page load.
 - Toasts (`useToasts` + `common/Toast.tsx`), run notices dock (`common/NoticesDock.tsx`),
-  stale-data handling via the freshness pill.
+  stale-data handling via the freshness pill. Settings → Notifications sets how long a PLAIN toast stays and how many
+  show at once. A toast with a button (Undo after a move, Move anyway) is a **priority** toast: it never waits for a slot
+  (it takes the place of the oldest plain one), it is never pushed out by a plain one, and it stays twice the Settings time,
+  at least 12 s (`useToasts::toastSeconds`). Every toast's clock pauses while the pointer or keyboard focus is on the
+  stack and while the tab is hidden, then resumes with the time it had left (at least 1.5 s). The refresh a move queues
+  is quiet — no "Fetching… / updated" toasts to crowd out the Undo — and only speaks up if it fails.
 
 ## Keyboard & accessibility
 

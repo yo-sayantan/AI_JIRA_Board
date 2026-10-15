@@ -393,6 +393,11 @@ deployed from** (see `docs/DEPLOYMENT.md` → "the data mount follows the deploy
   Under `unittest` nothing is written unless `JB_HEALTH_DIR` is set, so suites never touch a real `.health/`.
 - localStorage keys in use: `jb-settings`, `jb-archived`, `jb-completed-show-context`,
   `jb-guide-os` (+ legacy `jb-theme`, `jb-hidden` migrations). No cookies anywhere.
+- Toasts with a button (Undo, Move anyway) are priority toasts in `useToasts`: never queued behind plain ones, never
+  bumped by them, twice the Settings time (≥ 12 s), paused under the pointer / focus and while the tab is hidden. Do NOT
+  pass `seconds` to make an Undo "long enough" — that is what overrode the Settings value before (a fixed 8 s, shorter
+  than the default plain toast). A background job a user action triggers (the per-ticket refresh after a move) calls
+  `refreshTicket(key, { quiet: true })`, so its progress toasts do not crowd the action's own notification out.
 - The board can run from `file://` — every feature must degrade: served-only controls hide or
   toast, data comes from `data.js`, reports from `reports/index.js`.
 - Models sometimes return `{"html": "..."}` for briefs despite the prompt — `_clean_brief`

@@ -20,9 +20,30 @@ export interface ToastItem {
 const ICON: Record<ToastKind, string> = { info: 'ⓘ', success: '✓', error: '⚠️', loading: '◌' }
 const COLOR: Record<ToastKind, string> = { info: '#8b9cff', success: '#22c55e', error: '#ef4444', loading: '#8b9cff' }
 
-export const Toasts = memo(function Toasts({ toasts, onDismiss }: { toasts: ToastItem[]; onDismiss: (id: number) => void }) {
+export const Toasts = memo(function Toasts({
+  toasts,
+  onDismiss,
+  onPause,
+  onResume,
+}: {
+  toasts: ToastItem[]
+  onDismiss: (id: number) => void
+  /** The pointer or keyboard focus is on the notifications: hold every clock (useToasts). */
+  onPause?: (reason: string) => void
+  onResume?: (reason: string) => void
+}) {
   return (
-    <div className="pointer-events-none fixed bottom-12 right-4 z-[60] flex flex-col items-end gap-2" role="status" aria-live="polite">
+    <div
+      className="pointer-events-none fixed bottom-12 right-4 z-[60] flex flex-col items-end gap-2"
+      role="status"
+      aria-live="polite"
+      onPointerEnter={() => onPause?.('hover')}
+      onPointerLeave={() => onResume?.('hover')}
+      onFocus={() => onPause?.('focus')}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onResume?.('focus')
+      }}
+    >
       <AnimatePresence>
         {toasts.map((t) => {
           const kind = t.kind ?? 'info'
