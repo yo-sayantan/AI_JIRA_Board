@@ -114,11 +114,12 @@ export const Board = memo(function Board({
   return (
     <div
       // Columns overlap their neighbours' gap by 6px a side (Column.tsx), so drop areas touch; the
-      // container's matching padding keeps the first and last from being clipped. While a drag is in
+      // container's matching padding keeps the first and last from being clipped. It is NOT a scroll container itself
+      // (no overflow): App's <main> scrolls the board both ways, so the lanes' sticky titles stick to it. While a drag is in
       // flight (jb-dragging) the full columns may give up more width, unevenly — the wide ones most — and
       // every width eases (index.css `.jb-col`), so the empty columns opening to drop zones never make the
       // board overflow or the cards jump; cards hold still (calm) while that happens.
-      className={`-mx-1.5 flex items-stretch gap-3 overflow-x-auto px-1.5 pb-3 ${calm ? 'jb-dragging' : ''}`}
+      className={`-mx-1.5 flex min-w-fit items-stretch gap-3 px-1.5 pb-3 ${calm ? 'jb-dragging' : ''}`}
       onDragStart={(e) => setDragKey((e.target as HTMLElement).closest?.('[data-ticket-key]')?.getAttribute('data-ticket-key') ?? '')}
       onDragEnd={endDrag}
       onDrop={endDrag}

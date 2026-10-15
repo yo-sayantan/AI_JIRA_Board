@@ -182,6 +182,21 @@ select.jb-field:disabled {
     flex-shrink 0.28s cubic-bezier(0.22, 1, 0.36, 1),
     min-width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
+/* A lane's sticky title (Column.tsx): cards scroll UNDER it inside App's <main>, so it is page-coloured frosted glass — the
+   cards blur away behind it instead of showing through the letters. The fallbacks and a still board make it opaque. */
+.jb-lane-head {
+  background: color-mix(in srgb, var(--bg) 84%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .jb-lane-head {
+    background: var(--bg);
+  }
+}
+.jb-no-anim .jb-lane-head {
+  background: var(--bg);
+}
 .jb-col-rail .jb-rail-zone:hover {
   filter: saturate(1.4);
 }

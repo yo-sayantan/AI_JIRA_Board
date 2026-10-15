@@ -1,4 +1,4 @@
-import { useRef, type CSSProperties, type ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 
 import { shortReason, type MoveCheck } from '../../lib/moveRules'
@@ -29,7 +29,11 @@ export function CountPill({ accent, count }: { accent: string; count: number }) 
   )
 }
 
-/** A space's header: icon chip, uppercase label, count. `folded` keeps only the icon (a rail). */
+/**
+ * A space's header: icon chip, uppercase label, count. `folded` keeps only the icon (a rail). While a card is dragged, a
+ * space that will not take it says WHY from its header (`denied` → `DeniedChip`, a callout floating just below the title) —
+ * never as a banner in the box below, which pushed every card down by its height the moment a drag started.
+ */
 export function SpaceHeader({
   accent,
   icon,
@@ -37,6 +41,9 @@ export function SpaceHeader({
   count,
   folded = false,
   title,
+  denied = null,
+  alt = false,
+  active = false,
 }: {
   accent: string
   icon: ReactNode
@@ -45,9 +52,15 @@ export function SpaceHeader({
   count?: number
   folded?: boolean
   title?: string
+  /** Why the card being dragged may not land here; shown in place of the count. */
+  denied?: MoveCheck | null
+  /** ⌥ is held (a gate can then be forced). */
+  alt?: boolean
+  /** The card is over this space right now. */
+  active?: boolean
 }) {
   return (
-    <header className="mb-2 flex h-5 items-center gap-2 px-1">
+    <header className="relative mb-2 flex h-5 items-center gap-2 px-1">
       <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ background: tint(accent, 0.16) }} title={title}>
         {icon}
       </span>
@@ -68,6 +81,7 @@ export function SpaceHeader({
           </motion.span>
         )}
       </AnimatePresence>
+      {denied && !folded && <DeniedChip check={denied} alt={alt} active={active} />}
     </header>
   )
 }
@@ -108,28 +122,36 @@ const LANE_RED = '#e11d48'
 const GATE_AMBER = '#d97706'
 
 /**
- * `DeniedNote` that grows in and folds away instead of popping. The notes appear in every zone that refuses the dragged
- * card, the moment the drag starts: popping in at full height made the tallest column — and so the whole board — jump by
- * the note's height while the empty columns were still opening.
- *
- * It is a CSS grid row easing 0fr → 1fr (the same curve and time as the columns' widths, index.css `.jb-col`), not a
- * measured height: the note's text wraps differently once the columns have narrowed, so a height measured when the drag
- * starts was 13px short when the widths settled, and the board snapped at the end. 0fr always lands on the live height.
- * Closed, the slot is 0 high and a -0.5rem margin cancels the parent's `gap-2`, so it takes no room at rest. The last note
- * stays rendered while the slot folds away.
+ * The header form of `DeniedNote`: a small callout that hangs just below a space's title while a card is dragged. It is
+ * absolutely positioned — it floats over the top of the (dimmed, refusing) space instead of taking room — so it never
+ * pushes a card down, and it wraps, so the whole reason is always readable ("#412 still open (merge or decline it); no QA
+ * ticket raised" does not fit on one line of a 200px lane). A gate adds "⌥ + drop to force", or "Release to force" once
+ * ⌥ has armed it. Clicks and drags pass through it to the space underneath.
  */
-export function DeniedSlot({ check, alt, active, inline = false }: { check: MoveCheck | null | undefined; alt: boolean; active: boolean; inline?: boolean }) {
-  const last = useRef(check)
-  if (check) last.current = check
-  const shown = last.current
+export function DeniedChip({ check, alt, active }: { check: MoveCheck; alt: boolean; active: boolean }) {
+  const gate = check.kind === 'gate'
+  const color = gate ? GATE_AMBER : LANE_RED
+  const armed = gate && active && alt
   return (
-    <div
-      className="grid transition-[grid-template-rows,margin,opacity] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
-      style={{ gridTemplateRows: check ? '1fr' : '0fr', marginBottom: check ? 0 : '-0.5rem', opacity: check ? 1 : 0 }}
-      aria-hidden={!check}
+    <motion.span
+      role="note"
+      title={gate ? `${check.reason ?? ''} Hold ⌥ (Option) and drop to force it.`.trim() : (check.reason ?? undefined)}
+      initial={{ opacity: 0, y: -3 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.18 }}
+      className="jb-float pointer-events-none absolute inset-x-0 top-[calc(100%+4px)] z-30 flex flex-col items-center gap-0.5 rounded-lg border px-2 py-1 text-center leading-snug shadow-lg"
+      style={{ borderColor: tint(color, 0.5), color: lift(color) }}
     >
-      <div className="min-h-0 overflow-hidden">{shown && <DeniedNote check={shown} alt={alt} active={active} inline={inline} />}</div>
-    </div>
+      <span className="text-[10.5px] font-bold [overflow-wrap:anywhere]">{armed ? 'Release to force' : shortReason(check)}</span>
+      {gate && !armed && (
+        <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold opacity-85">
+          <kbd className="rounded border px-[3px] font-sans text-[9.5px] leading-[12px]" style={{ borderColor: tint(color, 0.5) }}>
+            ⌥
+          </kbd>
+          + drop to force
+        </span>
+      )}
+    </motion.span>
   )
 }
 

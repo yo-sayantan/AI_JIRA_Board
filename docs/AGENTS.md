@@ -195,9 +195,16 @@ ticket's branches, and that has its own status words):
   (+4.25rem each), and that width has to come out of the full columns, which at rest sit within half a rem of their minimum.
   So while calm `lib/columns.ts::columnWidth` lowers their `min-width` and raises `flex-shrink` — wide columns 1.6, slim ones
   0.75, so the cards with room give up most and the narrow ones re-wrap least — and `.jb-col` eases EVERY property that
-  changes (basis, grow, shrink, min-width; list a new one there or some columns ease and others snap). The note a zone shows
-  when it refuses the dragged card (`DeniedSlot`) grows in with a CSS grid row `0fr → 1fr`, never a measured height — the
-  text re-wraps while the widths move, so a measured target ends short and the board snaps at the end.
+  changes (basis, grow, shrink, min-width; list a new one there or some columns ease and others snap). **The note a space
+  shows when it refuses the dragged card lives in its header** (`SpaceHeader`'s `denied` → `boardParts::DeniedChip`): an
+  absolutely positioned callout hanging just below the title, over the (dimmed) space, wrapping to as many lines as the full
+  reason needs, pointer-events none. Never put it in the box above the cards (it pushed every card down when a drag started)
+  and never truncate it to one line (the reason got cut mid-sentence). An empty space keeps its placeholder while refusing,
+  or its box would collapse. An empty column that opened to a drop zone still says it inside the zone (fixed height).
+- **The board is an app shell** (`App.tsx`): header, demo banner and filter chips stay put and only `<main class="jb-board-scroll">`
+  scrolls (both ways); each lane's title is `sticky top-0` inside it (`Column.tsx .jb-lane-head`, frosted page-coloured
+  glass in `index.css`, opaque in the fallbacks). `Board.tsx`'s root must NOT be a scroll container (no `overflow-*`): an
+  overflow there captures the sticky titles and they stop sticking. Under 640px of window height the page scrolls as before.
 - Fixed-width right-hand "rails" in list rows (one width table shared by header + rows) so
   columns align to the pixel; labels truncate, never overflow.
 - Every icon-only button gets `aria-label`; toggles get `aria-pressed`; overlays are

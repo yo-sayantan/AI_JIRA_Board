@@ -2,7 +2,7 @@ import { memo, type ReactNode } from 'react'
 import { AnimatePresence } from 'motion/react'
 import type { Ticket } from '../../types'
 import type { MoveCheck } from '../../lib/moveRules'
-import { DeniedSlot, LandingSlot, SpaceHeader, deniedOpacity, dropBoxStyle } from './boardParts'
+import { LandingSlot, SpaceHeader, deniedOpacity, dropBoxStyle } from './boardParts'
 import { lift } from '../../lib/tone'
 
 /**
@@ -69,13 +69,12 @@ export const SubSection = memo(function SubSection({
       className={bare ? 'flex flex-1 flex-col' : undefined}
       aria-label={`${label} · ${tickets.length}${droppable && dragging ? ' — drop here' : ''}`}
     >
-      {!bare && <SpaceHeader accent={accent} icon={icon} label={label} count={tickets.length} />}
+      {!bare && <SpaceHeader accent={accent} icon={icon} label={label} count={tickets.length} denied={denied} alt={alt} active={over} />}
       <div
         className={`flex flex-col gap-2 ${bare ? 'flex-1' : ''} rounded-2xl border border-dashed p-2 transition-[background,border-color,box-shadow,opacity] duration-150`}
         title={denied?.reason ?? (empty ? hint : undefined)}
         style={{ ...dropBoxStyle(accent, droppable && over), opacity: deniedOpacity(denied, over) }}
       >
-        <DeniedSlot check={denied} alt={alt} active={over} inline={empty} />
         {groups.map((g, i) => (
           <div key={g.cap?.text ?? `g${i}`} className="flex flex-col gap-2">
             {g.cap && (
@@ -90,9 +89,11 @@ export const SubSection = memo(function SubSection({
           </div>
         ))}
         {droppable && <LandingSlot accent={accent} show={over} label={texts.slot} />}
-        {empty && !denied && !(droppable && over) && (
-          <div className="flex items-center justify-center py-2.5 text-center text-[11px] italic" style={{ color: droppable && dragging ? lift(accent) : 'var(--muted)' }}>
-            {dragging ? texts.dragging : texts.idle}
+        {/* Kept while the space refuses the card (its header says why): dropping it would collapse the box and move the
+            cards below. */}
+        {empty && !(droppable && over) && (
+          <div className="flex items-center justify-center py-2.5 text-center text-[11px] italic" style={{ color: droppable && dragging && !denied ? lift(accent) : 'var(--muted)' }}>
+            {dragging && !denied ? texts.dragging : texts.idle}
           </div>
         )}
       </div>
