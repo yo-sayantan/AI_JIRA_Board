@@ -3,11 +3,12 @@ import { motion } from 'motion/react'
 import type { Ticket } from '../../types'
 import { COLUMN_META } from '../../lib/columns'
 import { DONE_BOARD_DAYS } from '../../lib/appConfig'
-import { priorityMeta, typeMeta, effectiveType, isClosedPr, prListOf, primaryPrOf, branchesOf, cardBranches, cardBuilds, envBuildCount, vulnFixesOf, relTime, hexToRgba } from '../../lib/format'
+import { priorityMeta, typeMeta, effectiveType, isClosedPr, prListOf, primaryPrOf, branchesOf, cardBranches, cardBuilds, envBuildCount, vulnFixesOf, relTime } from '../../lib/format'
 import { Pill, PriorityGlyph, PrBadge, Approvals, PointsTag } from '../common/ui'
 import { TypeIcon, RefreshIcon, TrophyIcon } from '../common/Icons'
 import { BuildChip } from '../common/Builds'
 import { VulnChip } from '../common/VulnFixes'
+import { lift, tint } from '../../lib/tone'
 
 /** Days until this Done card auto-retires from the board into the Completed archive. */
 function archivesInDays(t: Ticket, now: number): number | null {
@@ -180,7 +181,7 @@ export const TicketCard = memo(function TicketCard({
   }, [burst, ticket.key])
 
   const ring = [
-    urgent ? `0 0 0 1px ${hexToRgba(prio.color, 0.3)}` : '',
+    urgent ? `0 0 0 1px ${tint(prio.color, 0.3)}` : '',
     overflow ? '0 0 0 2px #dc2626' : '',
   ]
     .filter(Boolean)
@@ -188,8 +189,8 @@ export const TicketCard = memo(function TicketCard({
   const ringSuffix = ring ? `, ${ring}` : ''
   // Resting card sits on the board. Hover lifts it: a tight contact shadow plus a
   // wider ambient shadow tinted with the column color, so the lift reads as depth.
-  const baseShadow = `inset 4px 0 0 ${accent}, 0 1px 2px rgba(2,6,23,0.07), 0 10px 20px -14px ${hexToRgba(accent, meta?.quiet ? 0.28 : 0.55)}${ringSuffix}`
-  const hoverShadow = `inset 4px 0 0 ${accent}, inset 0 1px 0 rgba(255,255,255,0.14), 0 1px 2px rgba(2,6,23,0.06), 0 14px 24px -12px rgba(2,6,23,0.42), 0 28px 44px -18px ${hexToRgba(accent, 0.48)}${ringSuffix}`
+  const baseShadow = `inset 4px 0 0 ${accent}, 0 1px 2px rgba(2,6,23,0.07), 0 10px 20px -14px ${tint(accent, meta?.quiet ? 0.28 : 0.55)}${ringSuffix}`
+  const hoverShadow = `inset 4px 0 0 ${accent}, inset 0 1px 0 rgba(255,255,255,0.14), 0 1px 2px rgba(2,6,23,0.06), 0 14px 24px -12px rgba(2,6,23,0.42), 0 28px 44px -18px ${tint(accent, 0.48)}${ringSuffix}`
   const overflowTitle = overflow
     ? `Carried across ${ticket.sprintCount && ticket.sprintCount > 1 ? ticket.sprintCount : 'multiple'} sprints`
     : undefined
@@ -238,19 +239,19 @@ export const TicketCard = memo(function TicketCard({
         className="ticket-card-wash pointer-events-none absolute inset-0"
         style={{
           background: meta?.quiet
-            ? `linear-gradient(160deg, ${hexToRgba(accent, 0.08)} 0%, transparent 60%)`
-            : `linear-gradient(160deg, ${hexToRgba(accent, 0.2)} 0%, ${hexToRgba(accent, 0.07)} 42%, transparent 78%)`,
+            ? `linear-gradient(160deg, ${tint(accent, 0.08)} 0%, transparent 60%)`
+            : `linear-gradient(160deg, ${tint(accent, 0.2)} 0%, ${tint(accent, 0.07)} 42%, transparent 78%)`,
         }}
       />
       <span
         aria-hidden
         className="ticket-card-glow pointer-events-none absolute -left-6 -top-10 h-28 w-40 rounded-full blur-2xl"
-        style={{ background: hexToRgba(accent, 0.45) }}
+        style={{ background: tint(accent, 0.45) }}
       />
       <span
         aria-hidden
         className="ticket-card-edge pointer-events-none absolute inset-x-0 top-0 h-px"
-        style={{ background: `linear-gradient(90deg, ${accent}, ${hexToRgba(accent, 0.15)} 70%, transparent)` }}
+        style={{ background: `linear-gradient(90deg, ${accent}, ${tint(accent, 0.15)} 70%, transparent)` }}
       />
 
       {burst && <DoneBurst />}
@@ -297,15 +298,15 @@ export const TicketCard = memo(function TicketCard({
       )}
 
       <div className="relative flex items-center justify-between gap-2">
-        <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-bold tracking-wide" style={{ color: accent }}>
+        <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-bold tracking-wide" style={{ color: lift(accent) }}>
           {ticket.column === 'done' && <TrophyIcon size={12} />}
-          <TypeIcon type={effectiveType(ticket)} color={tm.color} size={13} />
+          <TypeIcon type={effectiveType(ticket)} color={lift(tm.color)} size={13} />
           {/* Keys never break at their hyphen — six columns leave each card ~220px. */}
           <span className="whitespace-nowrap">{ticket.key}</span>
           <PointsTag points={ticket.storyPoints} />
         </span>
         {moving ? (
-          <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold" style={{ color: accent }} title="Updating status in Jira…">
+          <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold" style={{ color: lift(accent) }} title="Updating status in Jira…">
             <motion.span className="inline-flex" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}>
               <RefreshIcon size={10} color="currentColor" />
             </motion.span>
@@ -384,8 +385,8 @@ function ReadinessDots({ rev, done }: { rev?: string | null; done?: string | nul
     const color = reason ? NOT_YET : READY
     const text = reason ?? `Ready for ${target}`
     return (
-      <span className="inline-flex items-center gap-[3px] text-[9.5px] font-bold uppercase tracking-wide" style={{ color }} title={text} aria-label={`${target}: ${text}`}>
-        <span aria-hidden className="h-[7px] w-[7px] rounded-full" style={{ background: reason ? 'transparent' : color, boxShadow: `inset 0 0 0 1.5px ${color}, 0 0 0 2px ${hexToRgba(color, 0.16)}` }} />
+      <span className="inline-flex items-center gap-[3px] text-[9.5px] font-bold uppercase tracking-wide" style={{ color: lift(color) }} title={text} aria-label={`${target}: ${text}`}>
+        <span aria-hidden className="h-[7px] w-[7px] rounded-full" style={{ background: reason ? 'transparent' : color, boxShadow: `inset 0 0 0 1.5px ${color}, 0 0 0 2px ${tint(color, 0.16)}` }} />
         {label}
       </span>
     )

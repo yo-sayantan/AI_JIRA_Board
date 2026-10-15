@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react'
 import type { Ticket } from '../../types'
-import { buildsOf, dynatraceOf, dynatraceSummary, hexToRgba, vulnFixesOf, vulnScanLine, vulnSummary } from '../../lib/format'
+import { buildsOf, dynatraceOf, dynatraceSummary, vulnFixesOf, vulnScanLine, vulnSummary } from '../../lib/format'
 import { BuildRow } from '../common/Builds'
 import { DynatraceRow } from '../common/Dynatrace'
 import { ProofNoteLine, VulnRow } from '../common/VulnFixes'
 import { proofNoteOf, vulnReadLine } from '../../lib/proofStatus'
+import { lift, tint } from '../../lib/tone'
 
 /**
  * The drawer's "Proof" section: evidence measured in systems outside Jira, one group per source.
@@ -106,7 +107,7 @@ export function ProofGroup({
         <span className="text-[12px] font-bold text-[var(--ink)]">{title}</span>
         <span
           className="rounded-md border px-1.5 text-[10px] font-bold leading-[16px]"
-          style={{ color: `color-mix(in srgb, ${color} 80%, var(--ink))`, borderColor: hexToRgba(color, 0.45), background: hexToRgba(color, 0.07) }}
+          style={{ color: `color-mix(in srgb, ${lift(color)} 80%, var(--ink))`, borderColor: tint(color, 0.45), background: tint(color, 0.07) }}
         >
           {source}
         </span>

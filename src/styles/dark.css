@@ -1,0 +1,81 @@
+/* ── Dark mode: readability ─────────────────────────────────────────────────────────────────────────────────────────
+   The palette is the same in both themes — column hues, view colours, state colours, service colours — but a colour that
+   reads on white goes dim on near-black. Dark mode therefore keeps the HUE and moves the TONE: lighter, never greyer.
+
+   · --tone-lift is read inside `color-mix()` by lib/tone.ts (`lift` for text / icons / lines, `tint` for washes and borders).
+     0 = the colour as written (light theme, and paper), 1 = lifted until it reads on the dark surface. Because it is a CSS
+     variable, inline styles and SVG attributes follow the theme the instant `html.dark` flips, with no re-render.
+   · The surfaces themselves (near-black page, deeper sheets / menus / wells) are tokens in glass.css.
+   · Print slides (.jb-pdf) are paper: no lift, whatever the theme. */
+
+:root,
+.light {
+  --tone-lift: 0;
+  color-scheme: light;
+}
+.dark {
+  --tone-lift: 1;
+  /* Native controls (select popups, scrollbars, autofill, date pickers) follow the in-app theme, not only the OS's. */
+  color-scheme: dark;
+}
+.jb-pdf {
+  --tone-lift: 0;
+}
+@media print {
+  :root,
+  .dark {
+    --tone-lift: 0;
+  }
+}
+
+/* Text selection: the browser default is a pale wash that swallows light text on a dark board. A solid blue band with the
+   ink on top reads in both themes. Selected text inside a coloured chip keeps its own colour contrast via the band. */
+::selection {
+  background: color-mix(in srgb, var(--link) 28%, transparent);
+  color: inherit;
+}
+.dark ::selection {
+  background: color-mix(in srgb, var(--link) 52%, #000);
+  color: #fff;
+  text-shadow: none;
+}
+.dark :is(input, textarea)::selection {
+  background: color-mix(in srgb, var(--link) 60%, #000);
+  color: #fff;
+}
+
+/* Fields: placeholders and typed text stay legible on the recessed well. */
+.dark ::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+.dark .jb-field {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+.dark .jb-field:focus,
+.dark .jb-field:focus-visible {
+  border-color: rgba(196, 140, 255, 0.85);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.5),
+    0 0 0 3px rgba(168, 85, 247, 0.28);
+}
+.dark select.jb-field option {
+  background: #0b0c0f;
+  color: var(--ink);
+}
+
+/* Autofill paints its own pale-yellow / pale-blue fill with dark text; on a dark well that is a glaring box. */
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ink);
+  caret-color: var(--ink);
+  box-shadow: 0 0 0 1000px #0b0c0f inset;
+  transition: background-color 9999s ease-out;
+}
+
+/* Keyboard focus ring: the dark-theme link blue, a touch thicker so it shows on black. */
+.dark :focus-visible {
+  outline-width: 2.5px;
+}

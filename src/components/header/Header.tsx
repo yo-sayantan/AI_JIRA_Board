@@ -1,13 +1,14 @@
 import { memo, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import type { JiraData } from '../../types'
-import { currentSprint, fmtDate, fmtDateShort, freshness, hexToRgba, sprintStatus } from '../../lib/format'
+import { currentSprint, fmtDate, fmtDateShort, freshness, sprintStatus } from '../../lib/format'
 import { CalendarIcon, GearIcon, KeyIcon, QuestionIcon, RefreshIcon, SearchIcon, SunIcon, MoonIcon, TicketGlyph } from '../common/Icons'
 import { guideUrl, type ArchiveScope } from '../../lib/runner'
 import { ReportsMenu, type ReportsMenuProps } from './ReportsMenu'
 import { ArchiveMenu } from './ArchiveMenu'
 import { flushSync } from 'react-dom'
 import { switchTheme } from '../../lib/themeTransition'
+import { lift, tint } from '../../lib/tone'
 
 export type RunProgress = {
   done: number
@@ -204,7 +205,7 @@ export const Header = memo(function Header({
               <span>{name}</span>
               <span
                 className="inline-flex items-center gap-1.5 rounded-full border px-2 py-[2px]"
-                style={{ borderColor: hexToRgba(fr.color, 0.45), background: hexToRgba(fr.color, 0.1) }}
+                style={{ borderColor: tint(fr.color, 0.45), background: tint(fr.color, 0.1) }}
                 title={
                   data.generatedAt
                     ? `The board reflects JIRA as of ${fr.full} (the last intern run). It is ${fr.label} relative to now.`
@@ -215,10 +216,10 @@ export const Header = memo(function Header({
                 {data.generatedAt ? (
                   <>
                     <span className="text-[var(--ink-soft)]">last run {fr.full}</span>
-                    <b style={{ color: fr.color }}>· {fr.label}</b>
+                    <b style={{ color: lift(fr.color) }}>· {fr.label}</b>
                   </>
                 ) : (
-                  <b style={{ color: fr.color }}>no intern run yet</b>
+                  <b style={{ color: lift(fr.color) }}>no intern run yet</b>
                 )}
               </span>
             </div>
@@ -230,7 +231,7 @@ export const Header = memo(function Header({
           {sprint && sp && (
             <div
               className="hidden shrink-0 flex-col gap-0.5 rounded-xl border px-2.5 py-1 leading-tight md:flex"
-              style={{ borderColor: hexToRgba(sp.color, 0.4), background: hexToRgba(sp.color, 0.08) }}
+              style={{ borderColor: tint(sp.color, 0.4), background: tint(sp.color, 0.08) }}
               title={
                 (sprint.start && sprint.end
                   ? `Sprint ${sprint.name}: ${fmtDate(sprint.start)} → ${fmtDate(sprint.end)}`
@@ -238,12 +239,12 @@ export const Header = memo(function Header({
               }
             >
               <span className="flex items-center gap-1.5 text-[10.5px] font-bold text-[var(--ink-soft)]">
-                <CalendarIcon size={10} color={sp.color} />
+                <CalendarIcon size={10} color={lift(sp.color)} />
                 {/* The pill sizes to the NAME — sprint names vary in length ("Team Sprint 13.2"
                     alone needs ~118px, so the old 110px cap clipped every one of them). 280px is a
                     backstop against a pathological name squeezing the search box, not a budget. */}
                 <span className="max-w-[280px] shrink-0 truncate whitespace-nowrap">{sprint.name}</span>
-                <b className="ml-auto shrink-0 whitespace-nowrap pl-1" style={{ color: sp.color }}>
+                <b className="ml-auto shrink-0 whitespace-nowrap pl-1" style={{ color: lift(sp.color) }}>
                   {sp.label}
                 </b>
               </span>
@@ -254,7 +255,7 @@ export const Header = memo(function Header({
                   <span>{sprint.state || 'sprint'}</span>
                 )}
                 {sp.pct != null && (
-                  <span className="relative h-1 min-w-8 flex-1 overflow-hidden rounded-full" style={{ background: hexToRgba(sp.color, 0.18) }}>
+                  <span className="relative h-1 min-w-8 flex-1 overflow-hidden rounded-full" style={{ background: tint(sp.color, 0.18) }}>
                     <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.round(sp.pct * 100)}%`, background: sp.color }} />
                   </span>
                 )}
