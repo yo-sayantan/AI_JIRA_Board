@@ -11,6 +11,11 @@
   --radius-xl: 0.95rem;
   --radius-2xl: 1.3rem;
   --radius-3xl: 1.7rem;
+  /* Motion tokens — CSS twins of src/lib/motion.ts. Naming them here also makes Tailwind's
+     `ease-out` / `ease-in-out` utilities the strong curves (never `ease-in` on UI). */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 :root {
@@ -177,10 +182,10 @@ select.jb-field:disabled {
    the ones under the pointer when the drag starts (that is the card's own column), and the move is over in a quarter second. */
 .jb-col {
   transition:
-    flex-basis 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-    flex-grow 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-    flex-shrink 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-    min-width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    flex-basis 0.28s var(--ease-out),
+    flex-grow 0.28s var(--ease-out),
+    flex-shrink 0.28s var(--ease-out),
+    min-width 0.28s var(--ease-out);
 }
 /* A lane's sticky title (Column.tsx): cards scroll UNDER it inside App's <main>, so it is page-coloured frosted glass — the
    cards blur away behind it instead of showing through the letters. The fallbacks and a still board make it opaque. */
@@ -208,7 +213,7 @@ select.jb-field:disabled {
   pointer-events: none;
 }
 .ticket-card-return {
-  animation: ticket-card-return 0.22s ease-out;
+  animation: ticket-card-return 0.22s var(--ease-out);
 }
 @keyframes ticket-card-return {
   from {

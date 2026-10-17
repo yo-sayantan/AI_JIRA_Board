@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { WarningIcon } from './Icons'
 import { lift } from '../../lib/tone'
+import { PRESS, PRESS_SCALE, TOAST } from '../../lib/motion'
 
 const AMBER = '#f59e0b'
 
@@ -28,10 +29,7 @@ export function NoticesDock({ notes, seconds = 10 }: { notes: string[]; seconds?
           <motion.div
             key="card"
             layout
-            initial={{ opacity: 0, y: 14, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 14, scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            {...TOAST}
             className="jb-float overflow-hidden rounded-xl border bg-[var(--surface-solid)] card-shadow"
             style={{ borderColor: 'rgba(245,158,11,0.4)' }}
           >
@@ -64,14 +62,13 @@ export function NoticesDock({ notes, seconds = 10 }: { notes: string[]; seconds?
           <motion.div
             key="pill"
             layout
-            initial={{ opacity: 0, y: 14, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
+            {...TOAST}
             className="flex items-center gap-1.5"
           >
             <motion.button
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.96 }}
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: PRESS_SCALE }}
+              transition={PRESS}
               onClick={() => setOpen(true)}
               className="jb-float flex items-center gap-2 rounded-full border bg-[var(--surface-solid)] px-3 py-1.5 text-[12px] font-semibold card-shadow"
               style={{ borderColor: 'rgba(245,158,11,0.5)', color: lift(AMBER) }}

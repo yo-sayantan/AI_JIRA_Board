@@ -3,6 +3,7 @@ import type { ArchiveScope } from '../../lib/runner'
 import { APP_CONFIG } from '../../lib/appConfig'
 import { TrophyIcon } from '../common/Icons'
 import { ScopeMenu, StopButton } from './ScopeMenu'
+import { PRESSABLE } from '../../lib/motion'
 
 const GREEN = '#16a34a'
 
@@ -55,9 +56,7 @@ export function ArchiveMenu({ served, busy, blocked, done, total, pct, parallel,
       color={GREEN}
       trigger={(open, toggle) => (
         <motion.button
-          whileHover={{ scale: 1.08 }}
-          whileTap={{ scale: 0.9 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+          {...PRESSABLE}
           onClick={toggle}
           aria-label={busy ? 'Archive rebuild in progress — open options' : 'Rebuild the Completed archive'}
           aria-expanded={open}

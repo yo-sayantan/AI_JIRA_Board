@@ -9,6 +9,7 @@ import { ArchiveMenu } from './ArchiveMenu'
 import { flushSync } from 'react-dom'
 import { switchTheme } from '../../lib/themeTransition'
 import { lift, tint } from '../../lib/tone'
+import { HOVER_SCALE, PRESS, PRESSABLE, PRESS_SCALE } from '../../lib/motion'
 
 export type RunProgress = {
   done: number
@@ -64,9 +65,9 @@ function ProgressButton({
 
   return (
     <motion.button
-      whileHover={disabled ? undefined : { scale: 1.04, y: -1 }}
-      whileTap={disabled ? undefined : { scale: 0.94 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+      whileHover={disabled ? undefined : { y: -1 }}
+      whileTap={disabled ? undefined : { scale: PRESS_SCALE }}
+      transition={PRESS}
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
@@ -319,9 +320,7 @@ export const Header = memo(function Header({
 
           {onOpenKeys && (
             <motion.button
-              whileHover={{ scale: 1.08 }}
-              whileTap={{ scale: 0.9 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+              {...PRESSABLE}
               onClick={onOpenKeys}
               aria-label={keysBadge ? `API keys — ${keysBadge.label}` : keysMissing ? 'API keys — a required key is missing' : 'API keys'}
               title={
@@ -346,9 +345,7 @@ export const Header = memo(function Header({
 
           {onOpenSettings && (
             <motion.button
-              whileHover={{ scale: 1.08 }}
-              whileTap={{ scale: 0.9 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+              {...PRESSABLE}
               onClick={onOpenSettings}
               aria-label="Board settings"
               title="Settings — appearance, features, AI usage"
@@ -361,9 +358,7 @@ export const Header = memo(function Header({
           {/* Help — opens the Setup & Deployment guide. An <a>, not a fetch/route, so it still works
               when the server is down (file:// falls back to the sibling help/ folder). */}
           <motion.a
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.9 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+            {...PRESSABLE}
             href={guideUrl()}
             target="_blank"
             rel="noopener noreferrer"
@@ -375,9 +370,9 @@ export const Header = memo(function Header({
           </motion.a>
 
           <motion.button
-            whileHover={{ scale: 1.08, rotate: dark ? -8 : 8 }}
-            whileTap={{ scale: 0.9, rotate: -15 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+            whileHover={{ scale: HOVER_SCALE, rotate: dark ? -8 : 8 }}
+            whileTap={{ scale: PRESS_SCALE, rotate: -15 }}
+            transition={PRESS}
             onClick={(e) => {
               // The reveal snapshots the page before and after `apply`, so the theme must change synchronously in it:
               // flushSync renders the new setting, and the class is set right here too (applySettings repeats it).

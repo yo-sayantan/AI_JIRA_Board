@@ -9,6 +9,7 @@ import { TypeIcon, RefreshIcon, TrophyIcon } from '../common/Icons'
 import { BuildChip } from '../common/Builds'
 import { VulnChip } from '../common/VulnFixes'
 import { lift, tint } from '../../lib/tone'
+import { EASE_OUT, LAYOUT, PRESS } from '../../lib/motion'
 
 /** Days until this Done card auto-retires from the board into the Completed archive. */
 function archivesInDays(t: Ticket, now: number): number | null {
@@ -217,15 +218,17 @@ export const TicketCard = memo(function TicketCard({
       initial={{ opacity: 0, y: 8, boxShadow: baseShadow }}
       animate={{ opacity: 1, y: 0, zIndex: 0, boxShadow: baseShadow }}
       exit={{ opacity: 0, scale: 0.96 }}
+      // Hovering a card happens all day, so the lift is small and quick (no slow float); the
+      // status-colour bloom underneath (.ticket-card-wash / -glow / -edge) stays deliberately slow.
       transition={{
-        opacity: { duration: 0.28, ease: 'easeOut' },
-        y: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
-        layout: { type: 'spring', stiffness: 380, damping: 34 },
-        boxShadow: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
-        scale: { duration: 0.16, ease: 'easeOut' },
+        opacity: { duration: 0.24, ease: EASE_OUT },
+        y: { duration: 0.2, ease: EASE_OUT },
+        layout: LAYOUT,
+        boxShadow: { duration: 0.24, ease: EASE_OUT },
+        scale: PRESS,
       }}
-      whileHover={quiet ? undefined : { y: -6, zIndex: 3, boxShadow: hoverShadow }}
-      whileTap={quiet ? undefined : { y: -2, scale: 0.992 }}
+      whileHover={quiet ? undefined : { y: -3, zIndex: 3, boxShadow: hoverShadow }}
+      whileTap={quiet ? undefined : { y: -1, scale: 0.99 }}
       className={`ticket-card @container group relative flex w-full flex-col ${draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'} overflow-hidden rounded-xl border bg-[var(--surface-solid)] text-left ${sub ? 'px-2.5 py-2' : 'min-h-[168px] p-2.5'}`}
       style={{
         boxShadow: baseShadow,

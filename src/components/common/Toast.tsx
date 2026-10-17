@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { lift } from '../../lib/tone'
+import { LAYOUT, TOAST } from '../../lib/motion'
 
 export type ToastKind = 'info' | 'success' | 'error' | 'loading'
 export interface ToastAction {
@@ -51,10 +52,8 @@ export const Toasts = memo(function Toasts({
             <motion.div
               key={t.id}
               layout
-              initial={{ opacity: 0, y: 24, scale: 0.94 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 12, scale: 0.94 }}
-              transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+              {...TOAST}
+              transition={{ layout: LAYOUT }}
               className="jb-float pointer-events-auto flex max-w-[92vw] items-center gap-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] px-4 py-2.5 text-[12.5px] font-medium text-[var(--ink)] card-shadow"
             >
               <span className={kind === 'loading' ? 'animate-spin' : ''} style={{ color: lift(COLOR[kind]) }}>

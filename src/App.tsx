@@ -35,6 +35,7 @@ import { Toasts } from './components/common/Toast'
 import { NoticesDock } from './components/common/NoticesDock'
 import { Footer } from './components/common/Footer'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
+import { SCRIM } from './lib/motion'
 
 const served = isServed()
 
@@ -325,9 +326,7 @@ export default function App() {
           <motion.div
             key="jb-scrim"
             className="fixed inset-0 z-[46] bg-black/55 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            {...SCRIM}
             onClick={drawers.closeAll}
           />
         )}

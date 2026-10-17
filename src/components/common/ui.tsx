@@ -6,6 +6,7 @@ import { priorityMeta, typeMeta, prMeta, branchStatusMeta } from '../../lib/form
 import { APP_CONFIG } from '../../lib/appConfig'
 import { PriorityIcon, TypeIcon, PrStateIcon, CopyIcon, CheckIcon, ICON_SCALE } from './Icons'
 import { lift, onFill, tint } from '../../lib/tone'
+import { PRESS, PRESS_SCALE } from '../../lib/motion'
 
 export function Pill({
   children,
@@ -175,7 +176,8 @@ export function CopyButton({ text, label = 'Copy', className = '', icon, title }
   return (
     <motion.button
       type="button"
-      whileTap={{ scale: 0.92 }}
+      whileTap={{ scale: PRESS_SCALE }}
+      transition={PRESS}
       onClick={(e) => {
         e.preventDefault()
         e.stopPropagation()

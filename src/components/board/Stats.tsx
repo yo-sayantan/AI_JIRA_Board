@@ -5,6 +5,7 @@ import type { ColumnKey, Ticket } from '../../types'
 
 import { MegaphoneIcon, TrophyIcon, TicketGlyph } from '../common/Icons'
 import { lift, selectedText, tint } from '../../lib/tone'
+import { PRESS, PRESS_SCALE } from '../../lib/motion'
 
 // Identity of the Raised-by-me view — indigo, deliberately not a red/alarm family.
 const RAISED = '#6366f1'
@@ -58,7 +59,7 @@ export const Stats = memo(function Stats({
         onClick={() => onSelect(null)}
         aria-pressed={active === null}
         title="Show every column"
-        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-all ${
+        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-[background-color,border-color,color] duration-150 ${
           active === null
             ? 'border-transparent bg-[var(--ink)] text-[var(--bg)]'
             : 'border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] hover:border-[var(--muted)]'
@@ -73,9 +74,9 @@ export const Stats = memo(function Stats({
         return (
           <motion.button
             key={c.key}
-            whileHover={{ scale: 1.05, y: -1 }}
-            whileTap={{ scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+            whileHover={{ y: -1 }}
+            whileTap={{ scale: PRESS_SCALE }}
+            transition={PRESS}
             onClick={() => onSelect(isActive ? null : c.key)}
             className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors"
             style={{
@@ -101,9 +102,9 @@ export const Stats = memo(function Stats({
               "still needs fixing" is the number this view exists for. */}
           {raisedCount != null && (
             <motion.button
-              whileHover={{ scale: 1.03, y: -1 }}
-              whileTap={{ scale: 0.96 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: PRESS_SCALE }}
+              transition={PRESS}
               onClick={onOpenRaised}
               title={`Tickets you raised (sub-tickets excluded) — ${raisedCount.open} of ${raisedCount.total} still open. See each one's status, who holds it now, and every hand-off.`}
               className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-[7.5px] text-[12.5px] font-bold transition-colors"
@@ -120,8 +121,8 @@ export const Stats = memo(function Stats({
 
           {completedCount != null && (
             <motion.button
-              whileTap={{ scale: 0.97 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+              whileTap={{ scale: PRESS_SCALE }}
+              transition={PRESS}
               onClick={onOpenCompleted}
               title="View all completed tickets"
               className="gold-sheen inline-flex items-center rounded-full border-[3px] px-4 py-2 text-[13.5px] font-extrabold text-[#5b3d00]"

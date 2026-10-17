@@ -6,6 +6,7 @@ import { APP_CONFIG } from '../../lib/appConfig'
 import { SparkleIcon } from '../common/Icons'
 import { ScopeMenu, StopButton, type MenuScope } from './ScopeMenu'
 import { lift, tint } from '../../lib/tone'
+import { PRESSABLE } from '../../lib/motion'
 
 const AI = '#a855f7'
 /** How long nothing may be generating before the next run counts as a new batch. */
@@ -105,9 +106,7 @@ export function ReportsMenu({ served, generating, withPrCount, reportCount, boar
       color={AI}
       trigger={(open, toggle) => (
         <motion.button
-          whileHover={{ scale: 1.08 }}
-          whileTap={{ scale: 0.9 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+          {...PRESSABLE}
           onClick={toggle}
           aria-label={busy ? `Generating ${busy} PR readiness report${busy === 1 ? '' : 's'} — open report options` : 'Generate PR readiness reports'}
           aria-expanded={open}

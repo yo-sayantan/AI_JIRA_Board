@@ -31,6 +31,7 @@ import {
   FlaskIcon,
 } from '../common/Icons'
 import { lift, onFill, tint } from '../../lib/tone'
+import { COLLAPSE, DRAWER } from '../../lib/motion'
 
 /**
  * The one-click path from a ticket to its management-grade verdict. Three states: a report exists
@@ -223,7 +224,7 @@ export function TicketDetail({
         initial={{ x: '100%' }}
         animate={{ x: -(Math.min(fromTop, 5) * 40) }}
         exit={{ x: '100%' }}
-        transition={{ type: 'spring', stiffness: 340, damping: 36 }}
+        transition={DRAWER}
         role="dialog"
         aria-modal={isTop}
       >
@@ -572,7 +573,7 @@ function Section({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 280, damping: 32 }}
+            transition={COLLAPSE}
             className="overflow-hidden"
           >
             <div className="border-t border-[var(--line)] px-3.5 py-3">{children}</div>

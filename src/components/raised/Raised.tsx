@@ -8,6 +8,7 @@ import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { PriorityGlyph, SafeHtml } from '../common/ui'
 import { ChevronIcon, CheckIcon, ClockIcon, DocIcon, ExpandAllIcon, LinkIcon, MegaphoneIcon, PersonIcon, QuestionIcon, RefreshIcon, SearchIcon, SparkleIcon, TypeIcon } from '../common/Icons'
 import { lift, selectedText, tint } from '../../lib/tone'
+import { COLLAPSE, DIALOG, PRESS, PRESS_SCALE, SCRIM } from '../../lib/motion'
 
 // The Raised view's own palette — indigo identity (deliberately apart from the Completed
 // archive's green/gold, and not a red/alarm family); amber marks what's still open.
@@ -212,12 +213,9 @@ export function RaisedOverlay({
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-[45] flex justify-center overflow-hidden p-2 sm:p-5">
-          <motion.div className="absolute inset-0 bg-black/60 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
+          <motion.div className="absolute inset-0 bg-black/60 backdrop-blur-sm" {...SCRIM} onClick={onClose} />
           <motion.div
-            initial={{ opacity: 0, y: -40, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -30, scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 32 }}
+            {...DIALOG}
             ref={panelRef}
             tabIndex={-1}
             className="jb-dialog-panel relative flex max-h-full w-full max-w-[1540px] flex-col overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--bg)] shadow-2xl"
@@ -269,9 +267,9 @@ export function RaisedOverlay({
                   {onRefresh && (
                     <div className="flex flex-col items-end gap-1">
                       <motion.button
-                        whileHover={refreshing ? undefined : { scale: 1.04, y: -1 }}
-                        whileTap={refreshing ? undefined : { scale: 0.95 }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                        whileHover={refreshing ? undefined : { y: -1 }}
+                        whileTap={refreshing ? undefined : { scale: PRESS_SCALE }}
+                        transition={PRESS}
                         onClick={onRefresh}
                         disabled={refreshing}
                         aria-busy={refreshing || undefined}
@@ -509,7 +507,7 @@ function RaisedRow({ it, user, briefsEnabled, expanded, onToggle, onOpen }: { it
 
   return (
     <div
-      className="group/row overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] transition-all hover:-translate-y-px hover:border-[var(--line-strong)] hover:shadow-[0_10px_24px_-16px_rgba(16,24,40,0.5)]"
+      className="group/row overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] transition-[transform,border-color,box-shadow] duration-200 ease-out hover:-translate-y-px hover:border-[var(--line-strong)] hover:shadow-[0_10px_24px_-16px_rgba(16,24,40,0.5)]"
       // The left edge carries the STATUS colour — one glance down the list answers
       // "where does everything I raised stand?", which is this view's whole job.
       style={{ borderLeftWidth: 3, borderLeftColor: accent }}
@@ -588,7 +586,7 @@ function RaisedRow({ it, user, briefsEnabled, expanded, onToggle, onOpen }: { it
 
       <AnimatePresence initial={false}>
         {expanded && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.22 }} className="overflow-hidden">
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={COLLAPSE} className="overflow-hidden">
             <div className="border-t border-[var(--line)] bg-[var(--surface-2)] px-4 py-3.5">
               {/* The brief leads: for a ticket someone else works, it's the fastest answer to
                   "what is this and where does it stand" without opening the full page. */}

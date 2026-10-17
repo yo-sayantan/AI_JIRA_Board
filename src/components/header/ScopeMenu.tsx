@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { currentYear, dateInputDaysAgo } from '../../lib/format'
 import { APP_CONFIG } from '../../lib/appConfig'
 import { onFill, tint } from '../../lib/tone'
+import { POPOVER, PRESS } from '../../lib/motion'
 
 export type MenuScope = { scope: 'all' } | { scope: 'year'; year: number } | { scope: 'since'; since: string } | { scope: 'key'; key: string }
 
@@ -70,10 +71,7 @@ export function ScopeMenu({ color, trigger, title, subtitle, progress, served, o
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.12 }}
+            {...POPOVER}
             className="absolute right-0 z-50 mt-2 w-[330px] origin-top-right overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] shadow-2xl"
             role="menu"
           >
@@ -271,7 +269,7 @@ function MenuItem({ color, label, hint, onClick, disabled }: { color: string; la
       role="menuitem"
       whileHover={disabled ? undefined : { y: -1 }}
       whileTap={disabled ? undefined : { scale: 0.985, y: 0 }}
-      transition={{ type: 'spring', stiffness: 520, damping: 26 }}
+      transition={PRESS}
       className="jb-scope-item flex w-full items-center gap-2 rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-left shadow-none transition-[background-color,border-color,box-shadow] duration-150 hover:bg-[var(--surface-2)] disabled:opacity-50 disabled:hover:bg-transparent"
       style={{ ['--scope' as string]: color }}
     >
