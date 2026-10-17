@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DIALOG, EASE_DRAWER, EASE_OUT, HOVER_SCALE, POPOVER, PRESS, PRESS_SCALE, SCRIM, TOAST } from './motion'
+import { DIALOG, EASE_DRAWER, EASE_OUT, HOVER_SCALE, POPOVER, PRESS, PRESS_SCALE, SCRIM, TOAST, flickDismisses, project } from './motion'
 
 const duration = (t: { transition: { duration: number } }) => t.transition.duration
 
@@ -24,6 +24,22 @@ describe('motion tokens', () => {
       expect(duration(m.exit)).toBeLessThan(duration(m.animate))
       expect(duration(m.animate)).toBeLessThanOrEqual(0.3)
     }
+  })
+})
+
+describe('momentum (apple-design)', () => {
+  it('projects a flick the way scroll deceleration would (d = 0.998)', () => {
+    expect(project(0)).toBe(0)
+    expect(project(1000)).toBeCloseTo(499, 0)
+    expect(project(-1000)).toBeCloseTo(-499, 0)
+  })
+
+  it('a quick flick dismisses even from a short drag; a slow short drag springs back', () => {
+    expect(flickDismisses(60, 900, 800)).toBe(true) // 60 + 449 > 400
+    expect(flickDismisses(60, 50, 800)).toBe(false)
+    expect(flickDismisses(450, 0, 800)).toBe(true) // dragged past half
+    expect(flickDismisses(300, -800, 800)).toBe(false) // thrown back toward open
+    expect(flickDismisses(-40, 0, 800)).toBe(false) // rubber-banding past open
   })
 })
 

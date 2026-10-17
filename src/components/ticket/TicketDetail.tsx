@@ -1,5 +1,5 @@
 import { useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, motion, useDragControls, type PanInfo } from 'motion/react'
 import type { Ticket, LinkRef, Comment, PullRequest } from '../../types'
 import { COLUMN_META } from '../../lib/columns'
 import { fmtDate, fmtDateTime, relTime, prMeta, isMergedPr, isClosedPr, prListOf, primaryPrOf, prCommentStats, branchesOf, branchStatusOf, typeMeta, effectiveType, isAssignedToMe, cycleTime, fmtDays, unwrapBrief } from '../../lib/format'
@@ -31,7 +31,7 @@ import {
   FlaskIcon,
 } from '../common/Icons'
 import { lift, onFill, tint } from '../../lib/tone'
-import { COLLAPSE, DRAWER } from '../../lib/motion'
+import { COLLAPSE, DRAWER, DRAWER_RETURN, flickDismisses } from '../../lib/motion'
 
 /**
  * The one-click path from a ticket to its management-grade verdict. Three states: a report exists
@@ -215,6 +215,22 @@ export function TicketDetail({
   // the card (or archive row) that opened it.
   useDialogFocus(true, asideRef)
 
+  // Drag the front drawer away (apple-design: direct manipulation, momentum, rubber-banding). It
+  // tracks the pointer 1:1 from where it was grabbed; let go and the PROJECTED resting point decides
+  // — a quick flick closes it from a short drag — and the exit spring carries the release velocity
+  // on, so there is no seam between dragging and animating. Grabbed by the edge grabber or the
+  // header (never by a button, link or field). Esc and the × still close it as before.
+  const drag = useDragControls()
+  const startDrag = (e: React.PointerEvent) => {
+    if (!isTop || e.button !== 0) return
+    if ((e.target as HTMLElement).closest('button, a, input, textarea, select, [role="button"], [data-no-drag]')) return
+    drag.start(e)
+  }
+  const endDrag = (_: unknown, info: PanInfo) => {
+    const width = asideRef.current?.offsetWidth ?? window.innerWidth
+    if (flickDismisses(info.offset.x, info.velocity.x, width)) onClose()
+  }
+
   return (
       <motion.aside
         ref={asideRef}
@@ -225,14 +241,34 @@ export function TicketDetail({
         animate={{ x: -(Math.min(fromTop, 5) * 40) }}
         exit={{ x: '100%' }}
         transition={DRAWER}
+        drag={isTop ? 'x' : false}
+        dragListener={false}
+        dragControls={drag}
+        dragConstraints={{ left: 0, right: 0 }}
+        // Free to the right (toward closing), a stiff rubber band to the left (past open).
+        dragElastic={{ left: 0.06, right: 1 }}
+        dragMomentum={false}
+        dragTransition={DRAWER_RETURN}
+        onDragEnd={endDrag}
         role="dialog"
         aria-modal={isTop}
       >
+        {/* Grabber: the drawer's left edge. Shows a pill on hover so the gesture is discoverable. */}
+        {isTop && (
+          <div
+            aria-hidden
+            onPointerDown={startDrag}
+            className="group/grab absolute inset-y-0 -left-1 z-20 w-4 cursor-grab touch-none active:cursor-grabbing"
+          >
+            <span className="absolute left-1.5 top-1/2 h-10 w-1 -translate-y-1/2 rounded-full bg-[var(--muted)] opacity-0 transition-opacity duration-150 group-hover/grab:opacity-60" />
+          </div>
+        )}
+
         {/* accent top bar */}
         <div className="h-1 w-full shrink-0" style={{ background: `linear-gradient(90deg, ${accent}, transparent)` }} />
 
         {/* sticky header */}
-        <div className="sticky top-0 z-10 border-b border-[var(--line)] bg-[var(--bg)]/90 px-5 py-3.5 backdrop-blur-xl">
+        <div onPointerDown={startDrag} className="sticky top-0 z-10 border-b border-[var(--line)] bg-[var(--bg)]/90 px-5 py-3.5 backdrop-blur-xl">
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">

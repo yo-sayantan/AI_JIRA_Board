@@ -35,7 +35,7 @@ import { Toasts } from './components/common/Toast'
 import { NoticesDock } from './components/common/NoticesDock'
 import { Footer } from './components/common/Footer'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
-import { SCRIM } from './lib/motion'
+import { RECEDE, SCRIM } from './lib/motion'
 
 const served = isServed()
 
@@ -120,7 +120,8 @@ export default function App() {
     drawers.closeAll()
     toast('Demo board reset — every ticket is back where it started.', 'success')
   }, [clearToasts, moves, resetDemo, drawers.closeAll, toast])
-  useScrollLock(drawers.open || completedOpen || raisedOpen || settingsOpen || keysOpen || !!reports.openReport)
+  const overlayOpen = drawers.open || completedOpen || raisedOpen || settingsOpen || keysOpen || !!reports.openReport
+  useScrollLock(overlayOpen)
   useShortcuts(features.shortcuts && !drawers.open && !completedOpen && !raisedOpen && !settingsOpen && !keysOpen && !reports.openReport, jobs.refreshBoard)
 
   useEffect(() => {
@@ -282,7 +283,12 @@ export default function App() {
         onOpenRaised={features.raisedTickets ? openRaised : undefined}
       />
 
-      <main className="jb-board-scroll -mx-2 min-h-0 flex-1 overflow-auto overscroll-contain px-2 [@media(max-height:640px)]:overflow-visible">
+      {/* Behind a drawer or dialog the board recedes a touch (apple-design: dim to focus, push back) and
+          comes forward again as it closes — the scrim does the dimming. */}
+      <motion.main
+        animate={overlayOpen ? RECEDE : { scale: 1, transition: RECEDE.transition }}
+        className="jb-board-scroll -mx-2 min-h-0 flex-1 overflow-auto overscroll-contain px-2 [@media(max-height:640px)]:overflow-visible"
+      >
       {!hasAnyActive ? (
         <FunEmptyBoard
           served={served}
@@ -316,7 +322,7 @@ export default function App() {
       )}
 
       {hasAnyActive && userArchived.length > 0 && <ArchivedUndo keys={userArchived} onUndo={restoreArchived} />}
-      </main>
+      </motion.main>
 
       <Footer />
 

@@ -148,6 +148,12 @@ are adapted via `completedToTicket` / `raisedToTicket` so one component renders 
   a refused clipboard says so and shows the name to copy by hand). The card's top edge, icon chip and caption take the PR
   state colour (open PR · approved · changes · merged · declined), indigo for a branch with no PR of its own; the glass
   itself stays clear and cards are not blurred (they sit on the drawer's own glass).
+- **Drag it away**: grab the front drawer by its header or its left edge (a grabber pill shows on hover) and it follows the
+  pointer 1:1; past its open position it rubber-bands. Let go and the *projected* resting point decides — a quick flick
+  closes it from a short drag, a slow short drag springs it home — and the closing spring carries the release velocity
+  (`lib/motion.ts::flickDismisses` / `project`, tested). Buttons, links and fields never start a drag; Esc and × as before.
+- While a drawer or dialog is open the board behind it **recedes** a touch (scale 0.985) and comes forward as it closes;
+  dialogs **materialize** out of a soft blur. Off under reduce-motion and the Motion switch, like all motion.
 
 ## Jenkins builds (cards, drawer, CI gate)
 
@@ -386,6 +392,8 @@ Overlay with three areas (`src/components/settings/Settings.tsx`):
   at least 12 s (`useToasts::toastSeconds`). Every toast's clock pauses while the pointer or keyboard focus is on the
   stack and while the tab is hidden, then resumes with the time it had left (at least 1.5 s). The refresh a move queues
   is quiet — no "Fetching… / updated" toasts to crowd out the Undo — and only speaks up if it fails.
+- **Swipe a toast to the right** to dismiss it — a flick is enough; it leaves the way it was thrown. A dismissed (×) or
+  timed-out toast sinks as before.
 
 ## Keyboard & accessibility
 
