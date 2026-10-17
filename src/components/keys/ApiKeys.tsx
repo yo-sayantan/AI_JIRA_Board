@@ -29,6 +29,7 @@ import type { ApiKeySave } from '../../lib/runner'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { CheckIcon, EyeIcon, EyeOffIcon, KeyIcon } from '../common/Icons'
 import { lift, onFill, selectedText, tint } from '../../lib/tone'
+import { DIALOG, EASE_OUT, PRESS, PRESS_SCALE, SCRIM } from '../../lib/motion'
 
 type SaveFn = (name: string, value: string) => Promise<ApiKeySave>
 type TestFn = (service: string) => Promise<KeyTestResult>
@@ -137,9 +138,7 @@ export function ApiKeysDialog({
       {open && (
         <motion.div
           className="fixed inset-0 z-[90] flex items-center justify-center overflow-hidden bg-black/60 p-3 backdrop-blur-sm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          {...SCRIM}
           onMouseDown={onBackdropDown}
           onClick={onBackdropClick}
           role="dialog"
@@ -150,10 +149,7 @@ export function ApiKeysDialog({
             ref={panelRef}
             tabIndex={-1}
             className="jb-dialog-panel flex h-[min(800px,calc(100dvh-32px))] w-[min(1200px,calc(100vw-32px))] flex-col overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--bg)] shadow-2xl"
-            initial={{ y: 20, scale: 0.98 }}
-            animate={{ y: 0, scale: 1 }}
-            exit={{ y: 12, scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+            {...DIALOG}
           >
             <header className="flex shrink-0 items-center gap-2.5 border-b border-[var(--line)] px-5 py-3">
               <KeyIcon size={15} color={lift('#f59e0b')} />
@@ -366,7 +362,7 @@ function ServicePanel({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.16, ease: 'easeOut' }}
+      transition={{ duration: 0.16, ease: EASE_OUT }}
       className="space-y-5"
     >
       <section
@@ -393,8 +389,8 @@ function ServicePanel({
             type="button"
             onClick={onTest}
             disabled={busy || !!blocker}
-            whileTap={busy || blocker ? undefined : { scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+            whileTap={busy || blocker ? undefined : { scale: PRESS_SCALE }}
+            transition={PRESS}
             aria-label={`Test ${service.name} connection`}
             aria-busy={busy || undefined}
             title={blocker ?? `Check the saved ${service.name} key against its host`}

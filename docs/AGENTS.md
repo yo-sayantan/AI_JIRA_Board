@@ -32,7 +32,7 @@ AI agent to make a correct change without re-deriving the architecture.
 | `src/` | React 19 + Tailwind v4 + Motion app → built into ONE `dist/index.html` (vite-plugin-singlefile). |
 | `src/types.ts` | **THE CONTRACT** — `Ticket`, `CompletedTicket`, `RaisedTicket`, `JiraData`, adapters. |
 | `src/data.ts` | Dump → board rules (normalise columns, retire old Done tickets, merge user-archived keys). |
-| `src/lib/` | Pure logic: `boardView` (derivations/index), `search` (query grammar), `columns` (status→column), `format` (every display helper), `tone` (theme-aware colour: `lift` / `tint` / `onFill`), `runner` (typed API client), `settings` (feature registry), `statusPoller`. |
+| `src/lib/` | Pure logic: `boardView` (derivations/index), `search` (query grammar), `columns` (status→column), `format` (every display helper), `tone` (theme-aware colour: `lift` / `tint` / `onFill`), `runner` (typed API client), `settings` (feature registry), `statusPoller`, `motion` (THE motion tokens: curves, durations, springs). |
 | `src/hooks/` | Stateful glue: `useBoardData`, `useInternJobs` (daily/archive/raised/per-ticket jobs), `useReports`, `useDrawerStack`, `useBoardSettings`, `useToasts`. |
 | `src/components/` | Feature folders: `board/` `header/` `ticket/` `completed/` `raised/` `reports/` `settings/` `common/`. |
 | `jira-intern/` | The data pipeline. `daily_fetch.py` (active tickets + raised list + single-ticket refresh), `completed_archive.py` (historical archive), `raised.py` (raised-by-me fetch, shared), `_jira.py` (HTTP + field formatting), `devinfo.py` (branches/PRs via Jira dev-status), `jenkins.py` (latest Jenkins build per branch, environment and pipeline → `Ticket.builds`) with `jenkins_discovery.py` (finds the pipelines under the Jenkins root; cache `.jenkins-discovery.json`), `checkmarx.py` (Checkmarx One: which vulnerabilities a fix ticket fixed, branch scan vs base scan → `Ticket.vulnFixes`; also the worker's Checkmarx client; `diagnose` from the terminal), `dynatrace.py` (the Dynatrace links in a ticket's text, read-only DQL at listed tenants only → `Ticket.dynatrace`; `inspect` from the terminal), `evidence.py` (the ONE builder of "what Dynatrace / Checkmarx / Jenkins say about a ticket": headline, templated insight, sections, fingerprint — read by the AI brief, the PR report and the worker), `_scrub.py` (cleans outside text — Dynatrace messages, Jenkins console lines — before it is stored or sent to a model), `_sources.py` (what each proof source did this run → `proofSources`, the run notes), `_safe_http.py` (the proof clients' hardened urllib: verified TLS context with an opt-out per source, same-origin-only redirects), `pr_report.py` (deterministic PR reports), `_health.py` (per-service health files `.health/<id>.json` every outside client writes after a real call — the API keys dialog's dots), `datafile.py` (atomic writes, data.js sync), `progress.py` (progress file for button fills). |
@@ -146,8 +146,28 @@ ticket's branches, and that has its own status words):
 
 ## UI style guardrails
 
+- **Motion work starts with the design skills in `.claude/skills/`** (Emil Kowalski's set, MIT — `.claude/skills/LICENSE`).
+  Before creating or changing ANY UI flow, animation or transition (a drawer, dialog, drag, card move, view switch, toast,
+  press / hover state) invoke **`apple-design`** (springs, interruptible and velocity-aware motion, 1:1 direct manipulation,
+  response on pointer-down, reduced motion) and **`animate`** (should it animate at all, curve, duration, properties, exit).
+  Then, as the work calls for it: `emil-design-eng` (polish and invisible details), `animation-performance` (jank — animate
+  composite-only properties), `review-animations` / `improve-animations` / `find-animation-opportunities` (critique, audit,
+  discovery), `animation-vocabulary` (naming an effect), `mobile-native` (touch), `break-ui` (worst-case data),
+  `ask-sonner` (only if Sonner is ever adopted — the board has its own `useToasts`). `animate-expo`, `write-swift`,
+  `pick-ui-library` and `prototype` are installed but do not apply to this React web app unless asked. **The skills advise;
+  this file decides.** Where they disagree with the repo's own rules below — flat chips, Liquid Glass, column colours, the
+  "Motion & animations" switch (`jb-no-anim`, `themeMotionAllowed()`), the calm-board drag rules — the repo wins, and any
+  motion you add must still go quiet under that switch and under `prefers-reduced-motion`. Re-import with
+  `npx skills@latest add emilkowalski/skills` (or re-copy `skills/` from the repo) to update.
+- **Motion goes through the tokens** in `src/lib/motion.ts` (CSS twins `--ease-out` / `--ease-in-out` / `--ease-drawer` in
+  `styles/index.css`'s `@theme`, which also make Tailwind's `ease-out` utility the strong curve). A button spreads `PRESSABLE`
+  (or uses `PRESS` / `PRESS_SCALE`), a modal `{...SCRIM}` + `{...DIALOG}`, a menu or tooltip `{...POPOVER}` plus an `origin-*`
+  class at its trigger, a notification `{...TOAST}`, a layout move `LAYOUT`, the drawer `DRAWER`, an accordion `COLLAPSE`.
+  Never a new hand-tuned spring or `ease: 'easeOut'` in a component — change the token. `motion.test.ts` pins the rules (press
+  0.95–0.98, no ease-in, exits faster than entrances, UI ≤ 300 ms) and fails on any `transition-all` in `src/`. Decorative,
+  rare motion (the logo's entrance, busy spinners, the empty-board fun, the gold sheen) keeps its own values.
 - Controls are **flat chips**: thin outline `hexToRgba(color, 0.45)`, tinted fill
-  `hexToRgba(color, 0.07)`, coloured text/icon, Motion spring on hover/tap. **No 3D/skeuomorphic
+  `hexToRgba(color, 0.07)`, coloured text/icon, `PRESSABLE` hover/press feedback (`lib/motion.ts`). **No 3D/skeuomorphic
   buttons** (tried; rejected). The gold `gold-sheen` Completed trophy is the single exception.
 - Colour accents are welcome and each view owns a hue — columns: To Do cool grey `#8b94a8` (quiet) · Blocked
   rose `#fb3f5f` · In Progress blue `#2f86ff` · In Review purple `#b05cff` · QA muted grey-teal `#6aa9a1` (quiet; QA In Progress

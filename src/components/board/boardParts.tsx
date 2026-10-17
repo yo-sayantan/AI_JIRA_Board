@@ -3,11 +3,10 @@ import { AnimatePresence, motion } from 'motion/react'
 
 import { shortReason, type MoveCheck } from '../../lib/moveRules'
 import { lift, tint } from '../../lib/tone'
+import { LAYOUT } from '../../lib/motion'
 
 // Pieces every space on the board shares — a column, the On Hold space under Blocked, an empty
 // column's rail or drop zone — so they cannot drift apart in size or colour.
-
-export const SPRING = { type: 'spring', stiffness: 300, damping: 30 } as const
 
 /** A dashed drop box: faint at rest, lit while a card hovers it. */
 export function dropBoxStyle(accent: string, active: boolean): CSSProperties {
@@ -97,7 +96,7 @@ export function LandingSlot({ accent, show, label }: { accent: string; show: boo
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 44 }}
           exit={{ opacity: 0, height: 0 }}
-          transition={SPRING}
+          transition={LAYOUT}
           className="flex items-center justify-center overflow-hidden rounded-xl border-2 border-dashed text-[11px] font-semibold"
           style={{ borderColor: tint(accent, 0.55), background: tint(accent, 0.1), color: lift(accent) }}
         >

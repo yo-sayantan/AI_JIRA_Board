@@ -5,6 +5,7 @@ import { branchStatusMeta } from '../../lib/format'
 import { copyText } from '../common/ui'
 import { BranchIcon, CheckIcon, CopyIcon } from '../common/Icons'
 import { lift, tint } from '../../lib/tone'
+import { PRESS } from '../../lib/motion'
 
 /** A branch with no pull request of its own: a calm indigo, so a plain branch still has a colour of its own. */
 const PLAIN = { label: 'branch', color: '#6d7cff' }
@@ -43,7 +44,7 @@ function BranchCard({ name, state }: { name: string; state?: PrState | null }) {
       type="button"
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.97 }}
-      transition={{ type: 'spring', stiffness: 420, damping: 26 }}
+      transition={PRESS}
       onClick={() => {
         void copyText(name).then((ok) => {
           setCopy(ok ? 'done' : 'failed')

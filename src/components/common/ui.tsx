@@ -6,6 +6,7 @@ import { priorityMeta, typeMeta, prMeta, branchStatusMeta } from '../../lib/form
 import { APP_CONFIG } from '../../lib/appConfig'
 import { PriorityIcon, TypeIcon, PrStateIcon, CopyIcon, CheckIcon, ICON_SCALE } from './Icons'
 import { lift, onFill, tint } from '../../lib/tone'
+import { EASE_OUT, PRESS, PRESS_SCALE } from '../../lib/motion'
 
 export function Pill({
   children,
@@ -172,10 +173,14 @@ export function CopyButton({ text, label = 'Copy', className = '', icon, title }
   useEffect(() => () => clearTimeout(timer.current), [])
   const done = state === 'done'
   const failed = state === 'failed'
+  // Set once the label has changed at least once: from then on each swap crossfades in.
+  const swapped = useRef(false)
+  if (state !== 'idle') swapped.current = true
   return (
     <motion.button
       type="button"
-      whileTap={{ scale: 0.92 }}
+      whileTap={{ scale: PRESS_SCALE }}
+      transition={PRESS}
       onClick={(e) => {
         e.preventDefault()
         e.stopPropagation()
@@ -189,8 +194,18 @@ export function CopyButton({ text, label = 'Copy', className = '', icon, title }
       aria-live="polite"
       className={`glass-interactive inline-flex items-center gap-1.5 rounded-lg border border-[var(--line-strong)] bg-[var(--surface-solid)] px-2.5 py-1 text-[11px] font-medium text-[var(--ink-soft)] transition-colors hover:border-[var(--muted)] hover:text-[var(--ink)] ${className}`}
     >
-      {done ? <CheckIcon size={12} color={lift('#22c55e')} /> : failed ? <CopyIcon size={12} color={lift('#ef4444')} /> : (icon ?? <CopyIcon size={12} />)}
-      {done ? 'Copied' : failed ? 'Copy failed' : label}
+      {/* Copy ↔ Copied: a blur-masked crossfade, so the swap reads as one label changing, not two
+          labels trading places. Only on a change — never on mount. */}
+      <motion.span
+        key={state}
+        className="inline-flex items-center gap-1.5"
+        initial={swapped.current ? { opacity: 0, filter: 'blur(2px)' } : false}
+        animate={{ opacity: 1, filter: 'blur(0px)' }}
+        transition={{ duration: 0.2, ease: EASE_OUT }}
+      >
+        {done ? <CheckIcon size={12} color={lift('#22c55e')} /> : failed ? <CopyIcon size={12} color={lift('#ef4444')} /> : (icon ?? <CopyIcon size={12} />)}
+        {done ? 'Copied' : failed ? 'Copy failed' : label}
+      </motion.span>
       {failed && <span className="select-all font-mono text-[10px] text-[var(--muted)]">{text}</span>}
     </motion.button>
   )

@@ -9,6 +9,7 @@ import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { SectionPicker, type PickerOption } from './SectionPicker'
 import { CalendarIcon, CheckIcon, ColumnIcon, DocIcon, DownloadIcon, FlaskIcon, MegaphoneIcon, MoonIcon, MoveIcon, PauseIcon, QuestionIcon, RefreshIcon, SearchIcon, SparkleIcon, SunIcon, TrophyIcon } from '../common/Icons'
 import { lift, selectedStyle, selectedText, tint } from '../../lib/tone'
+import { DIALOG, POPOVER, SCRIM } from '../../lib/motion'
 
 const AI = '#a855f7'
 
@@ -210,11 +211,8 @@ function AiLevelPicker({ value, onChange }: { value: Settings['aiLevel']; onChan
                 <motion.div
                   id={`ai-level-${level.key}-tip`}
                   role="tooltip"
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 4 }}
-                  transition={{ duration: 0.14 }}
-                  className={`pointer-events-none absolute top-[calc(100%+8px)] z-30 w-[220px] rounded-lg border px-2.5 py-2 text-[11px] leading-snug shadow-xl ${i >= 2 ? 'right-0' : 'left-0'}`}
+                  {...POPOVER}
+                  className={`pointer-events-none absolute top-[calc(100%+8px)] z-30 w-[220px] rounded-lg border px-2.5 py-2 text-[11px] leading-snug shadow-xl ${i >= 2 ? 'right-0 origin-top-right' : 'left-0 origin-top-left'}`}
                   style={{ borderColor: tint(AI, 0.4), background: 'var(--surface-solid)', color: 'var(--ink-soft)' }}
                 >
                   <p className="mb-1.5 text-[11px] font-bold" style={{ color: lift(AI) }}>
@@ -403,9 +401,7 @@ export function SettingsPanel({
       {open && (
         <motion.div
           className="fixed inset-0 z-[90] flex items-center justify-center overflow-hidden bg-black/60 p-3 backdrop-blur-sm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          {...SCRIM}
           onClick={onClose}
           role="dialog"
           aria-modal
@@ -415,10 +411,7 @@ export function SettingsPanel({
             ref={panelRef}
             tabIndex={-1}
             className="jb-dialog-panel flex max-h-[calc(100dvh-24px)] w-[min(960px,calc(100vw-24px))] flex-col overflow-visible rounded-2xl border border-[var(--line)] bg-[var(--bg)] shadow-2xl"
-            initial={{ y: 20, scale: 0.98 }}
-            animate={{ y: 0, scale: 1 }}
-            exit={{ y: 12, scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+            {...DIALOG}
             onClick={(e) => e.stopPropagation()}
           >
             <header className="flex shrink-0 items-center gap-2 border-b border-[var(--line)] px-4 py-2.5">

@@ -7,6 +7,7 @@ import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { Pill, PrBadge, BranchStatusPill, PointsTag, safeHref } from '../common/ui'
 import { BranchIcon, ChevronIcon, CommentIcon, ExpandAllIcon, PersonIcon, PrStateIcon, SearchIcon, SparkleIcon, TrophyIcon, TypeIcon } from '../common/Icons'
 import { lift, selectedText, tint } from '../../lib/tone'
+import { COLLAPSE, DIALOG, SCRIM } from '../../lib/motion'
 
 const DONE = '#22c55e'
 const CONTEXT = '#8b5cf6' // parent tickets owned by others, shown for lineage
@@ -208,12 +209,9 @@ export function CompletedOverlay({
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-[45] flex justify-center overflow-hidden p-2 sm:p-5">
-          <motion.div className="absolute inset-0 bg-black/60 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
+          <motion.div className="absolute inset-0 bg-black/60 backdrop-blur-sm" {...SCRIM} onClick={onClose} />
           <motion.div
-            initial={{ opacity: 0, y: -40, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -30, scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 32 }}
+            {...DIALOG}
             ref={panelRef}
             tabIndex={-1}
             className="jb-dialog-panel relative flex max-h-full w-full max-w-[1540px] flex-col overflow-hidden rounded-3xl border border-[var(--line)] bg-[var(--bg)] shadow-2xl"
@@ -461,7 +459,7 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
 
   return (
     <div
-      className="group/row overflow-hidden rounded-xl border border-[var(--line)] transition-all hover:-translate-y-px hover:border-[var(--line-strong)] hover:shadow-[0_10px_24px_-16px_rgba(16,24,40,0.5)]"
+      className="group/row overflow-hidden rounded-xl border border-[var(--line)] transition-[transform,border-color,box-shadow] duration-200 ease-out hover:-translate-y-px hover:border-[var(--line-strong)] hover:shadow-[0_10px_24px_-16px_rgba(16,24,40,0.5)]"
       style={{
         borderLeftWidth: 3,
         borderLeftColor: tm.color,
@@ -562,7 +560,7 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
 
       <AnimatePresence initial={false}>
         {expanded && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.22 }} className="overflow-hidden">
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={COLLAPSE} className="overflow-hidden">
             <div className="border-t border-[var(--line)] bg-[var(--surface-2)] px-4 py-3.5">
               <div className="grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-4">
                 <Field label="Opened" value={it.created ? fmtDate(it.created) : '—'} />

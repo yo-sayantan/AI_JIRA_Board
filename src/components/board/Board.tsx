@@ -17,6 +17,9 @@ const byRecency = (a: Ticket, b: Ticket) =>
 
 /** How long the board stays calm after a drag ends — long enough for the columns to snap and the cards to settle. */
 const SETTLE_MS = 450
+/** How long the first-paint cascade class stays on — longer than the last card's delay + duration. */
+const INTRO_MS = 900
+let introPlayed = false
 
 export const Board = memo(function Board({
   tickets,
@@ -106,6 +109,15 @@ export const Board = memo(function Board({
     settleTimer.current = setTimeout(() => setSettling(false), SETTLE_MS)
   }
   useEffect(() => () => clearTimeout(settleTimer.current), [])
+  // The board's first paint cascades in, lane by lane (index.css `.jb-board-intro`) — once per page
+  // load: clearing a search or switching views remounts the board, and that must not replay it.
+  const [intro, setIntro] = useState(() => !introPlayed)
+  useEffect(() => {
+    if (!intro) return
+    introPlayed = true
+    const t = setTimeout(() => setIntro(false), INTRO_MS)
+    return () => clearTimeout(t)
+  }, [intro])
   const calm = dragActive || settling
   const dragged = useMemo(
     () => (dragKey ? ([...tickets, ...(held ?? []), ...(nextSprint ?? [])].find((t) => t.key === dragKey) ?? lookup?.get(dragKey)) : undefined),
@@ -119,7 +131,7 @@ export const Board = memo(function Board({
       // flight (jb-dragging) the full columns may give up more width, unevenly — the wide ones most — and
       // every width eases (index.css `.jb-col`), so the empty columns opening to drop zones never make the
       // board overflow or the cards jump; cards hold still (calm) while that happens.
-      className={`-mx-1.5 flex min-w-fit items-stretch gap-3 px-1.5 pb-3 ${calm ? 'jb-dragging' : ''}`}
+      className={`-mx-1.5 flex min-w-fit items-stretch gap-3 px-1.5 pb-3 ${calm ? 'jb-dragging' : ''} ${intro ? 'jb-board-intro' : ''}`}
       onDragStart={(e) => setDragKey((e.target as HTMLElement).closest?.('[data-ticket-key]')?.getAttribute('data-ticket-key') ?? '')}
       onDragEnd={endDrag}
       onDrop={endDrag}

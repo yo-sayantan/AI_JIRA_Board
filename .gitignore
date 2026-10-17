@@ -4,6 +4,7 @@ node_modules
 __pycache__/
 .claude/*
 !.claude/CLAUDE.md
+!.claude/skills/
 *.swap
 # IDE scanner state (the Checkmarx plugin rewrites it on every scan)
 .vscode/.checkmarxIgnored
