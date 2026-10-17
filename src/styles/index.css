@@ -530,6 +530,25 @@ select.jb-field:disabled {
   scrollbar-width: none;
 }
 
+/* The board's first paint (Board.tsx `intro`, once per page load): each lane's cards cascade in,
+   35 ms apart, 0.3 s strong ease-out. `backwards` only holds the first frame through the delay — when
+   it ends, framer-motion's inline transform (hover lift, layout) is in charge again. Reduce-motion and
+   the Motion switch skip it. */
+@keyframes jb-card-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+.jb-board-intro .ticket-card { animation: jb-card-in 0.3s var(--ease-out) backwards; }
+.jb-board-intro .ticket-card:nth-child(2) { animation-delay: 35ms; }
+.jb-board-intro .ticket-card:nth-child(3) { animation-delay: 70ms; }
+.jb-board-intro .ticket-card:nth-child(4) { animation-delay: 105ms; }
+.jb-board-intro .ticket-card:nth-child(5) { animation-delay: 140ms; }
+.jb-board-intro .ticket-card:nth-child(6) { animation-delay: 175ms; }
+.jb-board-intro .ticket-card:nth-child(n + 7) { animation-delay: 210ms; }
+@media (prefers-reduced-motion: reduce) {
+  .jb-board-intro .ticket-card { animation: none; }
+}
+.jb-no-anim .jb-board-intro .ticket-card { animation: none; }
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

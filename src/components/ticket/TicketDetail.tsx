@@ -31,7 +31,7 @@ import {
   FlaskIcon,
 } from '../common/Icons'
 import { lift, onFill, tint } from '../../lib/tone'
-import { COLLAPSE, DRAWER } from '../../lib/motion'
+import { COLLAPSE, DRAWER, DRAWER_EXIT } from '../../lib/motion'
 
 /**
  * The one-click path from a ticket to its management-grade verdict. Three states: a report exists
@@ -223,7 +223,7 @@ export function TicketDetail({
         style={{ zIndex: 50 + depth }}
         initial={{ x: '100%' }}
         animate={{ x: -(Math.min(fromTop, 5) * 40) }}
-        exit={{ x: '100%' }}
+        exit={{ x: '100%', transition: DRAWER_EXIT }}
         transition={DRAWER}
         role="dialog"
         aria-modal={isTop}

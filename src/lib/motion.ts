@@ -13,6 +13,9 @@ import type { Transition } from 'motion/react'
  * - Exits are faster than entrances: the user has already decided.
  * - Modals scale from their centre; popovers from their trigger (`origin-*` on the element).
  *
+ * This is the Emil Kowalski flavour (branch ui/motion-emil): tuned curves and fixed durations,
+ * no springs in UI chrome — crisp, fast, predictable; motion that never draws attention to itself.
+ *
  * The "Motion & animations" switch and the OS reduce-motion setting need no wiring here:
  * `MotionGlobalConfig.skipAnimations` (lib/motionPolicy.ts) and `<MotionConfig reducedMotion="user">`
  * (main.tsx) cover every framer-motion animation these tokens drive.
@@ -38,11 +41,13 @@ export const PRESSABLE = {
   transition: PRESS,
 } as const
 
-/** Something on screen moving to a new place (layout shifts, cards re-flowing) — critically damped. */
-export const LAYOUT: Transition = { type: 'spring', bounce: 0, duration: 0.4 }
+/** Something on screen moving to a new place (layout shifts, cards re-flowing): ease-in-out, A to B. */
+export const LAYOUT: Transition = { duration: 0.3, ease: EASE_IN_OUT }
 
-/** The ticket drawer sliding in from the right and back out the same way. */
-export const DRAWER: Transition = { type: 'spring', bounce: 0, duration: 0.42 }
+/** The ticket drawer sliding in from the right on the iOS sheet curve… */
+export const DRAWER: Transition = { duration: 0.4, ease: EASE_DRAWER }
+/** …and back out the same way, faster — the user has already decided. */
+export const DRAWER_EXIT: Transition = { duration: 0.26, ease: EASE_DRAWER }
 
 /** Dimming scrim behind a modal or the drawer stack. */
 export const SCRIM = {

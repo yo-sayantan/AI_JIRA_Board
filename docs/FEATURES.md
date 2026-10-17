@@ -386,6 +386,11 @@ Overlay with three areas (`src/components/settings/Settings.tsx`):
   at least 12 s (`useToasts::toastSeconds`). Every toast's clock pauses while the pointer or keyboard focus is on the
   stack and while the tab is hidden, then resumes with the time it had left (at least 1.5 s). The refresh a move queues
   is quiet — no "Fetching… / updated" toasts to crowd out the Undo — and only speaks up if it fails.
+- Toasts **stack like a deck** (Sonner's pattern): the front one is readable, up to two more peek out above it, a little
+  smaller; hover the stack (or Tab into it) and it opens into a list. A toast with a button (Undo, Move anyway) always sits
+  in front, so its button never hides behind a newer plain toast (`Toast.tsx::stackOrder` / `stackLayout`, tested).
+- The board's first paint **cascades in**, each lane's cards 35 ms apart (`.jb-board-intro`, once per page load — never
+  on a search or view switch; off under reduce-motion and the Motion switch).
 
 ## Keyboard & accessibility
 
