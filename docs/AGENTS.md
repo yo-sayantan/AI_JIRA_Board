@@ -146,6 +146,19 @@ ticket's branches, and that has its own status words):
 
 ## UI style guardrails
 
+- **Motion work starts with the design skills in `.claude/skills/`** (Emil Kowalski's set, MIT — `.claude/skills/LICENSE`).
+  Before creating or changing ANY UI flow, animation or transition (a drawer, dialog, drag, card move, view switch, toast,
+  press / hover state) invoke **`apple-design`** (springs, interruptible and velocity-aware motion, 1:1 direct manipulation,
+  response on pointer-down, reduced motion) and **`animate`** (should it animate at all, curve, duration, properties, exit).
+  Then, as the work calls for it: `emil-design-eng` (polish and invisible details), `animation-performance` (jank — animate
+  composite-only properties), `review-animations` / `improve-animations` / `find-animation-opportunities` (critique, audit,
+  discovery), `animation-vocabulary` (naming an effect), `mobile-native` (touch), `break-ui` (worst-case data),
+  `ask-sonner` (only if Sonner is ever adopted — the board has its own `useToasts`). `animate-expo`, `write-swift`,
+  `pick-ui-library` and `prototype` are installed but do not apply to this React web app unless asked. **The skills advise;
+  this file decides.** Where they disagree with the repo's own rules below — flat chips, Liquid Glass, column colours, the
+  "Motion & animations" switch (`jb-no-anim`, `themeMotionAllowed()`), the calm-board drag rules — the repo wins, and any
+  motion you add must still go quiet under that switch and under `prefers-reduced-motion`. Re-import with
+  `npx skills@latest add emilkowalski/skills` (or re-copy `skills/` from the repo) to update.
 - Controls are **flat chips**: thin outline `hexToRgba(color, 0.45)`, tinted fill
   `hexToRgba(color, 0.07)`, coloured text/icon, Motion spring on hover/tap. **No 3D/skeuomorphic
   buttons** (tried; rejected). The gold `gold-sheen` Completed trophy is the single exception.
