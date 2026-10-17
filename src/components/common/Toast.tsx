@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { lift } from '../../lib/tone'
-import { EASE_OUT } from '../../lib/motion'
+import { DRAWER_RETURN, EASE_OUT, flickDismisses } from '../../lib/motion'
 
 export type ToastKind = 'info' | 'success' | 'error' | 'loading'
 export interface ToastAction {
@@ -77,6 +77,8 @@ export function stackHeight(heights: number[], expanded: boolean): number {
 }
 
 const SLIDE = { duration: 0.32, ease: EASE_OUT }
+/** Thrown off to the right: a spring, so it picks up the swipe's velocity where the finger left it. */
+const SWIPED_EXIT = { x: '120%', opacity: 0, transition: { type: 'spring', duration: 0.32, bounce: 0 } } as const
 
 export const Toasts = memo(function Toasts({
   toasts,
@@ -90,6 +92,14 @@ export const Toasts = memo(function Toasts({
   onPause?: (reason: string) => void
   onResume?: (reason: string) => void
 }) {
+  // Swipe a toast right to dismiss it (apple-design / Sonner): it follows the pointer, rubber-bands to
+  // the left, and a flick is enough — the projected resting point decides. A swiped toast leaves the
+  // way it was thrown, carrying the release velocity; a closed one (×, timeout) sinks as before.
+  const [swiped, setSwiped] = useState<ReadonlySet<number>>(() => new Set())
+  const swipe = (id: number) => {
+    setSwiped((prev) => new Set(prev).add(id))
+    onDismiss(id)
+  }
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const [heights, setHeights] = useState<Record<number, number>>({})
@@ -161,7 +171,7 @@ export const Toasts = memo(function Toasts({
         }
       }}
     >
-      <AnimatePresence initial={false}>
+      <AnimatePresence initial={false} custom={swiped}>
         {order.map((t, i) => {
           const kind = t.kind ?? 'info'
           const slot = slots[i]
@@ -169,12 +179,32 @@ export const Toasts = memo(function Toasts({
             <motion.div
               key={t.id}
               ref={refFor(t.id)}
-              initial={{ opacity: 0, y: 16, scale: 1 }}
-              animate={{ opacity: slot.opacity, y: slot.y, scale: slot.scale }}
-              exit={{ opacity: 0, y: slot.y + 8, scale: slot.scale * 0.97, transition: { duration: 0.16, ease: EASE_OUT } }}
+              data-toast
+              custom={swiped}
+              variants={{
+                initial: { opacity: 0, y: 16, scale: 1 },
+                animate: { opacity: slot.opacity, y: slot.y, scale: slot.scale },
+                exit: (gone: ReadonlySet<number>) =>
+                  gone.has(t.id)
+                    ? SWIPED_EXIT
+                    : { opacity: 0, y: slot.y + 8, scale: slot.scale * 0.97, transition: { duration: 0.16, ease: EASE_OUT } },
+              }}
+              initial="initial"
+              animate="animate"
+              exit="exit"
               transition={SLIDE}
+              // Only a toast you can read is swipeable: the front one, or any while the stack is open.
+              drag={expanded || i === 0 ? 'x' : false}
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={{ left: 0.1, right: 1 }}
+              dragMomentum={false}
+              dragTransition={DRAWER_RETURN}
+              onDragEnd={(e, info) => {
+                const width = (e.target as HTMLElement | null)?.closest<HTMLElement>('[data-toast]')?.offsetWidth ?? 320
+                if (flickDismisses(info.offset.x, info.velocity.x, width, 0.4)) swipe(t.id)
+              }}
               style={{ zIndex: order.length - i, transformOrigin: 'top center' }}
-              className="jb-float pointer-events-auto absolute bottom-0 right-0 flex w-full items-center gap-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] px-4 py-2.5 text-[12.5px] font-medium text-[var(--ink)] card-shadow"
+              className="jb-float pointer-events-auto absolute bottom-0 right-0 flex touch-pan-y w-full items-center gap-2.5 rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] px-4 py-2.5 text-[12.5px] font-medium text-[var(--ink)] card-shadow"
             >
               <motion.div className="flex min-w-0 flex-1 items-center gap-2.5" animate={{ opacity: slot.contentOpacity }} transition={{ duration: 0.16, ease: EASE_OUT }}>
                 <span className={kind === 'loading' ? 'animate-spin' : ''} style={{ color: lift(COLOR[kind]) }}>
