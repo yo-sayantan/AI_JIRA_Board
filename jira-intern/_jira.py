@@ -23,7 +23,7 @@ JIRA_BASE, CONFLUENCE_BASE, BITBUCKET_BASE = endpoints(INTERN)
 BB_BASE = f"{BITBUCKET_BASE}/rest/api/1.0" if BITBUCKET_BASE else ""
 
 FIELDS = (
-    "summary,status,issuetype,priority,updated,created,resolutiondate,assignee,reporter,"
+    "summary,status,resolution,issuetype,priority,updated,created,resolutiondate,assignee,reporter,"
     "labels,components,fixVersions,description,comment,issuelinks,parent,subtasks,"
     "customfield_10402,customfield_57402,customfield_10404,customfield_10405,customfield_10700"
 )

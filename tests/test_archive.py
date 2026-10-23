@@ -63,6 +63,8 @@ class FullRebuildKeepsPriorRows(unittest.TestCase):
             mock.patch.object(ca, "search_jira", lambda jql, **k: list(self.issues)),
             mock.patch.object(ca, "search_keys", lambda keys, **k: []),
             mock.patch.object(ca.devinfo, "fetch_many", lambda *a, **k: {}),
+            mock.patch.object(ca, "my_identity", lambda: None),  # offline: who "me" is is never read here
+            mock.patch.object(ca, "_refresh_raised", lambda: (False, 0)),  # offline: it would ask Jira for raised[]
             mock.patch.object(ca, "set_progress", lambda *a, **k: None),
             mock.patch.object(ca, "clear_progress", lambda *a, **k: None),
             mock.patch.object(ca, "prepend_status", lambda *a, **k: None),
@@ -186,6 +188,111 @@ class FetchQaChildren(unittest.TestCase):
             found = ca.fetch_qa_children(f"T-{n}" for n in range(1, 251))
         self.assertEqual(len(calls), 3)
         self.assertEqual(len(found), 250)
+
+
+ME = {"key": "JIRAUSER100", "name": "dev01", "displayName": "Doe, Alex"}
+LEAD = {"key": "JIRAUSER200", "name": "lead1", "displayName": "Roe, Sam"}
+
+
+def taken_issue(key, status, assignee, histories, resolution=None, resolved=None, reporter=None):
+    fields = {
+        "summary": f"{key} work", "status": {"name": status, "statusCategory": {"key": "done" if status == "Done" else "new"}},
+        "issuetype": {"name": "Story"}, "created": "2026-09-01T10:00:00.000+0000", "updated": "2026-10-22T10:00:00.000+0000",
+        "resolutiondate": resolved, "assignee": assignee, "resolution": {"name": resolution} if resolution else None,
+        "reporter": reporter,
+    }
+    return {"key": key, "id": key.split("-")[1], "fields": fields, "changelog": {"histories": histories}}
+
+
+def hist(day, author, *items):
+    return {"created": f"2026-{day}T10:00:00.000+0000", "author": author, "items": list(items)}
+
+
+def moved(frm, to):
+    return {"field": "assignee", "from": (frm or {}).get("key"), "fromString": (frm or {}).get("displayName"),
+            "to": (to or {}).get("key"), "toString": (to or {}).get("displayName")}
+
+
+class TakenFromMe(unittest.TestCase):
+    """A ticket taken from me while still OPEN is kept in the archive — otherwise it vanishes from the board and the
+    archive the day it leaves me — with its real column and the reason."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="archive-taken-")
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.cache = os.path.join(self.tmp, "cache")
+        os.makedirs(self.cache)
+        self.data_json = os.path.join(self.tmp, "data.json")
+        with open(self.data_json, "w", encoding="utf-8") as f:
+            json.dump({"tickets": [], "completed": []}, f)
+        worked = [hist("09-01", LEAD, moved(None, ME)), hist("09-02", ME, {"field": "status", "toString": "In Progress"})]
+        self.issues = [
+            # un-assigned by the lead after I worked on it: still open, To Do, nobody on it
+            taken_issue("T-1", "To Do", None, worked + [hist("10-22", LEAD, {"field": "status", "toString": "To Do"}, moved(ME, None))]),
+            # open and still mine: it is on the board, not in the archive
+            taken_issue("T-2", "In Progress", ME, worked),
+            # passed to QA, who closed it: delivered, a normal archive row
+            taken_issue("T-3", "Done", LEAD, worked + [hist("10-01", ME, {"field": "status", "toString": "Ready for QA"}, moved(ME, LEAD))], resolved="2026-10-05T10:00:00.000+0000"),
+        ]
+        self.writes = []
+
+        def fake_write_outputs(data, intern_dir=None):
+            self.writes.append(json.loads(json.dumps(data)))
+            with open(self.data_json, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+
+        for p in [
+            mock.patch.object(ca, "CACHE", self.cache),
+            mock.patch.object(ca, "DATA_JSON", self.data_json),
+            mock.patch.object(ca, "INTERN", self.tmp),
+            mock.patch.object(ca, "search_jira", lambda jql, **k: [] if jql.startswith("parent in") else list(self.issues)),
+            mock.patch.object(ca, "search_keys", lambda keys, **k: []),
+            mock.patch.object(ca, "jira_get", lambda path, **k: dict(ME) if path.endswith("/myself") else {}),
+            mock.patch.object(ca.devinfo, "fetch_many", lambda *a, **k: {}),
+            mock.patch.object(ca, "set_progress", lambda *a, **k: None),
+            mock.patch.object(ca, "clear_progress", lambda *a, **k: None),
+            mock.patch.object(ca, "prepend_status", lambda *a, **k: None),
+            mock.patch.object(ca, "_refresh_raised", lambda: (False, 0)),
+            mock.patch.object(ca, "write_outputs", fake_write_outputs),
+            mock.patch.dict(os.environ, {"JIRA_PERSONAL_TOKEN": "x", "ARCHIVE_SCOPE": "all"}),
+        ]:
+            p.start()
+            self.addCleanup(p.stop)
+
+    def rows(self):
+        self.assertEqual(ca._main("t"), 0)
+        return {r["key"]: r for r in self.writes[-1]["completed"]}
+
+    def test_an_open_ticket_taken_from_me_is_kept_with_its_real_column_and_reason(self):
+        rows = self.rows()
+        self.assertIn("T-1", rows)
+        self.assertEqual((rows["T-1"]["column"], rows["T-1"]["done"]), ("todo", False))
+        self.assertEqual(rows["T-1"]["takenFromMe"]["reason"], "backlog")
+        self.assertEqual(rows["T-1"]["takenFromMe"]["by"], "Roe, Sam")
+
+    def test_open_and_still_mine_stays_on_the_board_and_a_qa_hand_off_is_a_normal_row(self):
+        rows = self.rows()
+        self.assertNotIn("T-2", rows)
+        self.assertEqual((rows["T-3"]["column"], rows["T-3"]["done"]), ("done", True))
+        self.assertIsNone(rows["T-3"].get("takenFromMe"))
+
+    def test_rows_taken_while_open_sit_on_the_timeline_at_the_day_they_left_me(self):
+        self.assertEqual(ca._row_date({"resolved": None, "takenFromMe": {"when": "2026-10-22"}}), "2026-10-22")
+        self.assertEqual(ca._row_date({"resolved": "2026-10-05", "takenFromMe": {"when": "2026-10-22"}}), "2026-10-05")
+
+    def test_without_an_identity_the_earlier_verdict_is_kept(self):
+        prior = {"takenFromMe": {"reason": "backlog"}}
+        got = ca.build_completed(self.issues[2], prior, {}, [], {}, True, me=None)
+        self.assertEqual(got["takenFromMe"], {"reason": "backlog"})
+
+    def test_sub_tickets_i_raised_are_nested_too(self):
+        mine_raised = taken_issue("T-9", "In Progress", LEAD, [], reporter=ME)
+        mine_raised["fields"]["parent"] = {"key": "T-1"}
+        with mock.patch.object(ca, "search_jira", lambda jql, **k: [mine_raised]):
+            found = ca.fetch_qa_children(["T-1"], me=ME)
+        self.assertEqual([i["key"] for i in found["T-1"]], ["T-9"])
+        with mock.patch.object(ca, "search_jira", lambda jql, **k: [mine_raised]):
+            self.assertEqual(ca.fetch_qa_children(["T-1"])["T-1"], [])  # without `me`: QA ones only, as before
 
 
 class MineFlags(unittest.TestCase):

@@ -360,7 +360,18 @@ describe('the demo board covers every rendering scenario', () => {
     const row = d.completed.find((c) => c.parentKey === 'DEMO-170')!
     expect(row.mine).not.toBe(false)
     expect(d.completed.find((c) => c.key === 'DEMO-170')!.mine).toBe(false) // the context parent
-    expect(countMyCompleted(d)).toBe(d.completed.filter((c) => c.mine !== false && !c.parentKey).length)
+    expect(countMyCompleted(d)).toBe(d.completed.filter((c) => c.mine !== false && !c.parentKey && !c.takenFromMe).length)
+  })
+
+  it('has tickets taken from me for every main reason — one still open — and none of them counts as done', () => {
+    const takenRows = d.completed.filter((c) => c.takenFromMe?.reason)
+    for (const r of ['backlog', 'taken-over', 'reassigned', 'cancelled', 'pr-declined']) {
+      expect(takenRows.some((c) => c.takenFromMe!.reason === r), r).toBe(true)
+    }
+    const open = takenRows.find((c) => c.column && c.column !== 'done')!
+    expect(open.done).toBe(false)
+    expect(open.takenFromMe!.why?.text).toBeTruthy()
+    expect(countMyCompleted(d)).toBe(d.completed.filter((c) => c.mine !== false && !c.parentKey).length - takenRows.filter((c) => !c.parentKey).length)
   })
 
   it('fills every Raised-by-me status bucket, with briefs, links and two years of history', () => {
