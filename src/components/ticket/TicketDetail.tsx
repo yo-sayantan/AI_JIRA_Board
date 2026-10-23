@@ -6,6 +6,7 @@ import { fmtDate, fmtDateTime, relTime, prMeta, primaryPrOf, isMergedPr, isClose
 import { Pill, StatusBadge, PrBadge, Approvals, PointsTag, CopyButton, SafeHtml, ExternalLink, safeHref } from '../common/ui'
 import { BranchCards } from './BranchCards'
 import { HeaderPills } from './HeaderPills'
+import { BANNER_FRAME, BANNER_HUE, BannerHead, BannerIcon, BannerMeta, bannerStyle } from './Banner'
 import { Pipeline } from './Pipeline'
 import { ProofPanel, proofCount } from './Proof'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
@@ -89,21 +90,16 @@ function PrReportButton({
   onOpen?: (key: string) => void
   onGenerate?: (key: string) => void
 }) {
-  const ai = '#a855f7'
+  const ai = BANNER_HUE.ai
   if (generating) {
     return (
-      <div
-        className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border px-3.5 py-2.5 text-[12.5px]"
-        style={{ borderColor: tint(ai, 0.4), background: tint(ai, 0.08) }}
-        role="status"
-      >
-        <motion.span className="inline-flex" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}>
-          <RefreshIcon size={13} color={lift(ai)} />
-        </motion.span>
-        <span className="font-bold" style={{ color: lift(ai) }}>
-          AI intern working…
-        </span>
-        <span className="text-[var(--muted)]"></span>
+      <div className={`${BANNER_FRAME} flex items-center gap-3 px-3.5 py-2.5`} style={bannerStyle(ai)} role="status">
+        <BannerIcon hue={ai}>
+          <motion.span className="inline-flex" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}>
+            <RefreshIcon size={14} color={lift(ai)} />
+          </motion.span>
+        </BannerIcon>
+        <BannerHead hue={ai} label="PR readiness report" title="AI intern working…" />
       </div>
     )
   }
@@ -113,29 +109,29 @@ function PrReportButton({
     const when = report.enrichedAt ?? report.generatedAt
     return (
       <div className="mb-4 flex items-stretch gap-1.5">
+        {/* This one IS a button — it opens the report — so it keeps the interactive glass; the frame is the family's. */}
         <button
           type="button"
           onClick={() => onOpen?.(ticketKey)}
           disabled={loading}
-          className="glass-interactive flex min-w-0 flex-1 flex-wrap items-center gap-2.5 rounded-xl border bg-[var(--surface-solid)] px-3.5 py-2.5 text-left card-shadow disabled:opacity-70"
-          style={{ borderColor: tint(c, 0.45), backgroundImage: `var(--glass-sheen), linear-gradient(135deg, ${tint(c, 0.1)}, ${tint(c, 0.02)})` }}
+          className="glass-interactive flex min-w-0 flex-1 items-center gap-3 rounded-xl border bg-[var(--surface-solid)] px-3.5 py-2.5 text-left card-shadow disabled:opacity-70"
+          style={bannerStyle(c)}
           title={v?.headline ?? 'Open the PR readiness report'}
         >
-          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: c }} />
-          <span className="text-[12.5px] font-extrabold" style={{ color: lift(c) }}>
-            PR Readiness Report
-          </span>
-          {v && (
-            <span className="rounded-full px-2 py-[2px] text-[10.5px] font-bold" style={{ color: lift(c), background: tint(c, 0.18) }}>
-              {v.label}
-            </span>
-          )}
-          {typeof v?.score === 'number' && <span className="text-[11px] font-bold tabular-nums text-[var(--ink-soft)]">{v.score}/100</span>}
-          <span className="ml-auto text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
+          <BannerIcon hue={c}>
+            <span className="inline-block h-3 w-3 rounded-full" style={{ background: c, boxShadow: `0 0 0 3px ${tint(c, 0.22)}` }} />
+          </BannerIcon>
+          <BannerHead
+            hue={c}
+            label="PR readiness report"
+            title={v?.label ?? 'Open the report'}
+            chips={typeof v?.score === 'number' ? <span className="rounded-full px-2 py-[2px] text-[10.5px] font-bold tabular-nums" style={{ color: lift(c), background: tint(c, 0.16) }}>{v.score}/100</span> : undefined}
+          />
+          <BannerMeta>
             {report.enriched ? 'AI-enriched' : 'derived'}
             {when ? ` · ${fmtDate(when, report.timeZone ?? APP_CONFIG.timeZone)}` : ''}
-          </span>
-          <ChevronIcon size={11} className="text-[var(--muted)]" />
+          </BannerMeta>
+          <ChevronIcon size={11} className="shrink-0 text-[var(--muted)]" />
         </button>
         {served && onGenerate && (
           <button
@@ -157,15 +153,15 @@ function PrReportButton({
       <button
         type="button"
         onClick={() => onGenerate(ticketKey)}
-        className="mb-4 flex w-full flex-wrap items-center gap-2 rounded-xl border border-dashed px-3.5 py-2.5 text-left text-[12.5px] transition-colors hover:bg-[var(--surface-2)]"
-        style={{ borderColor: tint(ai, 0.5) }}
+        className={`${BANNER_FRAME} glass-interactive flex w-full items-center gap-3 px-3.5 py-2.5 text-left`}
+        style={bannerStyle(ai, { dashed: true })}
         title="Build the PR readiness report for this ticket in the background"
       >
-        <SparkleIcon size={13} color={lift(ai)} />
-        <span className="font-bold" style={{ color: lift(ai) }}>
-          Generate PR readiness report
-        </span>
-        <span className="text-[var(--muted)]">verdict · evidence · change assessment · risks · open scope — runs in the background</span>
+        <BannerIcon hue={ai}>
+          <SparkleIcon size={14} color={lift(ai)} />
+        </BannerIcon>
+        <BannerHead hue={ai} label="PR readiness report" title="Generate the report" />
+        <BannerMeta>verdict · evidence · risks · open scope</BannerMeta>
       </button>
     )
   }
@@ -410,18 +406,13 @@ export function TicketDetail({
               DEEP brief (light HTML: linked docs, related tickets, PR/code state, attachments);
               others a short plain paragraph. SafeHtml renders both (and sanitizes). */}
           {briefsEnabled !== false && ticket.aiSummary && ticket.column !== 'done' && (
-            <div
-              className="mb-4 overflow-hidden rounded-xl border border-[#7c3aed]/30 bg-[var(--surface-solid)] card-shadow"
-              style={{ backgroundImage: `var(--glass-sheen), linear-gradient(135deg, ${tint('#7c3aed', 0.07)}, ${tint('#6366f1', 0.025)})` }}
-            >
-              <div className="flex items-center gap-2 border-b border-[#7c3aed]/20 px-3.5 py-2">
-                <SparkleIcon color={lift('#a855f7')} size={14} />
-                <span className="text-[12px] font-bold text-[#a855f7] dark:text-[#c084fc]">
-                  {ticket.column === 'todo' || ticket.column === 'prog' ? 'AI Brief' : 'AI Summary'}
-                </span>
-                <span className="ml-auto text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
-                  auto-generated{ticket.aiSummaryAt ? ` · ${fmtDate(ticket.aiSummaryAt)}` : ''}
-                </span>
+            <div className={`${BANNER_FRAME} overflow-hidden`} style={bannerStyle(BANNER_HUE.ai)}>
+              <div className="flex items-center gap-3 border-b px-3.5 py-2" style={{ borderColor: tint(BANNER_HUE.ai, 0.2) }}>
+                <BannerIcon hue={BANNER_HUE.ai}>
+                  <SparkleIcon color={lift(BANNER_HUE.ai)} size={14} />
+                </BannerIcon>
+                <BannerHead hue={BANNER_HUE.ai} label="Written by the AI intern" title={ticket.column === 'todo' || ticket.column === 'prog' ? 'AI Brief' : 'AI Summary'} />
+                <BannerMeta>auto-generated{ticket.aiSummaryAt ? ` · ${fmtDate(ticket.aiSummaryAt)}` : ''}</BannerMeta>
               </div>
               <SafeHtml html={unwrapBrief(ticket.aiSummary)} className="px-3.5 py-3 text-[13.5px] leading-relaxed text-[var(--ink-soft)]" />
             </div>

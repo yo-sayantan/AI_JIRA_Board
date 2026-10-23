@@ -1,47 +1,91 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { motion } from 'motion/react'
 import type { Ticket } from '../../types'
-import { COLUMN_META } from '../../lib/columns'
+import { COLUMN_META, mapStatusToColumn } from '../../lib/columns'
 import { effectiveType, prMeta, primaryPrOf, priorityMeta, typeMeta } from '../../lib/format'
-import { PRESS, PRESS_SCALE } from '../../lib/motion'
+import { qaIssuesOf } from '../../lib/moveRules'
 import { contrastRatio, lift, tint } from '../../lib/tone'
-import { safeHref } from '../common/ui'
 import { ColumnIcon, PriorityIcon, PrStateIcon, TypeIcon } from '../common/Icons'
 
-/** What one pill in the drawer's header says, and where a click takes you. */
+/**
+ * The drawer's status banners: one row that tells you where a ticket stands — and where its related work stands — at a
+ * glance. They are READ, not pressed: no link, no hover, no press response, no pointer cursor (a control that does
+ * nothing is a false promise, and these are summaries). Four groups, separated by a hairline:
+ *   state      status · pull request            — what decides the next step (filled)
+ *   ticket     priority · type                  — what it is (tinted)
+ *   related    sub-tasks done · QA              — how the work around it is going (tinted, coloured by progress)
+ *   release    fix versions                     — where it ships (tinted violet)
+ * The colour is always the value's own (the column, the priority, the PR state…), so the same word is the same colour
+ * everywhere on the board.
+ */
+export type PillGroup = 'state' | 'ticket' | 'related' | 'release'
+
 export interface HeaderPill {
   id: string
+  group: PillGroup
+  kind: 'status' | 'priority' | 'type' | 'pr' | 'subtasks' | 'qa' | 'version'
   label: string
   color: string
-  /** Filled = the facts that decide what happens next (status, the PR); tinted = descriptive (priority, type, version). */
+  /** Filled = what decides the next step (status, the PR); tinted = descriptive. */
   filled: boolean
-  kind: 'status' | 'priority' | 'type' | 'pr' | 'version'
-  href?: string
+  /** Tooltip (a native title: it describes, it does not invite a click). */
   title: string
 }
 
-/**
- * The header pills of a ticket, in reading order: status · priority · type · PR · fix versions. Every one is a real
- * link — the values live in Jira (status, priority, type, version: open the ticket to change them) or in Bitbucket (the
- * PR) — so the press response is never a false promise. No link (e.g. no URL in the dump) → a static pill.
- */
+export const GROUP_LABEL: Record<PillGroup, string> = { state: 'State', ticket: 'Ticket', related: 'Related work', release: 'Release' }
+
+const GREEN = '#22c55e'
+const TEAL = '#14b8a6'
+const AMBER = '#f59e0b'
+const SLATE = '#64748b'
+const BLUE = '#3b82f6'
+
+/** "3/6 sub-tasks" and its colour: all done green, some done blue, none done slate. Null when there are no sub-tasks. */
+export function subtaskPill(ticket: Ticket): HeaderPill | null {
+  const subs = (ticket.subtasks ?? []).filter((s) => s && s.key)
+  if (!subs.length) return null
+  const done = subs.filter((s) => s.done ?? s.column === 'done').length
+  const color = done === subs.length ? GREEN : done > 0 ? BLUE : SLATE
+  const label = `${done}/${subs.length} sub-tasks`
+  return { id: 'subtasks', group: 'related', kind: 'subtasks', label, color, filled: false, title: `${done} of ${subs.length} sub-tasks done` }
+}
+
+/** The QA ticket's state in a word: "QA done", "In QA", "Ready for QA", "QA blocked" — or the gap, "No QA ticket". */
+export function qaPill(ticket: Ticket): HeaderPill | null {
+  if (ticket.parentKey) return null // a sub-ticket's QA lives on its parent
+  const qa = qaIssuesOf(ticket)
+  if (!qa.length) {
+    // Only a ticket that carries code can be waiting for QA; a bare To Do has nothing to test yet.
+    return primaryPrOf(ticket) ? { id: 'qa', group: 'related', kind: 'qa', label: 'No QA ticket', color: AMBER, filled: false, title: 'No QA sub-ticket raised for this ticket yet' } : null
+  }
+  const cols = qa.map((q) => mapStatusToColumn(q.status))
+  const allDone = cols.every((c) => c === 'done')
+  const blocked = cols.some((c) => c === 'blocked' || c === 'hold')
+  const first = qa.find((_q, i) => cols[i] !== 'done') ?? qa[0]
+  const label = allDone ? 'QA done' : blocked ? 'QA blocked' : (first.status ?? 'In QA').replace(/^qa$/i, 'In QA')
+  const color = allDone ? GREEN : blocked ? '#ef4444' : TEAL
+  const who = qa.length > 1 ? `${qa.length} QA tickets` : qa[0].key
+  return { id: 'qa', group: 'related', kind: 'qa', label, color, filled: false, title: `QA: ${who} — ${allDone ? 'done' : (first.status ?? 'in progress')}` }
+}
+
+/** The ticket's banners, in reading order: state · ticket · related · release. */
 export function headerPills(ticket: Ticket): HeaderPill[] {
-  const jira = safeHref(ticket.url)
-  const inJira = (what: string) => (jira ? `${what} — open in Jira to change it` : what)
   const out: HeaderPill[] = []
   const status = ticket.status || COLUMN_META[ticket.column]?.label || 'Unknown'
-  out.push({ id: 'status', kind: 'status', label: status, color: COLUMN_META[ticket.column]?.accent ?? '#64748b', filled: true, href: jira, title: inJira(`Status: ${status}`) })
-  const p = priorityMeta(ticket.priority)
-  out.push({ id: 'priority', kind: 'priority', label: p.label, color: p.color, filled: false, href: jira, title: inJira(`Priority: ${p.label}`) })
-  const type = effectiveType(ticket)
-  if (type) out.push({ id: 'type', kind: 'type', label: type, color: typeMeta(type).color, filled: false, href: jira, title: inJira(`Type: ${type}`) })
+  out.push({ id: 'status', group: 'state', kind: 'status', label: status, color: COLUMN_META[ticket.column]?.accent ?? SLATE, filled: true, title: `Status: ${status}` })
   const pr = primaryPrOf(ticket)
   if (pr?.state && pr.state !== 'none') {
     const m = prMeta(pr.state)
-    const href = safeHref(pr.url)
-    out.push({ id: 'pr', kind: 'pr', label: m.label, color: m.color, filled: true, href, title: href ? `${m.label}${pr.id ? ` — open PR #${pr.id}` : ' — open the PR'}` : m.label })
+    out.push({ id: 'pr', group: 'state', kind: 'pr', label: m.label, color: m.color, filled: true, title: `Pull request${pr.id ? ` #${pr.id}` : ''}: ${m.label}` })
   }
-  for (const v of ticket.fixVersions ?? []) out.push({ id: `v:${v}`, kind: 'version', label: v, color: '#8b5cf6', filled: false, href: jira, title: inJira(`Fix version: ${v}`) })
+  const p = priorityMeta(ticket.priority)
+  out.push({ id: 'priority', group: 'ticket', kind: 'priority', label: p.label, color: p.color, filled: false, title: `Priority: ${p.label}` })
+  const type = effectiveType(ticket)
+  if (type) out.push({ id: 'type', group: 'ticket', kind: 'type', label: type, color: typeMeta(type).color, filled: false, title: `Type: ${type}` })
+  const subs = subtaskPill(ticket)
+  if (subs) out.push(subs)
+  const qa = qaPill(ticket)
+  if (qa) out.push(qa)
+  for (const v of ticket.fixVersions ?? []) out.push({ id: `v:${v}`, group: 'release', kind: 'version', label: v, color: '#8b5cf6', filled: false, title: `Fix version: ${v}` })
   return out
 }
 
@@ -68,38 +112,33 @@ export function readableFill(color: string): string {
 }
 
 /**
- * Depth, Liquid-Glass style: light from the top (a lighter upper half and a 1px top highlight) and a soft shadow in the
- * pill's own colour under it — a material resting on the sheet, not a bevelled 3D button. Pressed, it sinks: the drop
- * shadow goes and a faint inner shadow takes its place, on the same press spring every chip uses.
+ * Depth, Liquid-Glass style, at rest only: light from the top (a lighter upper half and a 1px top highlight) and a soft
+ * shadow in the pill's own colour under it — a material resting on the sheet, not a bevelled 3D button. It does not
+ * move: a banner is not a control.
  */
-function depth(color: string, filled: boolean): { rest: CSSProperties; pressed: string } {
+function look(color: string, filled: boolean): CSSProperties {
   if (filled) {
     const base = readableFill(color)
     return {
-      rest: {
-        color: '#ffffff',
-        borderColor: 'transparent',
-        // The top stays only a little lighter than the base, so white text keeps its contrast across the whole pill.
-        background: `linear-gradient(180deg, color-mix(in srgb, ${base} 90%, #ffffff), ${base} 70%)`,
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -1px 0 rgba(0,0,0,0.1), 0 1px 2px ${tint(base, 0.4)}, 0 6px 14px -8px ${tint(base, 0.75)}`,
-      },
-      pressed: `inset 0 1px 3px rgba(0,0,0,0.22), inset 0 -1px 0 rgba(255,255,255,0.12), 0 0 0 ${tint(color, 0)}, 0 0 0 -8px ${tint(color, 0)}`,
+      color: '#ffffff',
+      borderColor: 'transparent',
+      // The top stays only a little lighter than the base, so white text keeps its contrast across the whole pill.
+      background: `linear-gradient(180deg, color-mix(in srgb, ${base} 90%, #ffffff), ${base} 70%)`,
+      boxShadow: `inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -1px 0 rgba(0,0,0,0.1), 0 1px 2px ${tint(base, 0.4)}, 0 6px 14px -8px ${tint(base, 0.75)}`,
     }
   }
   return {
-    rest: {
-      // Half the colour, half the board's ink: dark enough on the pale wash (yellow, cyan, orange) in light mode, and the
-      // lifted colour mixed with the light ink in dark mode — the label always clears AA, the hue still reads.
-      color: `color-mix(in srgb, ${lift(color)} 55%, var(--ink))`,
-      borderColor: tint(color, 0.55),
-      background: `linear-gradient(180deg, ${tint(color, 0.17)}, ${tint(color, 0.08)})`,
-      boxShadow: `inset 0 1px 0 var(--spec), 0 1px 2px ${tint(color, 0.18)}, 0 6px 14px -10px ${tint(color, 0.6)}`,
-    },
-    pressed: `inset 0 1px 3px ${tint(color, 0.35)}, 0 0 0 transparent, 0 0 0 -10px transparent`,
+    // Half the colour, half the board's ink: dark enough on the pale wash (yellow, cyan, orange) in light mode, and the
+    // lifted colour mixed with the light ink in dark mode — the label always clears AA, the hue still reads.
+    color: `color-mix(in srgb, ${lift(color)} 55%, var(--ink))`,
+    borderColor: tint(color, 0.55),
+    background: `linear-gradient(180deg, ${tint(color, 0.17)}, ${tint(color, 0.08)})`,
+    boxShadow: `inset 0 1px 0 var(--spec), 0 1px 2px ${tint(color, 0.18)}, 0 6px 14px -10px ${tint(color, 0.6)}`,
   }
 }
 
-function PillIcon({ pill, ticket, color }: { pill: HeaderPill; ticket: Ticket; color: string }): ReactNode {
+function PillIcon({ pill, ticket }: { pill: HeaderPill; ticket: Ticket }): ReactNode {
+  const color = 'currentColor' // the glyph is drawn in the label's own colour: exactly as visible as the text beside it
   switch (pill.kind) {
     case 'status':
       return <ColumnIcon col={ticket.column} color={color} size={13} />
@@ -109,6 +148,10 @@ function PillIcon({ pill, ticket, color }: { pill: HeaderPill; ticket: Ticket; c
       return <TypeIcon type={pill.label} color={color} size={13} />
     case 'pr':
       return <PrStateIcon state={primaryPrOf(ticket)?.state} color={color} size={13} />
+    case 'subtasks':
+      return <TypeIcon type="Sub-task" color={color} size={13} />
+    case 'qa':
+      return <TypeIcon type="QA Task" color={color} size={13} />
     default:
       return <TypeIcon type="Release" color={color} size={13} />
   }
@@ -117,48 +160,33 @@ function PillIcon({ pill, ticket, color }: { pill: HeaderPill; ticket: Ticket; c
 /**
  * One height, one left edge, one right edge — and the width is the content's, so a short word is a short pill and no
  * space is wasted. The icon always sits in the same 16px slot (8px from the edge); the label has 12px after it. A very
- * long fix version truncates at `max-w-[16rem]`, the full text is in the tooltip.
+ * long fix version truncates at `max-w-[16rem]`, the full text is in the tooltip. `cursor-default` + `select-none`:
+ * a banner, not a control.
  */
-const SHAPE = 'inline-flex h-7 max-w-[16rem] shrink-0 items-center gap-1.5 rounded-full border pl-2 pr-3 text-[11px] font-semibold leading-none whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-[var(--link)] focus-visible:ring-offset-1'
+const SHAPE = 'inline-flex h-7 max-w-[16rem] shrink-0 cursor-default select-none items-center gap-1.5 rounded-full border pl-2 pr-3 text-[11px] font-semibold leading-none whitespace-nowrap'
 
 export function HeaderPills({ ticket }: { ticket: Ticket }) {
+  const pills = headerPills(ticket)
+  const groups = (['state', 'ticket', 'related', 'release'] as PillGroup[]).map((g) => ({ g, items: pills.filter((p) => p.group === g) })).filter((x) => x.items.length)
   return (
-    <div className="mt-2.5 flex flex-wrap items-center gap-2">
-      {headerPills(ticket).map((pill) => {
-        const d = depth(pill.color, pill.filled)
-        // The glyph is drawn in the label's own colour, so it is exactly as visible as the text beside it.
-        const iconColor = 'currentColor'
-        const body = (
-          <>
-            <span className="grid h-4 w-4 shrink-0 place-items-center" aria-hidden>
-              <PillIcon pill={pill} ticket={ticket} color={iconColor} />
-            </span>
-            <span className="min-w-0 truncate">{pill.label}</span>
-          </>
-        )
-        return pill.href ? (
-          <motion.a
-            key={pill.id}
-            href={pill.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={pill.title}
-            aria-label={pill.title}
-            data-pill={pill.kind}
-            className={`${SHAPE} cursor-pointer`}
-            style={d.rest}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: PRESS_SCALE, boxShadow: d.pressed }}
-            transition={PRESS}
-          >
-            {body}
-          </motion.a>
-        ) : (
-          <span key={pill.id} title={pill.title} data-pill={pill.kind} className={SHAPE} style={d.rest}>
-            {body}
+    // A list of facts, in groups; each group wraps as a unit so a row never splits a group mid-way. role="group" +
+    // a label so a screen reader reads "State: In Progress, PR open" — and nothing here takes focus.
+    <ul className="mt-2.5 flex flex-wrap items-center gap-y-2" aria-label="Ticket summary">
+      {groups.map(({ g, items }, i) => (
+        <li key={g} role="group" aria-label={GROUP_LABEL[g]} className="flex items-center">
+          {i > 0 && <span aria-hidden className="mx-3 h-4 w-px shrink-0 bg-[var(--line-strong)]" />}
+          <span className="flex flex-wrap items-center gap-1.5">
+            {items.map((pill) => (
+              <span key={pill.id} title={pill.title} data-pill={pill.kind} data-group={pill.group} className={SHAPE} style={look(pill.color, pill.filled)}>
+                <span className="grid h-4 w-4 shrink-0 place-items-center" aria-hidden>
+                  <PillIcon pill={pill} ticket={ticket} />
+                </span>
+                <span className="min-w-0 truncate">{pill.label}</span>
+              </span>
+            ))}
           </span>
-        )
-      })}
-    </div>
+        </li>
+      ))}
+    </ul>
   )
 }

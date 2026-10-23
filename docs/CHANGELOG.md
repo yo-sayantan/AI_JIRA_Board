@@ -5,11 +5,11 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
-- **Drawer header pills are even, readable, with depth, and each opens something.** Status, priority, type, PR and fix
-  versions are as wide as their content but share one height, padding and icon slot (priority lost its tile so the left
-  edges line up), with a glyph each (the status dot became its column icon); contrast is now at least 4.5:1 on every pill
-  (white text on a filled pill had been 2:1 for Done / open PR; "Medium" was 2.5:1). Status and PR are filled, the rest
-  tinted. A click opens the ticket in Jira (where those values change) or the PR in Bitbucket, and the pill sinks under the
+- **Drawer header: organised status banners.** The pills are read-only summaries (no link, no press), in four groups —
+  state (status · PR), ticket (priority · type), related work (sub-tasks done · QA state, coloured by progress) and release
+  (fix versions) — as wide as their content but sharing one height, padding and icon slot (priority lost its tile so the left
+  edges line up). Contrast is at least 4.5:1 on every pill (white text on a filled pill had been 2:1 for Done / open PR;
+  "Medium" was 2.5:1). The PR readiness and AI banners now share one frame and colour code (`ticket/Banner.tsx`). A click opens the ticket in Jira (where those values change) or the PR in Bitbucket, and the pill sinks under the
   press. Section icons now take the colour of what the section is instead of the ticket's column colour, and Pull request
   has its own PR glyph instead of the branch icon.
 - **Move notifications are reliable, and Undo stays long enough to press.** Every move's notification has its Undo, and a
