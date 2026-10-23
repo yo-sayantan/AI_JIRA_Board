@@ -4,7 +4,7 @@ import type { Ticket } from '../../types'
 import { COLUMN_META } from '../../lib/columns'
 import { effectiveType, prMeta, primaryPrOf, priorityMeta, typeMeta } from '../../lib/format'
 import { PRESS, PRESS_SCALE } from '../../lib/motion'
-import { lift, onFill, tint } from '../../lib/tone'
+import { contrastRatio, lift, tint } from '../../lib/tone'
 import { safeHref } from '../common/ui'
 import { ColumnIcon, PriorityIcon, PrStateIcon, TypeIcon } from '../common/Icons'
 
@@ -45,6 +45,28 @@ export function headerPills(ticket: Ticket): HeaderPill[] {
   return out
 }
 
+/** Text on a filled pill must clear this against the fill — WCAG AA for normal text. */
+export const FILL_MIN_CONTRAST = 4.5
+
+const toHex = (n: number) => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2, '0')
+
+/**
+ * The fill of a pill that carries WHITE text: the colour itself when white already reads on it, else the colour pulled
+ * toward black just far enough that it does (the quiet grey-teal of QA, the amber of an open PR, green…). Same hue, a
+ * touch deeper — never a different colour. Not a 6-digit hex (a `var()`) → returned untouched.
+ */
+export function readableFill(color: string): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(color)
+  if (!m) return color
+  const n = parseInt(m[1], 16)
+  const rgb = [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+  for (let t = 0; t <= 0.7; t += 0.02) {
+    const c = `#${rgb.map((v) => toHex(v * (1 - t))).join('')}`
+    if (contrastRatio('#ffffff', c) >= FILL_MIN_CONTRAST) return c
+  }
+  return `#${rgb.map((v) => toHex(v * 0.3)).join('')}`
+}
+
 /**
  * Depth, Liquid-Glass style: light from the top (a lighter upper half and a 1px top highlight) and a soft shadow in the
  * pill's own colour under it — a material resting on the sheet, not a bevelled 3D button. Pressed, it sinks: the drop
@@ -52,21 +74,25 @@ export function headerPills(ticket: Ticket): HeaderPill[] {
  */
 function depth(color: string, filled: boolean): { rest: CSSProperties; pressed: string } {
   if (filled) {
+    const base = readableFill(color)
     return {
       rest: {
-        color: onFill(color),
+        color: '#ffffff',
         borderColor: 'transparent',
-        background: `linear-gradient(180deg, color-mix(in srgb, ${color} 78%, #ffffff), ${color} 62%)`,
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.38), inset 0 -1px 0 rgba(0,0,0,0.08), 0 1px 2px ${tint(color, 0.35)}, 0 6px 14px -8px ${tint(color, 0.75)}`,
+        // The top stays only a little lighter than the base, so white text keeps its contrast across the whole pill.
+        background: `linear-gradient(180deg, color-mix(in srgb, ${base} 90%, #ffffff), ${base} 70%)`,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -1px 0 rgba(0,0,0,0.1), 0 1px 2px ${tint(base, 0.4)}, 0 6px 14px -8px ${tint(base, 0.75)}`,
       },
       pressed: `inset 0 1px 3px rgba(0,0,0,0.22), inset 0 -1px 0 rgba(255,255,255,0.12), 0 0 0 ${tint(color, 0)}, 0 0 0 -8px ${tint(color, 0)}`,
     }
   }
   return {
     rest: {
-      color: `color-mix(in srgb, ${lift(color)} 82%, var(--ink))`,
-      borderColor: tint(color, 0.38),
-      background: `linear-gradient(180deg, ${tint(color, 0.2)}, ${tint(color, 0.08)})`,
+      // Half the colour, half the board's ink: dark enough on the pale wash (yellow, cyan, orange) in light mode, and the
+      // lifted colour mixed with the light ink in dark mode — the label always clears AA, the hue still reads.
+      color: `color-mix(in srgb, ${lift(color)} 55%, var(--ink))`,
+      borderColor: tint(color, 0.55),
+      background: `linear-gradient(180deg, ${tint(color, 0.17)}, ${tint(color, 0.08)})`,
       boxShadow: `inset 0 1px 0 var(--spec), 0 1px 2px ${tint(color, 0.18)}, 0 6px 14px -10px ${tint(color, 0.6)}`,
     },
     pressed: `inset 0 1px 3px ${tint(color, 0.35)}, 0 0 0 transparent, 0 0 0 -10px transparent`,
@@ -78,7 +104,7 @@ function PillIcon({ pill, ticket, color }: { pill: HeaderPill; ticket: Ticket; c
     case 'status':
       return <ColumnIcon col={ticket.column} color={color} size={13} />
     case 'priority':
-      return <PriorityIcon rank={priorityMeta(ticket.priority).rank} color={color} size={14} />
+      return <PriorityIcon bare rank={priorityMeta(ticket.priority).rank} color={color} size={14} />
     case 'type':
       return <TypeIcon type={pill.label} color={color} size={13} />
     case 'pr':
@@ -88,15 +114,20 @@ function PillIcon({ pill, ticket, color }: { pill: HeaderPill; ticket: Ticket; c
   }
 }
 
-/** One width for every pill, so the row reads as a set; a long value truncates (the full text is in the tooltip). */
-const SHAPE = 'inline-flex h-7 w-[9.5rem] shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-semibold leading-none whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-[var(--link)] focus-visible:ring-offset-1'
+/**
+ * One height, one left edge, one right edge — and the width is the content's, so a short word is a short pill and no
+ * space is wasted. The icon always sits in the same 16px slot (8px from the edge); the label has 12px after it. A very
+ * long fix version truncates at `max-w-[16rem]`, the full text is in the tooltip.
+ */
+const SHAPE = 'inline-flex h-7 max-w-[16rem] shrink-0 items-center gap-1.5 rounded-full border pl-2 pr-3 text-[11px] font-semibold leading-none whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-[var(--link)] focus-visible:ring-offset-1'
 
 export function HeaderPills({ ticket }: { ticket: Ticket }) {
   return (
-    <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+    <div className="mt-2.5 flex flex-wrap items-center gap-2">
       {headerPills(ticket).map((pill) => {
         const d = depth(pill.color, pill.filled)
-        const iconColor = pill.filled ? 'currentColor' : lift(pill.color)
+        // The glyph is drawn in the label's own colour, so it is exactly as visible as the text beside it.
+        const iconColor = 'currentColor'
         const body = (
           <>
             <span className="grid h-4 w-4 shrink-0 place-items-center" aria-hidden>

@@ -5,8 +5,10 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
-- **Drawer header pills are one size, with depth, and each opens something.** Status, priority, type, PR and fix versions
-  share one width and height and a glyph each (the status dot became its column icon); status and PR are filled, the rest
+- **Drawer header pills are even, readable, with depth, and each opens something.** Status, priority, type, PR and fix
+  versions are as wide as their content but share one height, padding and icon slot (priority lost its tile so the left
+  edges line up), with a glyph each (the status dot became its column icon); contrast is now at least 4.5:1 on every pill
+  (white text on a filled pill had been 2:1 for Done / open PR; "Medium" was 2.5:1). Status and PR are filled, the rest
   tinted. A click opens the ticket in Jira (where those values change) or the PR in Bitbucket, and the pill sinks under the
   press. Section icons now take the colour of what the section is instead of the ticket's column colour, and Pull request
   has its own PR glyph instead of the branch icon.

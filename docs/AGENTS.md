@@ -229,7 +229,8 @@ ticket's branches, and that has its own status words):
   scrolls (both ways); each lane's title is `sticky top-0` inside it (`Column.tsx .jb-lane-head`, frosted page-coloured
   glass in `index.css`, opaque in the fallbacks). `Board.tsx`'s root must NOT be a scroll container (no `overflow-*`): an
   overflow there captures the sticky titles and they stop sticking. Under 640px of window height the page scrolls as before.
-- The drawer's header pills (`ticket/HeaderPills.tsx`) are a SET: one width / height, one icon slot, each a real link (no
+- The drawer's header pills (`ticket/HeaderPills.tsx`) are a SET: content-wide but one height / padding / icon slot, text always
+  AA (`readableFill` for filled, an ink mix for tinted — never raw `onFill` on a pale fill), each a real link (no
   press response without somewhere to go). Their depth is the glass kind — top light + a soft coloured shadow, sinking on
   press — not the rejected bevelled 3D button.
 - Fixed-width right-hand "rails" in list rows (one width table shared by header + rows) so

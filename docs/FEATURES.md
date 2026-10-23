@@ -140,9 +140,12 @@ with breadcrumb depth and Esc closing only the top layer).
 `src/components/ticket/TicketDetail.tsx`, stack in `hooks/useDrawerStack.ts`; archive/raised rows
 are adapted via `completedToTicket` / `raisedToTicket` so one component renders all three.
 
-- **Header pills** (`ticket/HeaderPills.tsx`): status · priority · type · PR · fix versions, all ONE size (`w-[9.5rem]`,
-  `h-7`; a long value truncates, the full text is the tooltip), each with its glyph in the same 16px slot (the status pill
-  shows its column's icon). Status and PR — what decides the next step — are filled; priority, type and version are tinted.
+- **Header pills** (`ticket/HeaderPills.tsx`): status · priority · type · PR · fix versions — the width is the content's (a
+  short word is a short pill; a very long version truncates at 16rem, the full text is the tooltip) but the height, the
+  left / right padding and the icon slot (16px, 8px from the edge) are identical, so margins match. Each has its glyph
+  (the status pill shows its column's icon; priority is drawn without a tile). Contrast is guaranteed: a filled pill's
+  fill is darkened just enough for white text to clear 4.5:1 (`readableFill` — the pale Done / open-PR / QA fills were
+  ~2:1), and a tinted pill's label is half its colour, half the board's ink (Medium was 2.5:1, QA Task 3:1). Status and PR — what decides the next step — are filled; priority, type and version are tinted.
   Each is a real link: Jira for the ticket's own values (that is where they change), Bitbucket for the PR; with nowhere to
   go a pill stays static. Depth is glass-style — light from the top, a soft shadow in the pill's colour — and a press sinks
   it (scale + inner shadow on the shared `PRESS` spring); Motion & animations off drops the movement.
