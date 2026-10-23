@@ -59,6 +59,25 @@ ensure_docker() {
   die "Docker Desktop did not become ready in time. Open it manually and try again."
 }
 
+# ── 1b. Bring the board's data along ──────────────────────────────────────────
+# The data mount follows the deploy directory (compose bind-mounts ./jira-intern and ./setup), and this script removes the
+# old containers next — so deploying from a NEW checkout (a git worktree, a fresh clone) used to come up EMPTY until
+# data.json and the cache were copied across by hand. Look, BEFORE the old container goes, for a folder that has the data —
+# where the running board reads it from, else the main checkout of this repo — and seed this one from it
+# (scripts/seed-runtime-data.sh: only when this checkout has no data.json, never overwrites, never copies locks, and never
+# copies API keys — it prints the one command for those instead).
+seed_data() {
+  local src="" cand
+  cand="$(docker inspect "$CONTAINER_NAME" --format '{{range .Mounts}}{{if eq .Destination "/app/jira-intern"}}{{.Source}}{{end}}{{end}}' 2>/dev/null || true)"
+  [ -n "$cand" ] && [ -f "${cand%/jira-intern}/jira-intern/data.json" ] && src="${cand%/jira-intern}"
+  if [ -z "$src" ] && command -v git >/dev/null 2>&1; then
+    cand="$(git -C "$REPO_DIR" worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p')"
+    [ -n "$cand" ] && [ -f "$cand/jira-intern/data.json" ] && src="$cand"
+  fi
+  [ -n "$src" ] && bash "$SCRIPT_DIR/seed-runtime-data.sh" "$src" "$REPO_DIR"
+  return 0
+}
+
 # ── 2. Free the dedicated port (and any prior jira-board container) ───────────
 # Multiple clicks must never stack containers on new ports — always reclaim PORT.
 free_port() {
@@ -192,6 +211,7 @@ printf '    repo: %s\n' "$REPO_DIR"
 printf '    port: %s  (fixed — same every run)\n' "$PORT"
 
 ensure_docker
+seed_data
 free_port
 deploy
 wait_ready

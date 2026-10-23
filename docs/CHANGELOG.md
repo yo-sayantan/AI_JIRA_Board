@@ -5,6 +5,12 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Deploying from a new folder no longer brings the board up empty.** The data (and `setup/.env`) follow the deploy folder, and
+  a git worktree or fresh clone has neither — so the board showed nothing and every refresh ended in "Intern finished with
+  errors (tooling missing)". `start-jira-board.sh` now carries the board's data across from where the running board read it (else
+  the main checkout) before it removes the old containers — only into a checkout with no `data.json`, never overwriting, never
+  locks or logs, and never your API keys (it prints the one `cp` for those). A missing Jira token with no dump now exits 2, so the
+  board says "Add the Jira token with the key button" instead of "tooling missing".
 - **Drawer header: organised status banners.** The pills are read-only summaries (no link, no press), in four groups —
   state (status · PR), ticket (priority · type), related work (sub-tasks done · QA state, coloured by progress) and release
   (fix versions) — as wide as their content but sharing one height, padding and icon slot (priority lost its tile so the left

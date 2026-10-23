@@ -777,7 +777,11 @@ def _main(existing_path, state_path):
 
     if not os.environ.get("JIRA_PERSONAL_TOKEN"):
         if not os.path.isfile(existing_path):
-            raise SystemExit("No JIRA token and no existing data.json")
+            # Same answer as with a dump (exit 2 = configuration: no token) so the runner stops here and the board says
+            # "add it with the key button" — exit 1 used to fall through to the missing LLM agent and read "tooling missing".
+            sys.stderr.write("No JIRA token and no existing data.json\n")
+            print(json.dumps({"error": "no jira token", "stopped": True}))
+            raise SystemExit(2)
         # Never invent data: re-stamp the last known dump with a notice, log it, and stop with
         # the same exit code / error shape as completed_archive so the runner can tell.
         note = f"{today_str(INTERN)}: Jira unavailable (no token) — showing last known state"
