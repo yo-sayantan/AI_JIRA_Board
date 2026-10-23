@@ -103,7 +103,8 @@ export function dashboardPrTickets(tickets: Ticket[]): { keys: string[]; open: n
 }
 
 export function countMyCompleted(data: JiraData): number {
-  return data.completed.filter((c) => c.mine !== false && !c.parentKey).length
+  // A ticket taken from me (un-assigned, reassigned, called off, PR declined) is listed in Completed but is not done work.
+  return data.completed.filter((c) => c.mine !== false && !c.parentKey && !c.takenFromMe?.reason).length
 }
 
 /** The Raised chip shows open/total: "still needs fixing" is the number that matters. */

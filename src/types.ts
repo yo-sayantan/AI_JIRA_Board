@@ -345,11 +345,12 @@ export interface Ticket {
   parentTitle?: string | null
   /**
    * False for a team-mate's sub-task pulled in because it hangs off a master ticket I worked
-   * on — in the archive that is a parent's QA sub-task (a nested child, not a row of its own).
-   * Those rows give a master ticket its full delivery picture without being counted as
-   * my own output.
+   * on — in the archive that is a parent's QA sub-task or a sub-ticket I raised (a nested child, not a row of its
+   * own). Those rows give a master ticket its full delivery picture without being counted as my own output.
    */
   mine?: boolean
+  /** Only on archive rows (via completedToTicket): this ticket was taken from me — see TakenFromMe. */
+  takenFromMe?: TakenFromMe | null
   /** Child sub-tasks — each a full ticket, openable as its own detail page. */
   subtasks?: Ticket[]
   subtaskCount?: number | null
@@ -474,6 +475,49 @@ export interface CompletedTicket {
   updateLog?: UpdateLogEntry[]
   /** Kept from the board copy when the ticket was archived (the archive never asks Checkmarx) — see VulnFixes. */
   vulnFixes?: VulnFixes | null
+  /** Set when this ticket was taken from me (see TakenFromMe). Such a row can still be OPEN with someone else. */
+  takenFromMe?: TakenFromMe | null
+  /** Normally absent (an archive row is Done). A ticket taken from me while still open carries its real column. */
+  column?: ColumnKey
+  done?: boolean
+}
+
+/**
+ * Why a ticket ever assigned to me is no longer mine — written by the archive (jira-intern/taken.py), from the
+ * changelog, the resolution, its PRs and comments. Absent for work I delivered, and for the normal hand-off (it left
+ * me once it reached QA or Done).
+ *   cancelled    closed with a cancel-type resolution / status (Cancelled, Won't Do, Rejected, Duplicate…)
+ *   pr-declined  my pull requests on it were declined and none merged
+ *   backlog      someone else un-assigned it — back to the backlog, or for another team to pick up
+ *   taken-over   someone else gave it to another person after it was In Progress / In Review on my name
+ *   reassigned   someone else gave it to another person while it was still To Do on my name
+ *   released     I un-assigned myself (or passed it on) before QA
+ */
+export type TakenReason = 'cancelled' | 'pr-declined' | 'backlog' | 'taken-over' | 'reassigned' | 'released'
+
+export interface TakenFromMe {
+  /** The headline reason: the first of `reasons` in the order above. */
+  reason: TakenReason
+  reasons: TakenReason[]
+  /** When it left me (ISO) — or, for a ticket still on my name that was called off, when it was resolved. */
+  when?: string | null
+  /** Who moved it (display name), whether that was me, and to whom (null = left unassigned). */
+  by?: string | null
+  byMe?: boolean
+  to?: string | null
+  /** The status it was in right after it left me. */
+  statusThen?: string | null
+  /** True when it is still assigned to me (called off or PR declined, not moved). */
+  stillMine?: boolean
+  /** The Jira resolution, e.g. "Cancelled". */
+  resolution?: string | null
+  /** Whether I had worked on it, and what shows it ("PR #61 — declined", "In Progress on your name", "3 comments by you"). */
+  worked?: boolean
+  workedOn?: string[]
+  /** My PRs on it that were declined, e.g. ["PR #61"]. */
+  declinedPrs?: string[]
+  /** The comment most likely to say why: by someone else, written when it left me. `byMover` = by whoever moved it. */
+  why?: { author?: string | null; when?: string | null; text: string; byMover?: boolean } | null
 }
 
 /** One assignee hand-off from the Jira changelog. The first assignment has from=null. */
@@ -543,11 +587,13 @@ export function raisedToTicket(r: RaisedTicket): Ticket {
 
 /** Adapt an archive row to the rich Ticket shape so the detail view can render it. */
 export function completedToTicket(c: CompletedTicket): Ticket {
+  // A ticket taken from me can still be open with someone else — it keeps the column the archive gave it.
+  const open = !!c.takenFromMe && !!c.column && c.column !== 'done'
   return {
     ...c,
-    column: 'done',
+    column: open ? c.column! : 'done',
     status: c.status ?? 'Done',
-    done: true,
+    done: !open,
     onHold: false,
     lastUpdate: c.lastUpdate ?? c.resolved ?? null,
   }

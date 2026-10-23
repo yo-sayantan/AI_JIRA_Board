@@ -32,7 +32,7 @@ the whole set.
 ## What the set covers
 
 51 tickets in `tickets[]` (50 on the board — `DEMO-254` closed a week ago and retires straight into Completed),
-12 nested sub-tasks, 19 archive rows over three years, 10 Raised-by-me rows. `src/demo/data.test.ts` and
+12 nested sub-tasks, 24 archive rows over three years (5 taken from me), 10 Raised-by-me rows. `src/demo/data.test.ts` and
 `src/demo/gates.test.ts` assert every scenario below, so a hand edit that breaks one fails the tests.
 
 - **Every column and move target** — To Do, Blocked, In Progress, In Review, QA (both the ready shelf and *QA In
@@ -100,6 +100,9 @@ the whole set.
   repositories (`okafor qa-failed`, `demo-infra`).
 - **Completed** — rows over three years with lead and dev times, releases to Prod, Stage and Demo, onboarding,
   declined-then-merged and all-declined PRs, Won't Fix, a team-mate's parent shown only as context
-  (`DEMO-170`) with my sub-task archived as its own row (`DEMO-170-4`), and two projects.
+  (`DEMO-170`) with my sub-task archived as its own row (`DEMO-170-4`), and two projects. **Taken from me**, one per
+  reason: `DEMO-195` un-assigned by the lead after I worked on it (still open, To Do), `DEMO-193` taken over mid-work,
+  `DEMO-191` reassigned before I started, `DEMO-183` un-assigned then cancelled, `DEMO-179` still mine but its PR
+  declined.
 - **Raised by me** — a row in every status bucket (To Do, Blocked, On Hold, In Progress, In Review, QA, Done,
   Won't Fix), unassigned, handed on three times, an AI brief, linked tickets and an epic, and rows from last year.

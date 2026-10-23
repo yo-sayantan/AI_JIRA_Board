@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { CompletedTicket, Ticket } from '../../types'
+import type { CompletedTicket, TakenReason, Ticket } from '../../types'
 import { fmtDate, relTime, priorityMeta, projectOf, typeMeta, effectiveType, releaseEnvOf, yearOf, monthOf, branchesOf, branchStatusOf, prListOf, isMergedPr, isClosedPr, shortBranch, cycleTime, fmtDays } from '../../lib/format'
 import { matchRow, parseQuery } from '../../lib/search'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
@@ -8,6 +8,10 @@ import { Pill, PrBadge, BranchStatusPill, PointsTag, safeHref } from '../common/
 import { BranchIcon, ChevronIcon, CommentIcon, ExpandAllIcon, PersonIcon, PrStateIcon, SearchIcon, SparkleIcon, TrophyIcon, TypeIcon } from '../common/Icons'
 import { lift, selectedText, tint } from '../../lib/tone'
 import { COLLAPSE, DIALOG, SCRIM } from '../../lib/motion'
+import { COLUMN_META } from '../../lib/columns'
+import { TAKEN_COLOR, TAKEN_ORDER, isTaken, matchesTaken, rowDate, takenCounts, takenMeta } from '../../lib/taken'
+import { TakenBanner } from './TakenBanner'
+import { MoveIcon } from '../common/Icons'
 
 const DONE = '#22c55e'
 const CONTEXT = '#8b5cf6' // parent tickets owned by others, shown for lineage
@@ -71,9 +75,14 @@ export function CompletedOverlay({
   const [proj, setProj] = useState<string | null>(null)
   const [typ, setTyp] = useState<string | null>(null)
   const [prFilter, setPrFilter] = useState<null | 'any' | 'merged' | 'declined'>(null)
+  // "Taken from you": tickets that were mine and were un-assigned, reassigned, called off or had their PR declined.
+  const [takenFilter, setTakenFilter] = useState<null | 'any' | TakenReason>(null)
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
 
   const mineItems = useMemo(() => all.filter(isMine), [all])
+  // My delivered work: what the trophies count. A ticket taken from me is listed (with its banner) but never counted here.
+  const doneItems = useMemo(() => mineItems.filter((it) => !isTaken(it)), [mineItems])
+  const taken = useMemo(() => takenCounts(all), [all])
   const contextCount = all.length - mineItems.length
   // Context parents (someone else's ticket, kept ONLY because I delivered a sub-ticket under it)
   // are lineage, not my work — so they can be toggled out of the view. The choice sticks across
@@ -103,6 +112,7 @@ export function CompletedOverlay({
     setProj(null)
     setTyp(null)
     setPrFilter(null)
+    setTakenFilter(null)
     setExpanded(new Set())
   }, [open])
 
@@ -139,19 +149,20 @@ export function CompletedOverlay({
     return [...m.entries()].sort((a, b) => b[1] - a[1])
   }, [items])
 
-  const totalPts = useMemo(() => mineItems.reduce((s, it) => s + (it.storyPoints ?? 0), 0), [mineItems])
+  const totalPts = useMemo(() => doneItems.reduce((s, it) => s + (it.storyPoints ?? 0), 0), [doneItems])
 
   // See lib/search — a bare number is treated as a ticket number, not as free text.
   const terms = useMemo(() => parseQuery(q), [q])
   const chipsMatch = (it: CompletedTicket) => {
     if (proj && (it.project || projectOf(it.key)) !== proj) return false
     if (!matchesPrFilter(it, prFilter)) return false
+    if (!matchesTaken(it, takenFilter)) return false
     return !typ || (effectiveType(it) || 'Other').trim() === typ
   }
   const filtered = useMemo(
     () => items.filter((it) => chipsMatch(it) && matchRow(it, terms) !== null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [items, terms, proj, typ, prFilter],
+    [items, terms, proj, typ, prFilter, takenFilter],
   )
 
   // Pure chronology: newest first, year → month. Types are surfaced via the row
@@ -159,16 +170,16 @@ export function CompletedOverlay({
   const groups = useMemo(() => {
     const byYear = new Map<string, CompletedTicket[]>()
     for (const it of filtered) {
-      const y = yearOf(it.resolved)
+      const y = yearOf(rowDate(it))
       if (!byYear.has(y)) byYear.set(y, [])
       byYear.get(y)!.push(it)
     }
     const out: [string, MonthGroup[]][] = []
     for (const [year, arr] of [...byYear.entries()].sort((a, b) => b[0].localeCompare(a[0]))) {
-      arr.sort((a, b) => (b.resolved ?? '').localeCompare(a.resolved ?? ''))
+      arr.sort((a, b) => (rowDate(b) ?? '').localeCompare(rowDate(a) ?? ''))
       const months: MonthGroup[] = []
       for (const it of arr) {
-        const label = monthOf(it.resolved)
+        const label = monthOf(rowDate(it))
         const last = months[months.length - 1]
         if (last && last.label === label) last.rows.push(it)
         else months.push({ label, rows: [it] })
@@ -180,16 +191,16 @@ export function CompletedOverlay({
 
   const stats = useMemo(
     () => ({
-      merged: mineItems.filter((it) => prListOf(it).some(isMergedPr)).length,
-      releases: mineItems.filter((it) => effectiveType(it) === 'Release').length,
-      onboarding: mineItems.filter((it) => effectiveType(it) === 'Onboarding').length,
+      merged: doneItems.filter((it) => prListOf(it).some(isMergedPr)).length,
+      releases: doneItems.filter((it) => effectiveType(it) === 'Release').length,
+      onboarding: doneItems.filter((it) => effectiveType(it) === 'Onboarding').length,
     }),
-    [mineItems],
+    [doneItems],
   )
 
   /** "2023 – 2026" — the span the archive actually covers, for the subtitle. */
   const span = useMemo(() => {
-    const years = items.map((it) => yearOf(it.resolved)).filter((y) => /^\d{4}$/.test(y)).sort()
+    const years = items.map((it) => yearOf(rowDate(it))).filter((y) => /^\d{4}$/.test(y)).sort()
     if (!years.length) return null
     return years[0] === years[years.length - 1] ? years[0] : `${years[0]}–${years[years.length - 1]}`
   }, [items])
@@ -203,7 +214,7 @@ export function CompletedOverlay({
     })
   const toggleAll = () => setExpanded(allExpanded ? new Set() : new Set(filtered.map((it) => it.key)))
   const empty = all.length === 0
-  const filtering = !!q || !!proj || !!typ || !!prFilter
+  const filtering = !!q || !!proj || !!typ || !!prFilter || !!takenFilter
 
   return (
     <AnimatePresence>
@@ -241,10 +252,16 @@ export function CompletedOverlay({
                       "everything I've shipped"
                     ) : (
                       <>
-                        <b className="text-[var(--ink-soft)]">{mineItems.length}</b> tickets
+                        <b className="text-[var(--ink-soft)]">{doneItems.length}</b> tickets
                         {' · '}
                         <b className="text-[var(--ink-soft)]">{projects.length}</b> project{projects.length === 1 ? '' : 's'}
                         {span && ` · ${span}`}
+                        {taken.total > 0 && (
+                          <span title="Tickets that were assigned to you and then un-assigned, given to someone else, called off, or had your PR declined. Listed with the reason; not counted as done.">
+                            {' · '}
+                            <b style={{ color: lift(TAKEN_COLOR) }}>{taken.total}</b> taken from you
+                          </span>
+                        )}
                         {showContext && contextCount > 0 && (
                           <span title="Parent tickets owned by someone else, shown because you delivered a sub-ticket under them. Not counted in your totals — use “Mine only” to hide them.">
                             {' · '}
@@ -264,12 +281,23 @@ export function CompletedOverlay({
                 </button>
               </div>
               {!empty && (
-                <div className="grid grid-cols-2 gap-2.5 px-6 pb-5 pt-4 sm:grid-cols-3 lg:grid-cols-5">
-                  <StatTile n={mineItems.length} label="Tickets done" color={DONE} icon={<TrophyIcon size={14} />} />
+                <div className={`grid grid-cols-2 gap-2.5 px-6 pb-5 pt-4 sm:grid-cols-3 ${taken.total > 0 ? 'lg:grid-cols-6' : 'lg:grid-cols-5'}`}>
+                  <StatTile n={doneItems.length} label="Tickets done" color={DONE} icon={<TrophyIcon size={14} />} />
                   <StatTile n={totalPts} label="Story points" color={'#3b82f6'} icon={<SparkleIcon size={14} color={lift('#3b82f6')} />} />
                   <StatTile n={stats.merged} label="PRs merged" color={CONTEXT} icon={<PrStateIcon state="merged" color={lift(CONTEXT)} size={14} />} />
                   <StatTile n={stats.releases} label="Releases" color={'#ec4899'} icon={<TypeIcon type="Release" color={lift('#ec4899')} size={14} />} />
                   <StatTile n={stats.onboarding} label="Onboarding" color={'#84cc16'} icon={<TypeIcon type="Onboarding" color={lift('#84cc16')} size={14} />} />
+                  {taken.total > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setTakenFilter(takenFilter ? null : 'any')}
+                      aria-pressed={!!takenFilter}
+                      className="rounded-2xl text-left outline-offset-2"
+                      title={takenFilter ? 'Show every ticket again' : 'List only the tickets taken from you, with why'}
+                    >
+                      <StatTile n={taken.total} label={takenFilter ? 'Taken from you ✓' : 'Taken from you'} color={TAKEN_COLOR} icon={<MoveIcon size={14} color={lift(TAKEN_COLOR)} />} />
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -345,7 +373,7 @@ export function CompletedOverlay({
                     </div>
 
                     <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                      <FilterChip active={proj === null && typ === null && prFilter === null} color={DONE} onClick={() => { setProj(null); setTyp(null); setPrFilter(null) }} title="Clear every filter">
+                      <FilterChip active={proj === null && typ === null && prFilter === null && takenFilter === null} color={DONE} onClick={() => { setProj(null); setTyp(null); setPrFilter(null); setTakenFilter(null) }} title="Clear every filter">
                         All
                       </FilterChip>
                       <FilterChip active={prFilter === 'any'} color={PR_PURPLE} onClick={() => setPrFilter(prFilter === 'any' ? null : 'any')} n={items.filter((it) => matchesPrFilter(it, 'any')).length} title="Tickets with a merged or declined pull request">
@@ -357,6 +385,24 @@ export function CompletedOverlay({
                       <FilterChip active={prFilter === 'declined'} color="#ef4444" onClick={() => setPrFilter(prFilter === 'declined' ? null : 'declined')} n={items.filter((it) => matchesPrFilter(it, 'declined')).length} title="Tickets with a declined pull request">
                         Declined
                       </FilterChip>
+                      {taken.total > 0 && (
+                        <>
+                          <span className="mx-1 h-5 w-px shrink-0 bg-[var(--line-strong)]" aria-hidden />
+                          <FilterChip active={takenFilter === 'any'} color={TAKEN_COLOR} onClick={() => setTakenFilter(takenFilter === 'any' ? null : 'any')} n={taken.total} title="Tickets taken from you — un-assigned, given to someone else, called off, or your PR declined">
+                            <MoveIcon size={11} color={lift(takenFilter === 'any' ? TAKEN_COLOR : 'currentColor')} />
+                            Taken from you
+                          </FilterChip>
+                          {takenFilter &&
+                            TAKEN_ORDER.filter((r) => taken[r] > 0).map((r) => {
+                              const m = takenMeta(r)
+                              return (
+                                <FilterChip key={r} active={takenFilter === r} color={m.color} onClick={() => setTakenFilter(takenFilter === r ? 'any' : r)} n={taken[r]} title={m.hint}>
+                                  {m.short}
+                                </FilterChip>
+                              )
+                            })}
+                        </>
+                      )}
                       <span className="mx-1 h-5 w-px shrink-0 bg-[var(--line-strong)]" aria-hidden />
                       {projects.map(([p, n]) => (
                         <FilterChip key={p} active={proj === p} color={DONE} onClick={() => setProj(proj === p ? null : p)} n={n} title={`Only ${p} tickets`}>
@@ -413,7 +459,7 @@ export function CompletedOverlay({
                     {filtered.length === 0 && (
                       <div className="py-14 text-center">
                         <div className="mb-2 text-2xl">🔍</div>
-                        <p className="text-[13px] font-semibold text-[var(--ink)]">No completed tickets match{q ? ` “${q}”` : ''}.</p>
+                        <p className="text-[13px] font-semibold text-[var(--ink)]">No {takenFilter ? 'taken' : 'completed'} tickets match{q ? ` “${q}”` : ''}.</p>
                       </div>
                     )}
                   </div>
@@ -454,7 +500,11 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
   const subs = it.subtasks ?? []
   const mine = isMine(it)
   const comments = it.commentCount ?? 0
-  const rel = relTime(it.resolved)
+  const taken = it.takenFromMe?.reason ? it.takenFromMe : null
+  // A ticket taken from me can still be open: it sits at the day it left me, and its column is its real one.
+  const when = rowDate(it)
+  const stillOpen = !!taken && !!it.column && it.column !== 'done'
+  const rel = it.resolved ? relTime(it.resolved) : taken ? 'left you' : null
   const ct = cycleTime(it)
 
   return (
@@ -552,16 +602,22 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
             )}
           </span>
           <span className="flex flex-col items-end leading-tight" style={{ width: RAIL.date }}>
-            <span className="text-[12px] font-bold tabular-nums text-[var(--ink-soft)]">{fmtDate(it.resolved)}</span>
+            <span className="text-[12px] font-bold tabular-nums text-[var(--ink-soft)]">{fmtDate(when)}</span>
             {rel && <span className="text-[10px] font-medium text-[var(--muted)]">{rel}</span>}
           </span>
         </span>
       </div>
+      {taken && <TakenBanner taken={taken} compact />}
 
       <AnimatePresence initial={false}>
         {expanded && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={COLLAPSE} className="overflow-hidden">
             <div className="border-t border-[var(--line)] bg-[var(--surface-2)] px-4 py-3.5">
+              {taken && (
+                <div className="mb-3.5">
+                  <TakenBanner taken={taken} />
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-4">
                 <Field label="Opened" value={it.created ? fmtDate(it.created) : '—'} />
                 <Field label="Closed" value={it.resolved ? fmtDate(it.resolved) : '—'} />
@@ -582,7 +638,7 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
                       : undefined
                   }
                 />
-                <Field label="Current status" value={status} dot={DONE} />
+                <Field label="Current status" value={status} dot={stillOpen ? COLUMN_META[it.column!]?.accent ?? DONE : DONE} />
                 <Field label="Type" value={et && et !== it.type ? `${et} · ${it.type}` : it.type || '—'} />
                 <Field label="Priority" value={priorityMeta(it.priority).label} dot={priorityMeta(it.priority).color} />
                 <Field label="Story points" value={typeof it.storyPoints === 'number' ? `${it.storyPoints}` : '—'} />
@@ -591,7 +647,7 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
                 ) : (
                   <Field label="Sub-tickets" value={`${it.subtaskCount ?? subs.length}`} />
                 )}
-                <Field label="Delivered by" value={it.assignee ?? '—'} />
+                <Field label={taken ? 'Now with' : 'Delivered by'} value={it.assignee ?? (taken ? 'Unassigned' : '—')} />
               </div>
 
               <div className="mt-3.5 flex flex-col gap-2.5">

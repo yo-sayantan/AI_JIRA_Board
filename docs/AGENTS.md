@@ -353,6 +353,13 @@ deployed from** (see `docs/DEPLOYMENT.md` → "the data mount follows the deploy
   the whole log; > 2 MiB = not read), scrubbed, ≤ 40 lines / 4 KB, 25 per run. `console_tail` returns a string (the excerpt),
   `""` (nothing to excerpt and asking again will not change it — 404, empty, too long: stored so it is not re-read) or `None` (could
   not be asked: tried again next run); a tail is kept while the build number is unchanged and dropped from every other build.
+- "Taken from me" (`completed_archive` → `taken.py` → `takenFromMe`): the Data Center changelog names people by an opaque user
+  KEY (`JIRAUSER123`), not the username, and comments only by display name — so "me" is read once from `/rest/api/2/myself`
+  ({key, name, displayName}; config identity as the fallback, none → the cached verdict is kept, never wiped). A status
+  and a re-assignment saved in one edit are judged on the status AFTER it ("Ready for QA → the tester" is the normal
+  hand-off, not taken), and an unknown starting status is To Do, not `status_column`'s In Progress fallback. An open taken
+  ticket is an archive row with its real `column` / `done: false`; `completedToTicket` keeps that, and every "done" count
+  (`countMyCompleted`, the Completed tiles) leaves taken rows out.
 - `resolutiondate` can be null for tickets transitioned straight to Done —
   `changelog_done_date()` is the fallback.
 - A sub-task of yours is stored TWICE (own card + nested under parent); `_merge_ticket` must

@@ -5,6 +5,13 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Completed: Taken from you.** A ticket assigned to you and then un-assigned for another team, given to someone else,
+  called off, or whose PR was declined, now shows in Completed with the reason, who moved it and when, the comment
+  written then, and the work you had put in — instead of vanishing (an open one left the board the day it was
+  un-assigned, and the archive kept only closed tickets). Filter by **Taken from you** and by reason; these are never
+  counted as done. The normal QA hand-off is not "taken". `jira-intern/taken.py` decides from the changelog (people by
+  user key, read from `/rest/api/2/myself`), the resolution (now fetched), PRs and comments; sub-tickets you raised are
+  nested under their parent. Also: `tests/test_archive.py` no longer calls Jira (it refreshed raised[] for real).
 - **Move notifications are reliable, and Undo stays long enough to press.** Every move's notification has its Undo, and a
   refused one its Move anyway — and those now come first: they never wait behind progress notices (the refresh a move
   starts no longer posts "Fetching… / updated" toasts at all unless it fails), they push out the oldest plain notification
