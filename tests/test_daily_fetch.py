@@ -210,6 +210,17 @@ class MainFlow(unittest.TestCase):
         self.assertIn("no token", self.written[0]["notes"][0])
 
 
+    def test_no_token_and_no_dump_also_exits_2_not_1(self):
+        # A fresh checkout (a worktree, a new clone) has neither. Exit 1 fell through to the missing LLM agent and the board
+        # read "tooling missing"; exit 2 stops here and the board says "add the Jira token with the key button".
+        missing = os.path.join(os.path.dirname(self.data_path), "no-such-data.json")
+        with mock.patch.dict(os.environ, {"JIRA_PERSONAL_TOKEN": ""}), mock.patch.object(sys, "stdout", mock.MagicMock()), mock.patch.object(sys, "stderr", mock.MagicMock()):
+            with self.assertRaises(SystemExit) as cm:
+                daily_fetch._main(missing, self.state_path)
+        self.assertEqual(cm.exception.code, 2)
+        self.assertEqual(self.written, [])  # nothing is invented
+
+
 class RefreshOneKey(unittest.TestCase):
     def test_bad_key_is_refused(self):
         with mock.patch.object(daily_fetch, "load_env", lambda: None):

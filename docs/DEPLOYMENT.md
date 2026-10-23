@@ -55,11 +55,17 @@ docker compose up -d --build      # rebuild + redeploy after a code change
 - **Never add `--pull`** to the image build: Docker Hub pulls can crawl from the VM, and the base
   image is already cached. If BuildKit hides a build error, rerun with
   `docker build --progress=plain .` to see the real message.
-- **The data mount follows the deploy directory.** Compose bind-mounts `./jira-intern`, so your
-  tickets live in whatever checkout you last deployed from. Before deploying from a NEW folder,
-  copy `data.json`, `data.js`, `.state.json`, `cache/`, `reports/` (and the dot-settings files)
-  across — `docker inspect JIRA-Board --format '{{range .Mounts}}{{.Source}}{{"\n"}}{{end}}'`
-  shows where the current data is. Otherwise the board comes up empty until a full re-fetch.
+- **The data mount follows the deploy directory.** Compose bind-mounts `./jira-intern` and `./setup`, so your
+  tickets and API keys live in whatever checkout you last deployed from — and a git worktree or a fresh clone has none
+  of it (data.json, the cache and `setup/.env` are git-ignored). `scripts/start-jira-board.sh` now carries the **data**
+  across for you (`scripts/seed-runtime-data.sh`): before it removes the old containers it finds the folder the running
+  board reads from, else the repo's main checkout, and — only when this checkout has no `data.json` — copies
+  `data.json`, `data.js`, `.state.json`, the dot-settings files, `cache/`, `reports/`, `tickets/`, `assets/` and
+  `.health/`. It never overwrites a file, never copies a lock or a half-finished run, a log or the model store, and
+  **never copies `setup/.env`** (credentials are the owner's to duplicate): when the keys are missing it prints the one
+  `cp` to run, or add them again with the key button. Without the keys every refresh stops with "Add the Jira token with
+  the key button". To do it by hand: `docker inspect JIRA-Board --format '{{range .Mounts}}{{.Source}}{{"\n"}}{{end}}'`
+  shows where the current data is.
 
 > **After changing any code in `src/`** you must rebuild (`--build`) — the app is baked into the
 > image at build time. Changing only *data* does not need a rebuild; the container refetches.

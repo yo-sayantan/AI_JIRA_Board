@@ -406,6 +406,12 @@ deployed from** (see `docs/DEPLOYMENT.md` → "the data mount follows the deploy
 - Native drag with ⌥ held asks the browser for a COPY: cards set `effectAllowed = 'copyMove'` and zones set
   `dropEffect = 'move'` — except while ⌥ is held, when they answer `'copy'` (macOS narrows an Option-drag to a copy and
   can refuse a zone that still says "move"; `Column.tsx::arm`) — or an Option-drop is refused before the board sees it.
+- Deploying from a NEW checkout (a git worktree, a fresh clone) used to bring the board up empty: the bind mounts follow the deploy
+  folder and the data and `setup/.env` are git-ignored, so the intern died at "No JIRA token and no existing data.json" (and,
+  being exit 1, fell through to the missing LLM agent and the board said "tooling missing"). `start-jira-board.sh::seed_data` →
+  `seed-runtime-data.sh` copies the data across (never `setup/.env` — it tells the owner the `cp` instead), and a missing token
+  with no dump now exits 2 like every other no-token case, so the toast says "add the Jira token". The exit codes mean:
+  2 = no token (configuration), 3 = another job running, 127 = fast path failed AND no agent installed.
 - `.dockerignore` patterns only match at the root unless prefixed `**/` (unlike `.gitignore`) — `setup/.env`
   stays out of the image only because of the `**/.env`, `**/.env.*`, `**/*.env` rules. Likewise the static
   allowlist (`server/config.mjs::STATIC_ALLOW`) must never match a dotfile; `server/http.mjs` also refuses any
