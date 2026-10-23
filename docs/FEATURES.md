@@ -140,6 +140,15 @@ with breadcrumb depth and Esc closing only the top layer).
 `src/components/ticket/TicketDetail.tsx`, stack in `hooks/useDrawerStack.ts`; archive/raised rows
 are adapted via `completedToTicket` / `raisedToTicket` so one component renders all three.
 
+- **Header pills** (`ticket/HeaderPills.tsx`): status · priority · type · PR · fix versions, all ONE size (`w-[9.5rem]`,
+  `h-7`; a long value truncates, the full text is the tooltip), each with its glyph in the same 16px slot (the status pill
+  shows its column's icon). Status and PR — what decides the next step — are filled; priority, type and version are tinted.
+  Each is a real link: Jira for the ticket's own values (that is where they change), Bitbucket for the PR; with nowhere to
+  go a pill stays static. Depth is glass-style — light from the top, a soft shadow in the pill's colour — and a press sinks
+  it (scale + inner shadow on the shared `PRESS` spring); Motion & animations off drops the movement.
+- **Section icons** take the colour of what the section is (`SECTION_HUE` in `TicketDetail.tsx`: acceptance green,
+  sub-tickets sky, PRs purple with the PR-state glyph, branches indigo, proof teal, comments blue, Confluence Atlassian
+  blue …; reference sections like Update log and Sources in quiet greys), not the ticket's column colour.
 - **Quick actions** (under the pipeline): a small round **refresh** button (re-fetches just this ticket in the background;
   it spins while it runs), **Copy link** (the ticket's Jira URL — pasted anywhere it opens the ticket; a row with no URL
   offers Copy ID instead), Open in Jira, one chip per PR, and Move to Completed on a Done ticket. All are glass chips: the

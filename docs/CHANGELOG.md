@@ -5,6 +5,11 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Drawer header pills are one size, with depth, and each opens something.** Status, priority, type, PR and fix versions
+  share one width and height and a glyph each (the status dot became its column icon); status and PR are filled, the rest
+  tinted. A click opens the ticket in Jira (where those values change) or the PR in Bitbucket, and the pill sinks under the
+  press. Section icons now take the colour of what the section is instead of the ticket's column colour, and Pull request
+  has its own PR glyph instead of the branch icon.
 - **Move notifications are reliable, and Undo stays long enough to press.** Every move's notification has its Undo, and a
   refused one its Move anyway — and those now come first: they never wait behind progress notices (the refresh a move
   starts no longer posts "Fetching… / updated" toasts at all unless it fails), they push out the oldest plain notification
