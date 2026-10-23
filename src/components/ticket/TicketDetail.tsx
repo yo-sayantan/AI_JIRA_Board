@@ -7,6 +7,7 @@ import { Pill, StatusBadge, PrBadge, Approvals, PointsTag, CopyButton, SafeHtml,
 import { BranchCards } from './BranchCards'
 import { HeaderPills } from './HeaderPills'
 import { BANNER_FRAME, BANNER_HUE, BannerHead, BannerIcon, BannerMeta, bannerStyle } from './Banner'
+import { TakenBanner } from '../completed/TakenBanner'
 import { Pipeline } from './Pipeline'
 import { ProofPanel, proofCount } from './Proof'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
@@ -320,9 +321,17 @@ export function TicketDetail({
             <Pipeline current={ticket.column} rawStatus={ticket.status} />
           </div>
 
+          {/* Taken from me: say so first — who moved it, when, the comment written then, and the work I had put in. */}
+          {ticket.takenFromMe?.reason && (
+            <div className="mb-4">
+              <TakenBanner taken={ticket.takenFromMe} />
+            </div>
+          )}
+
           {/* quick actions */}
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            {onRefreshTicket && ticket.column !== 'done' && (
+            {/* Refresh re-fetches MY ticket; one taken from me lives in the archive and is refreshed by its rebuild. */}
+            {onRefreshTicket && ticket.column !== 'done' && !ticket.takenFromMe?.reason && (
               <motion.button
                 type="button"
                 whileHover={refreshing ? undefined : { rotate: 30 }}

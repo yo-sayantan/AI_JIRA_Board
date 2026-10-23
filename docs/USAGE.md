@@ -195,6 +195,13 @@ Collapsed by default. Expand to a compact list (number · name · status); each 
 **peek inline** (opened, closed, branch, PR/merged) without leaving the page, plus *Expand all*.
 Click a row for the full detail page.
 
+**Taken from you** — tickets that were yours and were taken away are listed too, with a coloured strip under the row:
+the reason (called off, PR declined, back to the backlog, taken over mid-work, reassigned before you started, or you
+handed it back), who moved it and when, and the comment written then. Expand the row (or open it) for the full story,
+including what you had already done on it. The **Taken from you** tile or chip lists only these, then one chip per
+reason. They are never counted as done. A ticket handed to QA in the normal way is not "taken". Run **Update completed**
+once to fill these in.
+
 ## Keyboard
 
 | Key | Action |

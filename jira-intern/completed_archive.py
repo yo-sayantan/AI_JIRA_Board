@@ -11,7 +11,14 @@ buried my own tickets in team noise. `mine` still distinguishes my tickets from 
 parents so the UI can tint the latter.
 The one exception is QA: a parent's QA / test sub-tasks (qa_rules.is_qa_ticket) are nested too,
 as `mine: false`, because the closure report asks "is the QA sub-task done?" and a tester usually
-owns it. Without them every closed ticket reads "no QA sub-task on the ticket".
+owns it. Without them every closed ticket reads "no QA sub-task on the ticket". So are the
+sub-tickets I RAISED under it (I cut them and track them, whoever does them).
+
+Taken from me. A ticket that was assigned to me and then taken away — un-assigned for another team,
+given to someone else, called off, its PR declined — gets `takenFromMe` (taken.py says why, from the
+changelog, the resolution, its PRs and comments). Such a ticket is kept even while it is still OPEN
+with someone else (its real column, done: false), because otherwise it would vanish from the board AND
+the archive the day it left me. The normal hand-off to QA is not "taken".
 
 Branches, pull requests and review state come from Jira's dev-status index via devinfo.py —
 see that module for why repo-guessing was removed.
@@ -35,6 +42,7 @@ from _jira import (  # noqa: E402
     comments_from_issue,
     fetch_comments,
     is_excluded,
+    jira_get,
     iso,
     issue_links,
     light_html,
@@ -51,6 +59,8 @@ from datafile import atomic_write, data_lock, dumps, prepend_status, read_json, 
 from progress import clear_progress, set_progress  # noqa: E402
 from qa_rules import is_qa_ticket  # noqa: E402
 from raised import refresh_raised_in_place  # noqa: E402
+import taken  # noqa: E402
+from _config import identity  # noqa: E402
 
 INTERN = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(INTERN, "cache")
@@ -65,7 +75,9 @@ DATA_JSON = os.path.join(INTERN, "data.json")
 #    so work I finished and handed off stays mine instead of flipping to a context parent.
 # 5: a master's subtasks[] also nests the parent's QA sub-tasks (mine=False); older rows get
 #    them on the next archive rebuild.
-SCHEMA = 5
+# 6: `takenFromMe` (taken.py) on rows taken from me; open taken tickets are rows too; sub-tickets I
+#    raised are nested under their parent.
+SCHEMA = 6
 
 MAX_FETCH = int(os.environ.get("COMPLETED_MAX_FETCH", "999"))
 WORKERS = int(os.environ.get("COMPLETED_WORKERS", "6"))
@@ -162,7 +174,7 @@ def build_subtask(si, parent_key, dev_map, pr_overrides, mine=True):
     return sub
 
 
-def build_completed(issue, prior, dev_map, children, pr_overrides, mine, inherit_details=True, qa_children=None):
+def build_completed(issue, prior, dev_map, children, pr_overrides, mine, inherit_details=True, qa_children=None, me=None):
     """`mine` = was this ever assigned to me (membership in the mine-search set), NOT the
     current assignee — a ticket I finished and handed off is still my work. Only pure context
     parents (pulled in solely because I own a sub-ticket under them) are mine=False.
@@ -253,7 +265,45 @@ def build_completed(issue, prior, dev_map, children, pr_overrides, mine, inherit
     ticket.update(dev_fields(key, dev_map, prior, parent_key))
     if pr_overrides.get(key) and ticket["pr"].get("state") == "none":
         ticket["pr"] = pr_overrides[key]
+    if mine:
+        if me:
+            raised_by_me = sum(1 for si in list(children) + list(qa_children or [])
+                               if _reported_by(si, me) and si["key"] != key)
+            ticket["takenFromMe"] = taken.analyse(issue, me, prs=ticket.get("prs") or [], comments=comments, raised_subtasks=raised_by_me)
+        elif (prior or {}).get("takenFromMe"):
+            # Who I am could not be read this run: keep the earlier verdict rather than wipe it.
+            ticket["takenFromMe"] = prior["takenFromMe"]
     return ticket
+
+
+def _reported_by(si, me):
+    rep = (si.get("fields") or {}).get("reporter") or {}
+    return taken._is_me(me, key=rep.get("key"), name=rep.get("name"), display=rep.get("displayName"))
+
+
+def _assigned_to_me(issue, me):
+    a = (issue.get("fields") or {}).get("assignee") or {}
+    return bool(a) and taken._is_me(me, key=a.get("key"), name=a.get("name"), display=a.get("displayName"))
+
+
+def my_identity():
+    """Who "me" is, for reading the changelog: {key, name, displayName}. Jira's /myself first — the changelog names
+    people by an opaque user KEY on Data Center — else the configured identity (matched by display name). None when
+    neither is known: then nothing is judged and earlier `takenFromMe` verdicts are kept."""
+    try:
+        me = jira_get("/rest/api/2/myself", timeout=30, retries=1) or {}
+        if me.get("key") or me.get("name"):
+            return {"key": me.get("key"), "name": me.get("name"), "displayName": me.get("displayName")}
+    except Exception as e:
+        sys.stderr.write(f"WARN /myself unreadable, using the configured identity: {e}\n")
+    try:
+        cfg = identity(INTERN)
+    except Exception as e:  # no readable config: nothing to judge with — never a reason to fail the rebuild
+        sys.stderr.write(f"WARN no identity in the config either, taken-from-me left as it was: {e}\n")
+        return None
+    if cfg.get("accountId") or cfg.get("name"):
+        return {"key": None, "name": cfg.get("accountId") or None, "displayName": cfg.get("name") or None}
+    return None
 
 
 COMPLETED_KEYS = (
@@ -262,7 +312,7 @@ COMPLETED_KEYS = (
     "epic", "parentKey", "parentTitle", "mine", "labels", "components", "fixVersions",
     "description", "acceptanceCriteria", "comments", "commentCount", "related", "confluence",
     "externalLinks", "proposedSolution", "effortEstimate", "openQuestions", "sources",
-    "updateLog", "subtasks", "subtaskCount", "vulnFixes",
+    "updateLog", "subtasks", "subtaskCount", "vulnFixes", "takenFromMe",
 )
 
 
@@ -292,9 +342,17 @@ def carry_vuln_fixes(ticket, prior, known):
 def completed_entry(t):
     c = {k: t[k] for k in COMPLETED_KEYS if k in t}
     c["project"] = t["key"].split("-")[0]
-    c["column"] = "done"
-    c["done"] = True
+    # A ticket taken from me can still be open with someone else: it keeps its real column.
+    column = status_column(t.get("status"))
+    still_open = bool(t.get("takenFromMe")) and column != "done"
+    c["column"] = column if still_open else "done"
+    c["done"] = not still_open
     return c
+
+
+def _row_date(r):
+    """Where a row sits on the timeline: when it closed, else (open and taken from me) when it left me."""
+    return r.get("resolved") or (r.get("takenFromMe") or {}).get("when") or ""
 
 
 def assemble(keys, fallback=None):
@@ -316,7 +374,7 @@ def assemble(keys, fallback=None):
             rows.append(completed_entry(cached))
         except Exception as e:
             sys.stderr.write(f"WARN cache row {key}: {e}\n")
-    rows.sort(key=lambda r: (r.get("resolved") or "", r["key"]), reverse=True)
+    rows.sort(key=lambda r: (_row_date(r), r["key"]), reverse=True)
     return rows
 
 
@@ -425,10 +483,10 @@ def main():
         clear_progress()
 
 
-def fetch_qa_children(parent_keys):
-    """{parent key: [QA sub-task issues]} for these parents — one `parent in (…)` search per 100.
-    A parent whose chunk failed is left OUT of the map (not mapped to []), so the caller can tell
-    "no QA sub-task" from "could not look"."""
+def fetch_qa_children(parent_keys, me=None):
+    """{parent key: [QA sub-task issues, + sub-tickets I raised when `me` is known]} for these parents —
+    one `parent in (…)` search per 100. A parent whose chunk failed is left OUT of the map (not mapped
+    to []), so the caller can tell "none" from "could not look"."""
     found = {}
     keys = sorted(k for k in parent_keys if k)
     for i in range(0, len(keys), 100):
@@ -443,7 +501,9 @@ def fetch_qa_children(parent_keys):
         for si in issues:
             f = si.get("fields") or {}
             pk = (f.get("parent") or {}).get("key")
-            if pk in found and is_qa_ticket((f.get("issuetype") or {}).get("name"), f.get("summary"), f.get("labels")):
+            if pk not in found:
+                continue
+            if is_qa_ticket((f.get("issuetype") or {}).get("name"), f.get("summary"), f.get("labels")) or (me and _reported_by(si, me)):
                 found[pk].append(si)
     return found
 
@@ -518,9 +578,15 @@ def _main(ts):
         if pk:
             children_by_parent.setdefault(pk, []).append(issues[key])
 
-    # ── 4. Only closed work belongs in the archive (and never an excluded project).
+    # ── 4. Closed work belongs in the archive (never an excluded project) — and so does work taken
+    # from me while it is still open with someone else, or it would vanish from the board and the
+    # archive alike the day it left me (see the module docstring).
+    me = my_identity()
     done_keys = [k for k, i in issues.items() if is_done(i) and not is_excluded(k)]
-    done_keys.sort(key=lambda k: (issues[k].get("fields") or {}).get("resolutiondate") or "", reverse=True)
+    if me:
+        done_set = set(done_keys)
+        done_keys += [k for k in mine_keys if k not in done_set and not is_excluded(k) and not _assigned_to_me(issues[k], me)]
+    done_keys.sort(key=lambda k: ((issues[k].get("fields") or {}).get("resolutiondate") or (issues[k].get("fields") or {}).get("updated") or ""), reverse=True)
 
     # ── 5. Every menu action is an explicit refresh of its result set: Jira is the source of
     # truth, so every matching ticket is rebuilt. The cached row is always loaded: it is the
@@ -534,7 +600,7 @@ def _main(ts):
     # Only top-level tickets can have sub-tasks, so a sub-ticket row is not asked.
     set_progress("archive", done=0, total=total, phase="qa", pct=5)
     qa_by_parent = fetch_qa_children(
-        k for k in stale if not ((issues[k].get("fields") or {}).get("parent") or {}).get("key")
+        (k for k in stale if not ((issues[k].get("fields") or {}).get("parent") or {}).get("key")), me=me
     )
     # `mine` per rebuilt key — the scoped search result is not a membership set (see mine_flags).
     set_progress("archive", done=0, total=total, phase="membership", pct=5)
@@ -584,6 +650,7 @@ def _main(ts):
                 pr_overrides, mine_by_key.get(key, key in mine_keys),
                 inherit_details=not clean_rebuild,
                 qa_children=qa_by_parent.get(key),
+                me=me,
             )
             carry_vuln_fixes(ticket, priors.get(key), vuln_known)
             atomic_write(os.path.join(CACHE, f"{key}.json"), dumps(ticket))
@@ -629,12 +696,14 @@ def _main(ts):
     mine_count = sum(1 for r in completed if r.get("mine"))
     context_count = len(completed) - mine_count
     sub_count = sum(1 for r in completed if r.get("parentKey"))
+    taken_count = sum(1 for r in completed if r.get("takenFromMe") and not r.get("parentKey"))
     note = (
         f"**{ts}** — Completed-archive intern: **{len(completed)}** rows "
         f"({mine_count} mine + {context_count} parent tickets I have a sub-ticket under; "
         f"{sub_count} of the rows are sub-tickets). {len(newly_cached)} rebuilt this run, "
         f"{len(done_keys) - len(stale)} skipped over maxFetch, {len(failed)} failed. "
-        f"Jira dev-status; merged completed[] — tickets[] untouched. "
+        + (f"{taken_count} taken from me (un-assigned, reassigned, called off or PR declined). " if taken_count else "")
+        + "Jira dev-status; merged completed[] — tickets[] untouched. "
         + (f"raised[] refreshed ({raised_count})." if raised_ok else "raised[] carried forward (search failed).")
     )
     prepend_status(note)
@@ -646,6 +715,7 @@ def _main(ts):
         "mine": mine_count,
         "context_parents": context_count,
         "subtasks": sub_count,
+        "taken_from_me": taken_count,
         "with_prs": sum(1 for r in completed if r.get("prs")),
         "universe_scanned": len(issues),
         "rebuilt_this_run": len(newly_cached),

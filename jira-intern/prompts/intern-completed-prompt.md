@@ -67,6 +67,18 @@ completed[] therefore holds:
     created/resolved, and its real pr/prs[]/branches[].
   Full comments are worth an extra request for my own tickets; for a context parent the inline comment
   page that came free with the search is enough.
+  • Every ticket TAKEN FROM ME — ever assigned to me, and now un-assigned, given to someone else, called off,
+    or its PRs declined — as its own row with `takenFromMe` (shape: src/types.ts::TakenFromMe; the rules are
+    jira-intern/taken.py — read it). Keep such a ticket EVEN WHILE IT IS STILL OPEN with someone else, with its
+    real `column` and `done: false`: otherwise it vanishes from the board and the archive the day it leaves me.
+    Read who "me" is from /rest/api/2/myself (the changelog names people by user KEY). The reasons, first match is
+    `reason`, all that apply are `reasons`: cancelled (a cancel-type resolution/status) · pr-declined (my PRs
+    declined, none merged) · backlog (someone else un-assigned it) · taken-over (someone else gave it to another
+    person after it was In Progress / In Review on my name) · reassigned (… while it was still To Do) · released
+    (I un-assigned myself before QA). NOT taken: still mine and delivered, or it left me at QA / Done (the normal
+    hand-off) — no `takenFromMe` then. `why` is the comment by someone else written when it left me (prefer the
+    person who moved it; `byMover` says which) — quote it, never invent a reason. Nest the sub-tickets I RAISED
+    under their parent too (`mine: false` when someone else does them).
 
 PER-TICKET CACHE (resumable across weekly runs):
   • If cache/<KEY>.json exists and carries the current `schema` number, REUSE it (done tickets are immutable).

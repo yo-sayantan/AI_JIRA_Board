@@ -9,9 +9,16 @@ code does now, so a reader can check them against the tree.
   state (status · PR), ticket (priority · type), related work (sub-tasks done · QA state, coloured by progress) and release
   (fix versions) — as wide as their content but sharing one height, padding and icon slot (priority lost its tile so the left
   edges line up). Contrast is at least 4.5:1 on every pill (white text on a filled pill had been 2:1 for Done / open PR;
-  "Medium" was 2.5:1). The PR readiness and AI banners now share one frame and colour code (`ticket/Banner.tsx`). A click opens the ticket in Jira (where those values change) or the PR in Bitbucket, and the pill sinks under the
-  press. Section icons now take the colour of what the section is instead of the ticket's column colour, and Pull request
+  "Medium" was 2.5:1). The PR readiness and AI banners now share one frame and colour code (`ticket/Banner.tsx`).
+  Section icons now take the colour of what the section is instead of the ticket's column colour, and Pull request
   has its own PR glyph instead of the branch icon.
+- **Completed: Taken from you.** A ticket assigned to you and then un-assigned for another team, given to someone else,
+  called off, or whose PR was declined, now shows in Completed with the reason, who moved it and when, the comment
+  written then, and the work you had put in — instead of vanishing (an open one left the board the day it was
+  un-assigned, and the archive kept only closed tickets). Filter by **Taken from you** and by reason; these are never
+  counted as done. The normal QA hand-off is not "taken". `jira-intern/taken.py` decides from the changelog (people by
+  user key, read from `/rest/api/2/myself`), the resolution (now fetched), PRs and comments; sub-tickets you raised are
+  nested under their parent. Also: `tests/test_archive.py` no longer calls Jira (it refreshed raised[] for real).
 - **Move notifications are reliable, and Undo stays long enough to press.** Every move's notification has its Undo, and a
   refused one its Move anyway — and those now come first: they never wait behind progress notices (the refresh a move
   starts no longer posts "Fetching… / updated" toasts at all unless it fails), they push out the oldest plain notification

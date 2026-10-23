@@ -1,7 +1,7 @@
 # JIRA-AI-Intern — queue worker + tiny HTTP API.
 # Talks to Ollama (compose service or host) or a cloud chat API. Writes reports
 # and briefs onto the shared jira-intern volume for the board to render.
-FROM python:3.12-slim
+FROM python:3.14-slim
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

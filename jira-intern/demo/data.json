@@ -4696,6 +4696,297 @@
           "text": "Opened"
         }
       ]
+    },
+    {
+      "key": "DEMO-195",
+      "title": "Move the export service to the new build pipeline",
+      "project": "DEMO",
+      "status": "To Do",
+      "type": "Story",
+      "priority": "Medium",
+      "storyPoints": 8,
+      "created": "2026-09-10T09:00:00Z",
+      "resolved": null,
+      "lastUpdate": "2026-10-06T15:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-195",
+      "assignee": null,
+      "reporter": "Priya Raman (LEAD1)",
+      "labels": [
+        "demo"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "mine": true,
+      "prs": [
+        {
+          "state": "comments",
+          "id": 461,
+          "url": "https://bitbucket.example.com/projects/DEMO/repos/demo-service/pull-requests/461",
+          "approvals": 1,
+          "openComments": 2,
+          "repo": "demo-service",
+          "author": "demo.user",
+          "merged": false,
+          "title": "feature/DEMO-461 → main"
+        }
+      ],
+      "pr": {
+        "state": "comments",
+        "id": 461,
+        "url": "https://bitbucket.example.com/projects/DEMO/repos/demo-service/pull-requests/461",
+        "approvals": 1,
+        "openComments": 2,
+        "repo": "demo-service",
+        "author": "demo.user",
+        "merged": false,
+        "title": "feature/DEMO-461 → main"
+      },
+      "takenFromMe": {
+        "reason": "backlog",
+        "reasons": [
+          "backlog"
+        ],
+        "when": "2026-10-06T15:00:00Z",
+        "by": "Priya Raman (LEAD1)",
+        "byMe": false,
+        "to": null,
+        "statusThen": "To Do",
+        "stillMine": false,
+        "resolution": null,
+        "worked": true,
+        "workedOn": [
+          "PR #461 — comments",
+          "In Progress on your name",
+          "3 comments by you",
+          "2 sub-tickets you raised"
+        ],
+        "declinedPrs": [],
+        "why": {
+          "author": "Priya Raman (LEAD1)",
+          "when": "2026-10-06T15:05:00Z",
+          "text": "Great work so far — we have to stop the pipeline move for now; the platform team will pick it up next PI.",
+          "byMover": true
+        }
+      },
+      "column": "todo",
+      "done": false
+    },
+    {
+      "key": "DEMO-193",
+      "title": "Retry failed webhook deliveries",
+      "project": "DEMO",
+      "status": "Done",
+      "type": "Bug",
+      "priority": "Medium",
+      "storyPoints": 5,
+      "created": "2026-08-20T09:00:00Z",
+      "resolved": "2026-09-04T09:00:00Z",
+      "lastUpdate": "2026-08-27T10:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-193",
+      "assignee": "Marta Lindqvist (DEV02)",
+      "reporter": "Priya Raman (LEAD1)",
+      "labels": [
+        "demo"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "mine": true,
+      "prs": [],
+      "pr": {
+        "state": "none"
+      },
+      "takenFromMe": {
+        "reason": "taken-over",
+        "reasons": [
+          "taken-over"
+        ],
+        "when": "2026-08-27T10:00:00Z",
+        "by": "Priya Raman (LEAD1)",
+        "byMe": false,
+        "to": "Marta Lindqvist (DEV02)",
+        "statusThen": "In Progress",
+        "stillMine": false,
+        "resolution": "Done",
+        "worked": true,
+        "workedOn": [
+          "In Progress on your name",
+          "1 comment by you"
+        ],
+        "declinedPrs": [],
+        "why": {
+          "author": "Priya Raman (LEAD1)",
+          "when": "2026-08-27T10:10:00Z",
+          "text": "You are out next week, so Marta will finish this one.",
+          "byMover": true
+        }
+      }
+    },
+    {
+      "key": "DEMO-191",
+      "title": "Write the runbook for the nightly export",
+      "project": "DEMO",
+      "status": "Done",
+      "type": "Task",
+      "priority": "Medium",
+      "storyPoints": 2,
+      "created": "2026-07-01T09:00:00Z",
+      "resolved": "2026-07-20T09:00:00Z",
+      "lastUpdate": "2026-07-03T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-191",
+      "assignee": "Rahul Okafor (QA01)",
+      "reporter": "Priya Raman (LEAD1)",
+      "labels": [
+        "demo"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "mine": true,
+      "prs": [],
+      "pr": {
+        "state": "none"
+      },
+      "takenFromMe": {
+        "reason": "reassigned",
+        "reasons": [
+          "reassigned"
+        ],
+        "when": "2026-07-03T09:00:00Z",
+        "by": "Priya Raman (LEAD1)",
+        "byMe": false,
+        "to": "Rahul Okafor (QA01)",
+        "statusThen": "To Do",
+        "stillMine": false,
+        "resolution": "Done",
+        "worked": false,
+        "workedOn": [],
+        "declinedPrs": [],
+        "why": null
+      }
+    },
+    {
+      "key": "DEMO-183",
+      "title": "CSV export: column picker",
+      "project": "DEMO",
+      "status": "Done",
+      "type": "Story",
+      "priority": "Medium",
+      "storyPoints": 5,
+      "created": "2025-11-03T09:00:00Z",
+      "resolved": "2026-02-10T09:00:00Z",
+      "lastUpdate": "2026-01-12T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-183",
+      "assignee": null,
+      "reporter": "Priya Raman (LEAD1)",
+      "labels": [
+        "demo"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "mine": true,
+      "prs": [],
+      "pr": {
+        "state": "none"
+      },
+      "takenFromMe": {
+        "reason": "cancelled",
+        "reasons": [
+          "cancelled",
+          "backlog"
+        ],
+        "when": "2026-01-12T09:00:00Z",
+        "by": "Priya Raman (LEAD1)",
+        "byMe": false,
+        "to": null,
+        "statusThen": "To Do",
+        "stillMine": false,
+        "resolution": "Cancelled",
+        "worked": false,
+        "workedOn": [],
+        "declinedPrs": [],
+        "why": {
+          "author": "Rahul Okafor (QA01)",
+          "when": "2026-02-10T09:00:00Z",
+          "text": "Archiving this story due to age and lack of prioritisation.",
+          "byMover": false
+        }
+      }
+    },
+    {
+      "key": "DEMO-179",
+      "title": "Cache the report totals in Redis",
+      "project": "DEMO",
+      "status": "Done",
+      "type": "Story",
+      "priority": "Medium",
+      "storyPoints": 5,
+      "created": "2025-09-08T09:00:00Z",
+      "resolved": "2025-10-02T09:00:00Z",
+      "lastUpdate": "2025-10-02T09:00:00Z",
+      "url": "https://jira.example.com/browse/DEMO-179",
+      "assignee": "Demo User (DEMO)",
+      "reporter": "Priya Raman (LEAD1)",
+      "labels": [
+        "demo"
+      ],
+      "components": [
+        "demo-service"
+      ],
+      "mine": true,
+      "prs": [
+        {
+          "state": "declined",
+          "id": 352,
+          "url": "https://bitbucket.example.com/projects/DEMO/repos/demo-service/pull-requests/352",
+          "approvals": 0,
+          "openComments": 0,
+          "repo": "demo-service",
+          "author": "demo.user",
+          "merged": false,
+          "title": "feature/DEMO-352 → main"
+        }
+      ],
+      "pr": {
+        "state": "declined",
+        "id": 352,
+        "url": "https://bitbucket.example.com/projects/DEMO/repos/demo-service/pull-requests/352",
+        "approvals": 0,
+        "openComments": 0,
+        "repo": "demo-service",
+        "author": "demo.user",
+        "merged": false,
+        "title": "feature/DEMO-352 → main"
+      },
+      "takenFromMe": {
+        "reason": "pr-declined",
+        "reasons": [
+          "pr-declined"
+        ],
+        "when": "2025-10-02T09:00:00Z",
+        "by": null,
+        "byMe": false,
+        "to": null,
+        "statusThen": null,
+        "stillMine": true,
+        "resolution": "Done",
+        "worked": true,
+        "workedOn": [
+          "PR #352 — declined",
+          "4 comments by you"
+        ],
+        "declinedPrs": [
+          "PR #352"
+        ],
+        "why": {
+          "author": "Priya Raman (LEAD1)",
+          "when": "2025-10-01T16:00:00Z",
+          "text": "Declining — priorities changed; we will keep the totals in the database for now.",
+          "byMover": false
+        }
+      }
     }
   ],
   "raised": [

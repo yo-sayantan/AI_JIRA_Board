@@ -143,11 +143,19 @@ differ. It travels with the brief wherever `aiSummary` is carried forward (`buil
 ```
 search: (assignee WAS currentUser() OR assignee = currentUser()) [+ scope]  → my keys
   → fetch each sub-task's PARENT (lineage only, marked mine:false)
+  → /rest/api/2/myself → who "me" is (the changelog names people by user KEY; config identity as fallback)
+  → rows: every CLOSED key + every key of mine that is OPEN and no longer assigned to me (taken from me)
+  → one `parent in (…)` search per 100 parents: QA sub-tasks + sub-tickets I raised (nested, mine:false)
   → dev-status batch → build rows in parallel → cache/<KEY>.json
+       each row of mine: takenFromMe = taken.analyse(changelog, resolution, PRs, comments) — None when not taken;
+       identity unknown → the cached verdict is carried forward
   → assemble() → scoped: upsert_completed() | full: merge_completed_only()   (tickets[] untouched)
   → _refresh_raised(): raised[] rides along (sets raisedAt)
 ```
 Flushes partial results every `FLUSH_EVERY` rows so a long rebuild shows progress on the board.
+A row taken from me that is still open keeps its real `column` and `done: false` (`completed_entry`), and sorts by the
+day it left me (`_row_date`). Such a ticket leaves `tickets[]` (it is no longer assigned to me) and reappears here on
+the next archive rebuild. Older rows get `takenFromMe` on that rebuild too (SCHEMA 6).
 
 ### 3. Raised refresh — `daily_fetch.py --raised` (via `refresh-raised.sh`, the view's button)
 
