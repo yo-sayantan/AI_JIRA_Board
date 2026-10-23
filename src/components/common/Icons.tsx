@@ -57,8 +57,31 @@ export function RefreshIcon({ size = 16, className = '', color }: IP) {
  *   4 High      single chevron up   orange      1 Lowest   double chevron down  sky
  *   0 None      a quiet grey dot
  */
-export function PriorityIcon({ rank, color, size = 15 }: { rank: number; color: string; size?: number }) {
+export function PriorityIcon({ rank, color, size = 15, bare = false }: { rank: number; color: string; size?: number; bare?: boolean }) {
   const c = (width: number) => ({ fill: 'none', stroke: color, strokeWidth: width, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const })
+  // `bare`: the glyph alone, no tile behind it — for a pill, where the other icons are bare line glyphs too and a tile
+  // would sit inset from the pill's edge and break the row's even margins.
+  if (bare) {
+    return (
+      <svg width={px(size)} height={px(size)} viewBox="0 0 24 24" aria-hidden>
+        {rank >= 6 ? (
+          <>
+            <path d="M12 4.5v9" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" />
+            <circle cx="12" cy="18.6" r="1.9" fill={color} />
+          </>
+        ) : (
+          <>
+            {rank === 5 && <path d="M5.5 11.5l6.5-6 6.5 6M5.5 18.5l6.5-6 6.5 6" {...c(2.8)} />}
+            {rank === 4 && <path d="M5.5 15.5l6.5-6.5 6.5 6.5" {...c(2.8)} />}
+            {rank === 3 && <path d="M6 12h12" {...c(3)} />}
+            {rank === 2 && <path d="M5.5 9l6.5 6.5L18.5 9" {...c(2.8)} />}
+            {rank === 1 && <path d="M5.5 5.5l6.5 6 6.5-6M5.5 12.5l6.5 6 6.5-6" {...c(2.8)} />}
+            {rank <= 0 && <circle cx="12" cy="12" r="3" fill={color} />}
+          </>
+        )}
+      </svg>
+    )
+  }
   return (
     <svg width={px(size)} height={px(size)} viewBox="0 0 24 24" aria-hidden>
       {rank >= 6 ? (

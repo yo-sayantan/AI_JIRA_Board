@@ -2,9 +2,11 @@ import { useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { AnimatePresence, motion, useDragControls, type PanInfo } from 'motion/react'
 import type { Ticket, LinkRef, Comment, PullRequest } from '../../types'
 import { COLUMN_META } from '../../lib/columns'
-import { fmtDate, fmtDateTime, relTime, prMeta, isMergedPr, isClosedPr, prListOf, primaryPrOf, prCommentStats, branchesOf, branchStatusOf, typeMeta, effectiveType, isAssignedToMe, cycleTime, fmtDays, unwrapBrief } from '../../lib/format'
-import { Pill, StatusBadge, PriorityBadge, TypeBadge, PrBadge, Approvals, PointsTag, CopyButton, SafeHtml, ExternalLink, safeHref } from '../common/ui'
+import { fmtDate, fmtDateTime, relTime, prMeta, primaryPrOf, isMergedPr, isClosedPr, prListOf, prCommentStats, branchesOf, branchStatusOf, typeMeta, effectiveType, isAssignedToMe, cycleTime, fmtDays, unwrapBrief } from '../../lib/format'
+import { Pill, StatusBadge, PrBadge, Approvals, PointsTag, CopyButton, SafeHtml, ExternalLink, safeHref } from '../common/ui'
 import { BranchCards } from './BranchCards'
+import { HeaderPills } from './HeaderPills'
+import { BANNER_FRAME, BANNER_HUE, BannerHead, BannerIcon, BannerMeta, bannerStyle } from './Banner'
 import { TakenBanner } from '../completed/TakenBanner'
 import { Pipeline } from './Pipeline'
 import { ProofPanel, proofCount } from './Proof'
@@ -13,6 +15,7 @@ import { toneColor, type PrReportSummary } from '../../lib/reportTypes'
 import { APP_CONFIG } from '../../lib/appConfig'
 import {
   ChevronIcon,
+  PrStateIcon,
   RefreshIcon,
   TypeIcon,
   ClockIcon,
@@ -47,6 +50,30 @@ function glassChip(color: string): CSSProperties {
   return { borderColor: tint(color, 0.45), backgroundImage: `var(--glass-sheen), linear-gradient(${tint(color, 0.07)}, ${tint(color, 0.07)})` }
 }
 
+/**
+ * Each drawer section's icon colour says what the section IS, not which column the ticket is in (that used to tint every
+ * icon the same). Hues the board already uses for those things — sub-tickets sky, branches indigo (the branch cards), PRs
+ * purple, acceptance green, Confluence Atlassian blue — and quieter greys for the reference sections lower down, so the
+ * sections that decide the work read first.
+ */
+export const SECTION_HUE = {
+  description: '#64748b',
+  criteria: '#22c55e',
+  subtasks: '#0ea5e9',
+  prs: '#a855f7',
+  branches: '#6d7cff',
+  proof: '#14b8a6',
+  comments: '#3b82f6',
+  solution: '#f97316',
+  effort: '#f59e0b',
+  questions: '#f43f5e',
+  related: '#06b6d4',
+  docs: '#2684ff',
+  external: '#10b981',
+  log: '#8b94a8',
+  sources: '#94a3b8',
+} as const
+
 function PrReportButton({
   ticketKey,
   report,
@@ -64,21 +91,16 @@ function PrReportButton({
   onOpen?: (key: string) => void
   onGenerate?: (key: string) => void
 }) {
-  const ai = '#a855f7'
+  const ai = BANNER_HUE.ai
   if (generating) {
     return (
-      <div
-        className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border px-3.5 py-2.5 text-[12.5px]"
-        style={{ borderColor: tint(ai, 0.4), background: tint(ai, 0.08) }}
-        role="status"
-      >
-        <motion.span className="inline-flex" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}>
-          <RefreshIcon size={13} color={lift(ai)} />
-        </motion.span>
-        <span className="font-bold" style={{ color: lift(ai) }}>
-          AI intern working…
-        </span>
-        <span className="text-[var(--muted)]"></span>
+      <div className={`${BANNER_FRAME} flex items-center gap-3 px-3.5 py-2.5`} style={bannerStyle(ai)} role="status">
+        <BannerIcon hue={ai}>
+          <motion.span className="inline-flex" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}>
+            <RefreshIcon size={14} color={lift(ai)} />
+          </motion.span>
+        </BannerIcon>
+        <BannerHead hue={ai} label="PR readiness report" title="AI intern working…" />
       </div>
     )
   }
@@ -88,29 +110,29 @@ function PrReportButton({
     const when = report.enrichedAt ?? report.generatedAt
     return (
       <div className="mb-4 flex items-stretch gap-1.5">
+        {/* This one IS a button — it opens the report — so it keeps the interactive glass; the frame is the family's. */}
         <button
           type="button"
           onClick={() => onOpen?.(ticketKey)}
           disabled={loading}
-          className="glass-interactive flex min-w-0 flex-1 flex-wrap items-center gap-2.5 rounded-xl border bg-[var(--surface-solid)] px-3.5 py-2.5 text-left card-shadow disabled:opacity-70"
-          style={{ borderColor: tint(c, 0.45), backgroundImage: `var(--glass-sheen), linear-gradient(135deg, ${tint(c, 0.1)}, ${tint(c, 0.02)})` }}
+          className="glass-interactive flex min-w-0 flex-1 items-center gap-3 rounded-xl border bg-[var(--surface-solid)] px-3.5 py-2.5 text-left card-shadow disabled:opacity-70"
+          style={bannerStyle(c)}
           title={v?.headline ?? 'Open the PR readiness report'}
         >
-          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: c }} />
-          <span className="text-[12.5px] font-extrabold" style={{ color: lift(c) }}>
-            PR Readiness Report
-          </span>
-          {v && (
-            <span className="rounded-full px-2 py-[2px] text-[10.5px] font-bold" style={{ color: lift(c), background: tint(c, 0.18) }}>
-              {v.label}
-            </span>
-          )}
-          {typeof v?.score === 'number' && <span className="text-[11px] font-bold tabular-nums text-[var(--ink-soft)]">{v.score}/100</span>}
-          <span className="ml-auto text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
+          <BannerIcon hue={c}>
+            <span className="inline-block h-3 w-3 rounded-full" style={{ background: c, boxShadow: `0 0 0 3px ${tint(c, 0.22)}` }} />
+          </BannerIcon>
+          <BannerHead
+            hue={c}
+            label="PR readiness report"
+            title={v?.label ?? 'Open the report'}
+            chips={typeof v?.score === 'number' ? <span className="rounded-full px-2 py-[2px] text-[10.5px] font-bold tabular-nums" style={{ color: lift(c), background: tint(c, 0.16) }}>{v.score}/100</span> : undefined}
+          />
+          <BannerMeta>
             {report.enriched ? 'AI-enriched' : 'derived'}
             {when ? ` · ${fmtDate(when, report.timeZone ?? APP_CONFIG.timeZone)}` : ''}
-          </span>
-          <ChevronIcon size={11} className="text-[var(--muted)]" />
+          </BannerMeta>
+          <ChevronIcon size={11} className="shrink-0 text-[var(--muted)]" />
         </button>
         {served && onGenerate && (
           <button
@@ -132,15 +154,15 @@ function PrReportButton({
       <button
         type="button"
         onClick={() => onGenerate(ticketKey)}
-        className="mb-4 flex w-full flex-wrap items-center gap-2 rounded-xl border border-dashed px-3.5 py-2.5 text-left text-[12.5px] transition-colors hover:bg-[var(--surface-2)]"
-        style={{ borderColor: tint(ai, 0.5) }}
+        className={`${BANNER_FRAME} glass-interactive flex w-full items-center gap-3 px-3.5 py-2.5 text-left`}
+        style={bannerStyle(ai, { dashed: true })}
         title="Build the PR readiness report for this ticket in the background"
       >
-        <SparkleIcon size={13} color={lift(ai)} />
-        <span className="font-bold" style={{ color: lift(ai) }}>
-          Generate PR readiness report
-        </span>
-        <span className="text-[var(--muted)]">verdict · evidence · change assessment · risks · open scope — runs in the background</span>
+        <BannerIcon hue={ai}>
+          <SparkleIcon size={14} color={lift(ai)} />
+        </BannerIcon>
+        <BannerHead hue={ai} label="PR readiness report" title="Generate the report" />
+        <BannerMeta>verdict · evidence · risks · open scope</BannerMeta>
       </button>
     )
   }
@@ -289,17 +311,8 @@ export function TicketDetail({
             </button>
           </div>
 
-          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-            <StatusBadge column={ticket.column} label={ticket.status} />
-            <PriorityBadge priority={ticket.priority} />
-            <TypeBadge type={effectiveType(ticket)} />
-            <PrBadge state={primaryPrOf(ticket)?.state} />
-            {ticket.fixVersions?.map((v) => (
-              <Pill key={v} color="#8b5cf6" title={`Fix version: ${v}`}>
-                {v}
-              </Pill>
-            ))}
-          </div>
+          {/* One size for every pill, each a real link (Jira for its values, Bitbucket for the PR), with depth. */}
+          <HeaderPills ticket={ticket} />
         </div>
 
         {/* scroll body */}
@@ -402,18 +415,13 @@ export function TicketDetail({
               DEEP brief (light HTML: linked docs, related tickets, PR/code state, attachments);
               others a short plain paragraph. SafeHtml renders both (and sanitizes). */}
           {briefsEnabled !== false && ticket.aiSummary && ticket.column !== 'done' && (
-            <div
-              className="mb-4 overflow-hidden rounded-xl border border-[#7c3aed]/30 bg-[var(--surface-solid)] card-shadow"
-              style={{ backgroundImage: `var(--glass-sheen), linear-gradient(135deg, ${tint('#7c3aed', 0.07)}, ${tint('#6366f1', 0.025)})` }}
-            >
-              <div className="flex items-center gap-2 border-b border-[#7c3aed]/20 px-3.5 py-2">
-                <SparkleIcon color={lift('#a855f7')} size={14} />
-                <span className="text-[12px] font-bold text-[#a855f7] dark:text-[#c084fc]">
-                  {ticket.column === 'todo' || ticket.column === 'prog' ? 'AI Brief' : 'AI Summary'}
-                </span>
-                <span className="ml-auto text-[10px] font-medium uppercase tracking-wide text-[var(--muted)]">
-                  auto-generated{ticket.aiSummaryAt ? ` · ${fmtDate(ticket.aiSummaryAt)}` : ''}
-                </span>
+            <div className={`${BANNER_FRAME} overflow-hidden`} style={bannerStyle(BANNER_HUE.ai)}>
+              <div className="flex items-center gap-3 border-b px-3.5 py-2" style={{ borderColor: tint(BANNER_HUE.ai, 0.2) }}>
+                <BannerIcon hue={BANNER_HUE.ai}>
+                  <SparkleIcon color={lift(BANNER_HUE.ai)} size={14} />
+                </BannerIcon>
+                <BannerHead hue={BANNER_HUE.ai} label="Written by the AI intern" title={ticket.column === 'todo' || ticket.column === 'prog' ? 'AI Brief' : 'AI Summary'} />
+                <BannerMeta>auto-generated{ticket.aiSummaryAt ? ` · ${fmtDate(ticket.aiSummaryAt)}` : ''}</BannerMeta>
               </div>
               <SafeHtml html={unwrapBrief(ticket.aiSummary)} className="px-3.5 py-3 text-[13.5px] leading-relaxed text-[var(--ink-soft)]" />
             </div>
@@ -421,21 +429,21 @@ export function TicketDetail({
 
           {/* 2. Description — full detail */}
           {ticket.description && (
-            <Section title="Description" icon={<DocIcon color={lift(accent)} size={14} />} accent={accent} defaultOpen={false}>
+            <Section title="Description" icon={<DocIcon color={lift(SECTION_HUE.description)} size={14} />} accent={SECTION_HUE.description} defaultOpen={false}>
               <SafeHtml html={ticket.description} />
             </Section>
           )}
 
           {/* 3. Acceptance criteria — definition of done */}
           {ticket.acceptanceCriteria && ticket.acceptanceCriteria.length > 0 && (
-            <Section title="Acceptance criteria" icon={<CheckIcon color={lift(accent)} size={14} />} accent={accent} count={ticket.acceptanceCriteria.length}>
-              <AcceptanceChecklist storageKey={ticket.key} items={ticket.acceptanceCriteria} accent={accent} />
+            <Section title="Acceptance criteria" icon={<CheckIcon color={lift(SECTION_HUE.criteria)} size={14} />} accent={SECTION_HUE.criteria} count={ticket.acceptanceCriteria.length}>
+              <AcceptanceChecklist storageKey={ticket.key} items={ticket.acceptanceCriteria} accent={SECTION_HUE.criteria} />
             </Section>
           )}
 
           {/* 4. Sub-tasks — work breakdown */}
           {ticket.subtasks && ticket.subtasks.length > 0 && (
-            <Section title="Sub-tasks" icon={<TypeIcon type="sub-task" color={lift(accent)} size={14} />} accent={accent} count={ticket.subtasks.length}>
+            <Section title="Sub-tasks" icon={<TypeIcon type="sub-task" color={lift(SECTION_HUE.subtasks)} size={14} />} accent={SECTION_HUE.subtasks} count={ticket.subtasks.length}>
               <SubtaskTree root={ticket} onOpen={onOpen} user={user} />
             </Section>
           )}
@@ -444,8 +452,8 @@ export function TicketDetail({
           {prs.length > 0 && (
             <Section
               title={prs.length > 1 ? 'Pull requests' : 'Pull request'}
-              icon={<BranchIcon color={lift(accent)} size={14} />}
-              accent={accent}
+              icon={<PrStateIcon state={primaryPrOf(ticket)?.state} color={lift(SECTION_HUE.prs)} size={14} />}
+              accent={SECTION_HUE.prs}
               count={prs.length > 1 ? prs.length : undefined}
             >
               <div className="flex flex-col gap-2.5">
@@ -460,8 +468,8 @@ export function TicketDetail({
           {branches.length > 0 && (
             <Section
               title={branches.length > 1 ? 'Branches' : 'Branch'}
-              icon={<BranchIcon color={lift(accent)} size={14} />}
-              accent={accent}
+              icon={<BranchIcon color={lift(SECTION_HUE.branches)} size={14} />}
+              accent={SECTION_HUE.branches}
               count={branches.length > 1 ? branches.length : undefined}
             >
               <BranchCards branches={branches} stateOf={(b) => branchStatusOf(b, ticket)} />
@@ -470,14 +478,14 @@ export function TicketDetail({
 
           {/* 6b. Proof — measured outside Jira: Checkmarx vulnerability fixes, latest Jenkins build per environment, what Dynatrace says about the ticket's links (more sources join in Proof.tsx) */}
           {proofCount(ticket) > 0 && (
-            <Section title="Proof" icon={<FlaskIcon color={lift(accent)} size={14} />} accent={accent} count={proofCount(ticket)}>
+            <Section title="Proof" icon={<FlaskIcon color={lift(SECTION_HUE.proof)} size={14} />} accent={SECTION_HUE.proof} count={proofCount(ticket)}>
               <ProofPanel ticket={ticket} now={now} timeZone={APP_CONFIG.timeZone} />
             </Section>
           )}
 
           {/* 7. Comments — discussion, decisions, blockers */}
           {ticket.comments && ticket.comments.length > 0 && (
-            <Section title="Comments" icon={<CommentIcon color={lift(accent)} size={14} />} accent={accent} count={ticket.commentCount ?? ticket.comments.length} defaultOpen={false}>
+            <Section title="Comments" icon={<CommentIcon color={lift(SECTION_HUE.comments)} size={14} />} accent={SECTION_HUE.comments} count={ticket.commentCount ?? ticket.comments.length} defaultOpen={false}>
               <div className="flex flex-col gap-2.5">
                 {ticket.comments.map((c, i) => (
                   <CommentItem key={i} c={c} now={now} />
@@ -488,14 +496,14 @@ export function TicketDetail({
 
           {/* 8. Proposed solution — approach / analysis */}
           {ticket.proposedSolution && (
-            <Section title="Proposed solution / changes" icon={<WrenchIcon color={lift(accent)} size={14} />} accent={accent}>
+            <Section title="Proposed solution / changes" icon={<WrenchIcon color={lift(SECTION_HUE.solution)} size={14} />} accent={SECTION_HUE.solution}>
               <SafeHtml html={ticket.proposedSolution} />
             </Section>
           )}
 
           {/* 8b. Effort estimate — sizing / how long */}
           {(ticket.effortEstimate || ticket.estDays) && (
-            <Section title="Effort estimate" icon={<ClockIcon color={lift(accent)} size={14} />} accent={accent} defaultOpen={false}>
+            <Section title="Effort estimate" icon={<ClockIcon color={lift(SECTION_HUE.effort)} size={14} />} accent={SECTION_HUE.effort} defaultOpen={false}>
               {ticket.estDays && (
                 <div className="mb-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold" style={{ color: lift(accent), background: tint(accent, 0.12) }}>
                   <ClockIcon color={lift(accent)} size={12} /> {ticket.estDays}
@@ -507,7 +515,7 @@ export function TicketDetail({
 
           {/* 9. Open questions — unknowns to resolve */}
           {ticket.openQuestions && ticket.openQuestions.length > 0 && (
-            <Section title="Open questions" icon={<QuestionIcon color={lift(accent)} size={14} />} accent={accent} count={ticket.openQuestions.length}>
+            <Section title="Open questions" icon={<QuestionIcon color={lift(SECTION_HUE.questions)} size={14} />} accent={SECTION_HUE.questions} count={ticket.openQuestions.length}>
               <ul className="flex flex-col gap-1.5">
                 {ticket.openQuestions.map((q, i) => (
                   <li key={i} className="flex gap-2 text-[13px] text-[var(--ink-soft)]">
@@ -521,21 +529,21 @@ export function TicketDetail({
 
           {/* 10. Related tickets — linked context */}
           {ticket.related && ticket.related.length > 0 && (
-            <Section title="Related tickets" icon={<LinkIcon color={lift(accent)} size={14} />} accent={accent} count={ticket.related.length} defaultOpen={false}>
+            <Section title="Related tickets" icon={<LinkIcon color={lift(SECTION_HUE.related)} size={14} />} accent={SECTION_HUE.related} count={ticket.related.length} defaultOpen={false}>
               <LinkList items={ticket.related} />
             </Section>
           )}
 
           {/* 11. Confluence & docs — reference */}
           {ticket.confluence && ticket.confluence.length > 0 && (
-            <Section title="Confluence & docs" icon={<BookIcon color={lift(accent)} size={14} />} accent={accent} count={ticket.confluence.length}>
+            <Section title="Confluence & docs" icon={<BookIcon color={lift(SECTION_HUE.docs)} size={14} />} accent={SECTION_HUE.docs} count={ticket.confluence.length}>
               <RefCards items={ticket.confluence} />
             </Section>
           )}
 
           {/* 12. External links — reference */}
           {ticket.externalLinks && ticket.externalLinks.length > 0 && (
-            <Section title="External links" icon={<GlobeIcon color={lift(accent)} size={14} />} accent={accent} count={ticket.externalLinks.length} defaultOpen={false}>
+            <Section title="External links" icon={<GlobeIcon color={lift(SECTION_HUE.external)} size={14} />} accent={SECTION_HUE.external} count={ticket.externalLinks.length} defaultOpen={false}>
               <RefCards items={ticket.externalLinks} />
             </Section>
           )}
@@ -545,7 +553,7 @@ export function TicketDetail({
 
           {/* 14. Update log — status history + last updated */}
           {((ticket.updateLog && ticket.updateLog.length > 0) || ticket.lastUpdate) && (
-            <Section title="Update log" icon={<ClockIcon color={lift(accent)} size={14} />} accent={accent} count={ticket.updateLog?.length || undefined}>
+            <Section title="Update log" icon={<ClockIcon color={lift(SECTION_HUE.log)} size={14} />} accent={SECTION_HUE.log} count={ticket.updateLog?.length || undefined}>
               {ticket.lastUpdate && (
                 <div className="mb-2.5 text-[12px] text-[var(--muted)]">
                   Last updated <span className="font-semibold text-[var(--ink-soft)]">{fmtDateTime(ticket.lastUpdate)}</span> ({relTime(ticket.lastUpdate, now)})
@@ -557,7 +565,7 @@ export function TicketDetail({
 
           {/* 15. Sources — provenance (least useful) */}
           {ticket.sources && ticket.sources.length > 0 && (
-            <Section title="Sources" icon={<PaperclipIcon color={lift(accent)} size={14} />} accent={accent} count={ticket.sources.length} defaultOpen={false}>
+            <Section title="Sources" icon={<PaperclipIcon color={lift(SECTION_HUE.sources)} size={14} />} accent={SECTION_HUE.sources} count={ticket.sources.length} defaultOpen={false}>
               <LinkList items={ticket.sources} />
             </Section>
           )}

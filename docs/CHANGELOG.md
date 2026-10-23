@@ -5,6 +5,13 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Drawer header: organised status banners.** The pills are read-only summaries (no link, no press), in four groups —
+  state (status · PR), ticket (priority · type), related work (sub-tasks done · QA state, coloured by progress) and release
+  (fix versions) — as wide as their content but sharing one height, padding and icon slot (priority lost its tile so the left
+  edges line up). Contrast is at least 4.5:1 on every pill (white text on a filled pill had been 2:1 for Done / open PR;
+  "Medium" was 2.5:1). The PR readiness and AI banners now share one frame and colour code (`ticket/Banner.tsx`).
+  Section icons now take the colour of what the section is instead of the ticket's column colour, and Pull request
+  has its own PR glyph instead of the branch icon.
 - **Completed: Taken from you.** A ticket assigned to you and then un-assigned for another team, given to someone else,
   called off, or whose PR was declined, now shows in Completed with the reason, who moved it and when, the comment
   written then, and the work you had put in — instead of vanishing (an open one left the board the day it was

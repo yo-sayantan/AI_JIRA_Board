@@ -152,6 +152,25 @@ with breadcrumb depth and Esc closing only the top layer).
 `src/components/ticket/TicketDetail.tsx`, stack in `hooks/useDrawerStack.ts`; archive/raised rows
 are adapted via `completedToTicket` / `raisedToTicket` so one component renders all three.
 
+- **Header banners** (`ticket/HeaderPills.tsx`) — the at-a-glance summary of the ticket and its related work. They are READ,
+  not pressed: no link, no hover, no press response, no pointer cursor. Four groups with a hairline between them:
+  **state** (status · PR — filled, what decides the next step), **ticket** (priority · type), **related work**
+  (sub-tasks done, coloured by progress: none slate, some blue, all green · QA: Ready for QA / In validation teal, QA done
+  green, QA blocked red, "No QA ticket" amber when a ticket with code has none) and **release** (fix versions, violet).
+  Each pill's colour is its value's own, so a word is the same colour everywhere on the board. The width is the content's (a
+  short word is a short pill; a very long version truncates at 16rem, the full text is the tooltip) but the height, the
+  left / right padding and the icon slot (16px, 8px from the edge) are identical, so margins match. Each has its glyph
+  (the status pill shows its column's icon; priority is drawn without a tile). Contrast is guaranteed: a filled pill's
+  fill is darkened just enough for white text to clear 4.5:1 (`readableFill` — the pale Done / open-PR / QA fills were
+  ~2:1), and a tinted pill's label is half its colour, half the board's ink (Medium was 2.5:1, QA Task 3:1). Status and PR — what decides the next step — are filled; priority, type and version are tinted.
+  Depth is glass-style and at rest only — light from the top, a soft shadow in the pill's colour.
+- **Section icons** take the colour of what the section is (`SECTION_HUE` in `TicketDetail.tsx`: acceptance green,
+  sub-tickets sky, PRs purple with the PR-state glyph, branches indigo, proof teal, comments blue, Confluence Atlassian
+  blue …; reference sections like Update log and Sources in quiet greys), not the ticket's column colour.
+- **Banners** (`ticket/Banner.tsx`): PR readiness, the AI brief (and "Taken from you" once it lands) share one anatomy — a
+  neutral glass surface, a 3px rail in the banner's colour, an icon tile, a small-caps label saying what it is, then title
+  and chips, meta on the right — and one colour code: the report takes its verdict's tone, AI violet, taken orange. A
+  dashed frame is an offer ("Generate the report").
 - **Quick actions** (under the pipeline): a small round **refresh** button (re-fetches just this ticket in the background;
   it spins while it runs), **Copy link** (the ticket's Jira URL — pasted anywhere it opens the ticket; a row with no URL
   offers Copy ID instead), Open in Jira, one chip per PR, and Move to Completed on a Done ticket. All are glass chips: the
