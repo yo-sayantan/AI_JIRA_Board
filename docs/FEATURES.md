@@ -76,6 +76,14 @@ Near-full-screen overlay (gold trophy chip) listing every Done ticket ever assig
   Done — is not "taken". A **Taken from you** stat tile and filter chip (then one chip per reason) list just these; they
   are never counted in Tickets done, story points or the board's Completed count. The comment is labelled for what it is
   ("… wrote, when it moved" or "Next comment"), never as the reason itself. The ticket drawer shows the same banner.
+  **Spotting them.** Every taken row carries two pills in its title line, at every width: **why** it left you (Reassigned ·
+  Unassigned · Taken over · Called off · PR declined · Handed back) and **whether you worked on it** — "You worked on it" is a
+  SOLID green pill with a tick (a pull request, time In Progress on your name, comments or sub-tickets of yours), "No work of
+  yours" a HOLLOW, dashed, grey one. The row follows: orange-tinted with a solid frame when you worked on it, plain with a
+  dashed frame when you only ever held it. Under **Taken from you** the filter chips split the same way (You worked on it ·
+  No work of yours) and by reason. On the board, a "Taken from you N" chip beside the Completed button opens Completed already
+  filtered to them. The rows exist only after the archive is rebuilt (**Update completed**) — an ordinary Refresh does not
+  create them.
   Code: `jira-intern/taken.py`, `src/lib/taken.ts`, `completed/TakenBanner.tsx`; contract `TakenFromMe` in `src/types.ts`.
 - Code: `src/components/completed/Completed.tsx`, `jira-intern/completed_archive.py`,
   `header/ArchiveMenu.tsx`.

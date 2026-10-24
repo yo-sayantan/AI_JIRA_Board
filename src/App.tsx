@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import type { ColumnKey } from './types'
 import type { MoveTarget } from './lib/columns'
 import { RUN_COMMAND, aiModelLabel, enrichJobsRunning, isServed, setDemoMode, testApiKey } from './lib/runner'
+import { countTaken } from './lib/taken'
 import { countMyCompleted, countRaised, countTicketsWithPr, dashboardPrTickets, hasActiveWork, indexByKey, splitBoard, type BoardSections } from './lib/boardView'
 import { parseQuery } from './lib/search'
 import { useBoardData } from './hooks/useBoardData'
@@ -88,6 +89,8 @@ export default function App() {
     [refreshKeyHealth],
   )
   const [completedOpen, setCompletedOpen] = useState(false)
+  // Opened from the "taken from you" chip: Completed starts filtered to the tickets taken from me.
+  const [completedTaken, setCompletedTaken] = useState(false)
   const [raisedOpen, setRaisedOpen] = useState(false)
   const [query, setQuery] = useState('')
   // One selection drives the chip row: a column filters the board; null is "All" (the default).
@@ -145,6 +148,7 @@ export default function App() {
   const statTickets = useMemo(() => [...view.board, ...view.hold, ...(features.nextSprint ? view.nextSprint : [])], [view, features.nextSprint])
   const hasAnyActive = useMemo(() => hasActiveWork(data.tickets, now), [data.tickets, now])
   const myCompletedCount = useMemo(() => countMyCompleted(data), [data])
+  const takenCount = useMemo(() => countTaken(data.completed), [data.completed])
   const raisedCount = useMemo(() => countRaised(data), [data])
   const ticketsWithPr = useMemo(() => countTicketsWithPr(data), [data])
   const boardWithPr = useMemo(() => dashboardPrTickets(data.tickets), [data.tickets])
@@ -187,7 +191,10 @@ export default function App() {
       <ApiKeysDialog open={keysOpen} status={apiKeys.status} failed={apiKeys.failed} onClose={closeKeys} onRefresh={apiKeys.refresh} onSave={apiKeys.save} onTest={testKey} health={keyHealthShown} lastFetch={data.proofSources} />
     </ErrorBoundary>
   )
-  const openCompleted = useCallback(() => setCompletedOpen(true), [])
+  const openCompleted = useCallback((opts?: { taken?: boolean }) => {
+    setCompletedTaken(!!opts?.taken)
+    setCompletedOpen(true)
+  }, [])
   const closeCompleted = useCallback(() => setCompletedOpen(false), [])
   const openRaised = useCallback(() => setRaisedOpen(true), [])
   const closeRaised = useCallback(() => setRaisedOpen(false), [])
@@ -276,6 +283,7 @@ export default function App() {
         tickets={statTickets}
         hideBlocked={!features.blocked}
         completedCount={features.completedArchive ? myCompletedCount : null}
+        takenCount={features.completedArchive ? takenCount : null}
         raisedCount={features.raisedTickets && raisedCount.total > 0 ? raisedCount : null}
         active={sel}
         onSelect={setSel}
@@ -372,7 +380,7 @@ export default function App() {
       </ErrorBoundary>
 
       <ErrorBoundary label="the Completed archive" overlay onClose={closeCompleted}>
-        <CompletedOverlay open={completedOpen} onClose={closeCompleted} items={data.completed} onOpen={drawers.openTicket} pauseEsc={drawers.open} />
+        <CompletedOverlay open={completedOpen} onClose={closeCompleted} items={data.completed} onOpen={drawers.openTicket} pauseEsc={drawers.open} showTaken={completedTaken} />
       </ErrorBoundary>
 
       <ErrorBoundary label="Raised by me" overlay onClose={closeRaised}>

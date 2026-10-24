@@ -195,7 +195,10 @@ Collapsed by default. Expand to a compact list (number · name · status); each 
 **peek inline** (opened, closed, branch, PR/merged) without leaving the page, plus *Expand all*.
 Click a row for the full detail page.
 
-**Taken from you** — tickets that were yours and were taken away are listed too, with a coloured strip under the row:
+**Where to find them:** the board shows a **Taken from you** chip beside the gold Completed button (it appears once the
+archive has found any); click it to open Completed already filtered to them. Each such row has two pills — why it left
+you, and **You worked on it** (solid green) or **No work of yours** (hollow, dashed) — so you can tell a ticket you put
+work into from one you only held. **Taken from you** — tickets that were yours and were taken away are listed too, with a coloured strip under the row:
 the reason (called off, PR declined, back to the backlog, taken over mid-work, reassigned before you started, or you
 handed it back), who moved it and when, and the comment written then. Expand the row (or open it) for the full story,
 including what you had already done on it. The **Taken from you** tile or chip lists only these, then one chip per

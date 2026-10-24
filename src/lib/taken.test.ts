@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { CompletedTicket, TakenFromMe } from '../types'
 import { completedToTicket } from '../types'
-import { TAKEN_META, TAKEN_ORDER, matchesTaken, rowDate, takenCounts, takenLine, takenMeta, whyLabel } from './taken'
+import { TAKEN_META, TAKEN_ORDER, countTaken, matchesTaken, rowDate, takenCounts, takenLine, takenMeta, whyLabel, workLabel } from './taken'
 
 const t = (over: Partial<TakenFromMe>): TakenFromMe => ({ reason: 'backlog', reasons: ['backlog'], ...over })
 const row = (key: string, taken?: Partial<TakenFromMe> | null, extra: Partial<CompletedTicket> = {}): CompletedTicket => ({
@@ -38,6 +38,34 @@ describe('taken from me — words and colours', () => {
     expect(rows.filter((r) => matchesTaken(r, 'backlog')).map((r) => r.key)).toEqual(['A', 'B'])
     expect(rows.filter((r) => matchesTaken(r, 'any')).map((r) => r.key)).toEqual(['A', 'B'])
     expect(rows.filter((r) => matchesTaken(r, null))).toHaveLength(3)
+  })
+
+  it('tells a ticket I worked on from one I only held — in words, counts and the filter', () => {
+    const worked = row('A', { reason: 'taken-over', worked: true, workedOn: ['PR #61 — comments', 'In Progress on your name'] })
+    const held = row('B', { reason: 'reassigned', worked: false, workedOn: [] })
+    expect(workLabel(worked.takenFromMe!)).toEqual({ label: 'You worked on it', hint: 'PR #61 — comments · In Progress on your name' })
+    expect(workLabel(held.takenFromMe!).label).toBe('No work of yours')
+    expect(workLabel(held.takenFromMe!).hint).toMatch(/no pull request/i)
+    const c = takenCounts([worked, held, row('C')])
+    expect([c.total, c.worked, c.none]).toEqual([2, 1, 1])
+    const rows = [worked, held, row('C')]
+    expect(rows.filter((r) => matchesTaken(r, 'any', 'worked')).map((r) => r.key)).toEqual(['A'])
+    expect(rows.filter((r) => matchesTaken(r, 'any', 'none')).map((r) => r.key)).toEqual(['B'])
+    expect(rows.filter((r) => matchesTaken(r, null, 'none')).map((r) => r.key)).toEqual(['B']) // a work filter alone still means "taken"
+    expect(rows.filter((r) => matchesTaken(r, 'reassigned', 'worked'))).toEqual([]) // both must hold
+    expect(rows.filter((r) => matchesTaken(r, null, null))).toHaveLength(3)
+  })
+
+  it('counts the top-level tickets taken from me for the board — not sub-tickets, not context parents', () => {
+    const rows = [
+      row('A', { reason: 'backlog', worked: true }),
+      row('B', { reason: 'cancelled', worked: false }),
+      row('C', { reason: 'backlog', worked: true }, { parentKey: 'A' }),
+      row('D', { reason: 'backlog', worked: true }, { mine: false }),
+      row('E'),
+    ]
+    expect(countTaken(rows)).toEqual({ total: 2, worked: 1 })
+    expect(countTaken([])).toEqual({ total: 0, worked: 0 })
   })
 
   it('puts a row on the timeline at its close, else at the day it left me', () => {
