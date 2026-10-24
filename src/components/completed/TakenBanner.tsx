@@ -1,8 +1,56 @@
 import type { TakenFromMe } from '../../types'
 import { fmtDate } from '../../lib/format'
-import { takenLine, takenMeta, whyLabel } from '../../lib/taken'
+import { NO_WORK_COLOR, WORK_COLOR, takenLine, takenMeta, whyLabel, workLabel, workedOn } from '../../lib/taken'
 import { lift, tint } from '../../lib/tone'
-import { CommentIcon, MoveIcon } from '../common/Icons'
+import { CheckIcon, CommentIcon, MoveIcon } from '../common/Icons'
+import { readableFill } from '../ticket/HeaderPills'
+
+/**
+ * The two pills a taken row carries in its title line — visible at every width, so a taken ticket is spotted without
+ * opening anything:
+ *   · WHY it left you — the reason's colour, tinted (Reassigned · Unassigned · Taken over · Called off · PR declined…)
+ *   · DID YOU WORK ON IT — "You worked on it" is SOLID green with a tick; "No work of yours" is HOLLOW, dashed and grey.
+ * Solid against hollow is the point: the two kinds of ticket read apart before a word is read.
+ */
+export function TakenPills({ taken }: { taken: TakenFromMe }) {
+  const meta = takenMeta(taken.reason)
+  const w = workLabel(taken)
+  const did = workedOn(taken)
+  return (
+    <span className="flex shrink-0 items-center gap-1.5" data-taken-pills>
+      <span
+        className="inline-flex h-[22px] items-center gap-1 rounded-full border px-2 text-[10.5px] font-bold leading-none whitespace-nowrap"
+        style={{ borderColor: tint(meta.color, 0.5), color: `color-mix(in srgb, ${lift(meta.color)} 55%, var(--ink))`, background: tint(meta.color, 0.13) }}
+        title={`${meta.label} — ${meta.hint}`}
+        data-taken-reason={taken.reason}
+      >
+        <MoveIcon size={11} color="currentColor" />
+        {meta.short}
+      </span>
+      {did ? (
+        <span
+          className="inline-flex h-[22px] items-center gap-1 rounded-full px-2 text-[10.5px] font-bold leading-none whitespace-nowrap text-white"
+          style={{ background: readableFill(WORK_COLOR), boxShadow: `inset 0 1px 0 rgba(255,255,255,0.28), 0 1px 2px ${tint(WORK_COLOR, 0.4)}` }}
+          title={`${w.label}: ${w.hint}`}
+          data-taken-work="worked"
+        >
+          <CheckIcon size={11} color="currentColor" />
+          {w.label}
+        </span>
+      ) : (
+        <span
+          className="inline-flex h-[22px] items-center gap-1 rounded-full border border-dashed px-2 text-[10.5px] font-semibold leading-none whitespace-nowrap text-[var(--muted)]"
+          style={{ borderColor: tint(NO_WORK_COLOR, 0.8) }}
+          title={`${w.label}: ${w.hint}`}
+          data-taken-work="none"
+        >
+          <span className="inline-block h-2 w-2 rounded-full border border-current" aria-hidden />
+          {w.label}
+        </span>
+      )}
+    </span>
+  )
+}
 
 /**
  * "Taken from you" on an archive row or a ticket drawer. Static on purpose — it is read, not watched: no entrance, no

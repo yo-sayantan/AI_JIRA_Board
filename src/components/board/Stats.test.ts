@@ -42,3 +42,41 @@ describe('the chip row', () => {
     expect(picked.onSelect).toHaveBeenLastCalledWith(null)
   })
 })
+
+function mountWith(props: Record<string, unknown>) {
+  host = document.createElement('div')
+  document.body.appendChild(host)
+  root = createRoot(host)
+  act(() => root!.render(createElement(Stats, { tickets: [], completedCount: 130, raisedCount: null, active: null, onSelect: () => {}, ...props } as never)))
+  return host
+}
+
+describe('the board’s pointer to the tickets taken from you', () => {
+  it('shows a chip with the count, and opens Completed already filtered to them', () => {
+    const open = vi.fn()
+    const el = mountWith({ takenCount: { total: 5, worked: 3 }, onOpenCompleted: open })
+    const chip = el.querySelector('[data-taken-chip]') as HTMLButtonElement
+    expect(chip.textContent).toContain('Taken from you')
+    expect(chip.getAttribute('title')).toContain('3 of them after you had worked on them')
+    act(() => chip.click())
+    expect(open).toHaveBeenCalledWith({ taken: true })
+  })
+
+  it('leaves the Completed button as it was: a plain open, no filter', () => {
+    const open = vi.fn()
+    const el = mountWith({ takenCount: { total: 5, worked: 3 }, onOpenCompleted: open })
+    const gold = [...el.querySelectorAll('button')].find((b) => b.textContent?.includes('Completed')) as HTMLButtonElement
+    act(() => gold.click())
+    expect(open).toHaveBeenCalledWith() // no options
+  })
+
+  it('is hidden when nothing was taken, or the archive is off', () => {
+    expect(mountWith({ takenCount: { total: 0, worked: 0 } }).querySelector('[data-taken-chip]')).toBeNull()
+    act(() => root?.unmount())
+    host?.remove()
+    expect(mountWith({ takenCount: null }).querySelector('[data-taken-chip]')).toBeNull()
+    act(() => root?.unmount())
+    host?.remove()
+    expect(mountWith({ takenCount: { total: 2, worked: 1 }, completedCount: null }).querySelector('[data-taken-chip]')).toBeNull()
+  })
+})

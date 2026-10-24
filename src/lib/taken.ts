@@ -26,25 +26,58 @@ export function takenMeta(reason: string | null | undefined) {
   return (reason && TAKEN_META[reason as TakenReason]) || { label: 'Taken from you', short: 'Taken', color: TAKEN_COLOR, hint: 'No longer assigned to you.' }
 }
 
-/** How many rows per reason (headline reason only, so the counts add up to the total). */
-export function takenCounts(rows: CompletedTicket[]): Record<TakenReason, number> & { total: number } {
-  const out = { total: 0 } as Record<TakenReason, number> & { total: number }
+/**
+ * Did I work on it? The one question that tells two kinds of taken ticket apart at a glance: one I put real work into (a
+ * PR, time In Progress on my name, comments, sub-tickets I raised) and one that was only ever assigned to me.
+ */
+export const WORK_COLOR = '#16a34a'
+export const NO_WORK_COLOR = '#94a3b8'
+
+export const workedOn = (t: TakenFromMe): boolean => !!t.worked
+
+/** "You worked on it" / "No work of yours" — and a one-line tooltip with the evidence. */
+export function workLabel(t: TakenFromMe): { label: string; hint: string } {
+  if (workedOn(t)) return { label: 'You worked on it', hint: (t.workedOn ?? []).join(' · ') || 'Work of yours is recorded on it.' }
+  return { label: 'No work of yours', hint: 'Assigned to you, but no pull request, comment of yours or time In Progress is recorded on it.' }
+}
+
+export type WorkFilter = null | 'worked' | 'none'
+
+/** How many rows per reason (headline reason only, so the counts add up to the total), and how many you worked on. */
+export function takenCounts(rows: CompletedTicket[]): Record<TakenReason, number> & { total: number; worked: number; none: number } {
+  const out = { total: 0, worked: 0, none: 0 } as Record<TakenReason, number> & { total: number; worked: number; none: number }
   for (const r of TAKEN_ORDER) out[r] = 0
   for (const it of rows) {
-    const reason = it.takenFromMe?.reason
-    if (!reason) continue
+    const t = it.takenFromMe
+    if (!t?.reason) continue
     out.total++
-    if (reason in out) out[reason]++
+    if (t.reason in out) out[t.reason]++
+    if (workedOn(t)) out.worked++
+    else out.none++
   }
   return out
 }
 
 /** Does a row match the "Taken from you" filter: `any` = every taken row, a reason = rows that have it at all. */
-export function matchesTaken(it: CompletedTicket, filter: null | 'any' | TakenReason): boolean {
-  if (!filter) return true
+export function matchesTaken(it: CompletedTicket, filter: null | 'any' | TakenReason, work: WorkFilter = null): boolean {
+  if (!filter && !work) return true
   const t = it.takenFromMe
   if (!t?.reason) return false
-  return filter === 'any' || t.reason === filter || (t.reasons ?? []).includes(filter)
+  if (work === 'worked' && !workedOn(t)) return false
+  if (work === 'none' && workedOn(t)) return false
+  return !filter || filter === 'any' || t.reason === filter || (t.reasons ?? []).includes(filter)
+}
+
+/** How many top-level tickets were taken from me — what the board's Completed button points at. */
+export function countTaken(rows: Array<{ parentKey?: string | null; mine?: boolean; takenFromMe?: TakenFromMe | null }>): { total: number; worked: number } {
+  let total = 0
+  let worked = 0
+  for (const r of rows) {
+    if (r.parentKey || r.mine === false || !r.takenFromMe?.reason) continue
+    total++
+    if (workedOn(r.takenFromMe)) worked++
+  }
+  return { total, worked }
 }
 
 /** Where a row sits on the timeline: when it closed, else (still open, taken from me) when it left me. */

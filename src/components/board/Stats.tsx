@@ -3,7 +3,8 @@ import { motion, useSpring } from 'motion/react'
 import { BOARD_COLUMNS } from '../../lib/columns'
 import type { ColumnKey, Ticket } from '../../types'
 
-import { MegaphoneIcon, TrophyIcon, TicketGlyph } from '../common/Icons'
+import { MegaphoneIcon, MoveIcon, TrophyIcon, TicketGlyph } from '../common/Icons'
+import { TAKEN_COLOR as TAKEN } from '../../lib/taken'
 import { lift, selectedText, tint } from '../../lib/tone'
 import { PRESS, PRESS_SCALE } from '../../lib/motion'
 
@@ -30,6 +31,7 @@ export const Stats = memo(function Stats({
   tickets,
   hideBlocked = false,
   completedCount,
+  takenCount = null,
   raisedCount,
   active,
   onSelect,
@@ -42,11 +44,14 @@ export const Stats = memo(function Stats({
   hideBlocked?: boolean
   /** null hides the Completed chip entirely (Settings → Completed archive off). */
   completedCount: number | null
+  /** Tickets that were mine and were taken away (un-assigned, reassigned, called off, PR declined). null/0 hides the chip. */
+  takenCount?: { total: number; worked: number } | null
   /** Tickets I reported: open/total. null hides the chip (feature off or nothing raised). */
   raisedCount: { total: number; open: number } | null
   active: StatSelection
   onSelect: (key: StatSelection) => void
-  onOpenCompleted?: () => void
+  /** `taken`: open Completed already filtered to the tickets taken from me. */
+  onOpenCompleted?: (opts?: { taken?: boolean }) => void
   onOpenRaised?: () => void
 }) {
   const counts = (k: ColumnKey) => tickets.filter((t) => t.column === k).length
@@ -119,11 +124,30 @@ export const Stats = memo(function Stats({
             </motion.button>
           )}
 
+          {/* Where the tickets taken from me live: in Completed, with a pill each. Quiet flat chip in the taken orange. */}
+          {completedCount != null && takenCount && takenCount.total > 0 && (
+            <motion.button
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: PRESS_SCALE }}
+              transition={PRESS}
+              onClick={() => onOpenCompleted?.({ taken: true })}
+              title={`${takenCount.total} ticket${takenCount.total === 1 ? ' was' : 's were'} assigned to you and then taken away (un-assigned, reassigned, called off or its PR declined) — ${takenCount.worked} of them after you had worked on ${takenCount.worked === 1 ? 'it' : 'them'}. They are listed in Completed with the reason.`}
+              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-[7.5px] text-[12px] font-bold transition-colors"
+              style={{ borderColor: tint(TAKEN, 0.5), color: `color-mix(in srgb, ${lift(TAKEN)} 60%, var(--ink))`, background: tint(TAKEN, 0.1) }}
+              data-taken-chip
+            >
+              <MoveIcon size={13} color="currentColor" /> Taken from you{' '}
+              <b>
+                <AnimatedNumber value={takenCount.total} />
+              </b>
+            </motion.button>
+          )}
+
           {completedCount != null && (
             <motion.button
               whileTap={{ scale: PRESS_SCALE }}
               transition={PRESS}
-              onClick={onOpenCompleted}
+              onClick={() => onOpenCompleted?.()}
               title="View all completed tickets"
               className="gold-sheen inline-flex items-center rounded-full border-[3px] px-4 py-2 text-[13.5px] font-extrabold text-[#5b3d00]"
               style={{ borderColor: '#b45309' }}

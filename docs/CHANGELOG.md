@@ -5,6 +5,11 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Taken from you: pills you can see, worked-on vs never-worked, and a pointer on the board.** Each taken row now carries two
+  pills in its title line — why it left you, and "You worked on it" (solid green) or "No work of yours" (hollow, dashed, grey)
+  — and its frame follows (orange-tinted solid vs plain dashed), so the two kinds read apart without opening anything. The
+  filter splits the same way, and a "Taken from you N" chip beside the Completed button opens Completed already filtered. The
+  rows are created by the archive rebuild (Update completed), not by Refresh.
 - **Deploying from a new folder no longer brings the board up empty.** The data (and `setup/.env`) follow the deploy folder, and
   a git worktree or fresh clone has neither — so the board showed nothing and every refresh ended in "Intern finished with
   errors (tooling missing)". `start-jira-board.sh` now carries the board's data across from where the running board read it (else

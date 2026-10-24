@@ -5,12 +5,12 @@ import { fmtDate, relTime, priorityMeta, projectOf, typeMeta, effectiveType, rel
 import { matchRow, parseQuery } from '../../lib/search'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { Pill, PrBadge, BranchStatusPill, PointsTag, safeHref } from '../common/ui'
-import { BranchIcon, ChevronIcon, CommentIcon, ExpandAllIcon, PersonIcon, PrStateIcon, SearchIcon, SparkleIcon, TrophyIcon, TypeIcon } from '../common/Icons'
+import { BranchIcon, CheckIcon, ChevronIcon, CommentIcon, ExpandAllIcon, PersonIcon, PrStateIcon, SearchIcon, SparkleIcon, TrophyIcon, TypeIcon } from '../common/Icons'
 import { lift, selectedText, tint } from '../../lib/tone'
 import { COLLAPSE, DIALOG, SCRIM } from '../../lib/motion'
 import { COLUMN_META } from '../../lib/columns'
-import { TAKEN_COLOR, TAKEN_ORDER, isTaken, matchesTaken, rowDate, takenCounts, takenMeta } from '../../lib/taken'
-import { TakenBanner } from './TakenBanner'
+import { NO_WORK_COLOR, TAKEN_COLOR, TAKEN_ORDER, WORK_COLOR, isTaken, matchesTaken, rowDate, takenCounts, takenMeta, type WorkFilter } from '../../lib/taken'
+import { TakenBanner, TakenPills } from './TakenBanner'
 import { MoveIcon } from '../common/Icons'
 
 const DONE = '#22c55e'
@@ -57,6 +57,7 @@ export function CompletedOverlay({
   items: rawItems,
   onOpen,
   pauseEsc,
+  showTaken = false,
 }: {
   open: boolean
   onClose: () => void
@@ -64,6 +65,8 @@ export function CompletedOverlay({
   onOpen: (key: string) => void
   /** When a ticket detail is layered on top, ignore Esc here so one keypress closes only the top layer. */
   pauseEsc?: boolean
+  /** Open already filtered to the tickets taken from me (the board's "taken from you" pointer sets this). */
+  showTaken?: boolean
 }) {
   // Sub-tasks stay on the parent. The archive also stores each one as its own row so the
   // detail page can open it; those rows are not listed here.
@@ -77,6 +80,8 @@ export function CompletedOverlay({
   const [prFilter, setPrFilter] = useState<null | 'any' | 'merged' | 'declined'>(null)
   // "Taken from you": tickets that were mine and were un-assigned, reassigned, called off or had their PR declined.
   const [takenFilter, setTakenFilter] = useState<null | 'any' | TakenReason>(null)
+  // …and of those, the ones I worked on (a PR, time In Progress, comments, sub-tickets I raised) vs the ones I only held.
+  const [workFilter, setWorkFilter] = useState<WorkFilter>(null)
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
 
   const mineItems = useMemo(() => all.filter(isMine), [all])
@@ -113,8 +118,12 @@ export function CompletedOverlay({
     setTyp(null)
     setPrFilter(null)
     setTakenFilter(null)
+    setWorkFilter(null)
     setExpanded(new Set())
   }, [open])
+  useEffect(() => {
+    if (open && showTaken) setTakenFilter('any')
+  }, [open, showTaken])
 
   const pauseRef = useRef(false)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -156,13 +165,13 @@ export function CompletedOverlay({
   const chipsMatch = (it: CompletedTicket) => {
     if (proj && (it.project || projectOf(it.key)) !== proj) return false
     if (!matchesPrFilter(it, prFilter)) return false
-    if (!matchesTaken(it, takenFilter)) return false
+    if (!matchesTaken(it, takenFilter, workFilter)) return false
     return !typ || (effectiveType(it) || 'Other').trim() === typ
   }
   const filtered = useMemo(
     () => items.filter((it) => chipsMatch(it) && matchRow(it, terms) !== null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [items, terms, proj, typ, prFilter, takenFilter],
+    [items, terms, proj, typ, prFilter, takenFilter, workFilter],
   )
 
   // Pure chronology: newest first, year → month. Types are surfaced via the row
@@ -214,7 +223,7 @@ export function CompletedOverlay({
     })
   const toggleAll = () => setExpanded(allExpanded ? new Set() : new Set(filtered.map((it) => it.key)))
   const empty = all.length === 0
-  const filtering = !!q || !!proj || !!typ || !!prFilter || !!takenFilter
+  const filtering = !!q || !!proj || !!typ || !!prFilter || !!takenFilter || !!workFilter
 
   return (
     <AnimatePresence>
@@ -290,7 +299,7 @@ export function CompletedOverlay({
                   {taken.total > 0 && (
                     <button
                       type="button"
-                      onClick={() => setTakenFilter(takenFilter ? null : 'any')}
+                      onClick={() => { setTakenFilter(takenFilter ? null : 'any'); setWorkFilter(null) }}
                       aria-pressed={!!takenFilter}
                       className="rounded-2xl text-left outline-offset-2"
                       title={takenFilter ? 'Show every ticket again' : 'List only the tickets taken from you, with why'}
@@ -373,7 +382,7 @@ export function CompletedOverlay({
                     </div>
 
                     <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                      <FilterChip active={proj === null && typ === null && prFilter === null && takenFilter === null} color={DONE} onClick={() => { setProj(null); setTyp(null); setPrFilter(null); setTakenFilter(null) }} title="Clear every filter">
+                      <FilterChip active={proj === null && typ === null && prFilter === null && takenFilter === null && workFilter === null} color={DONE} onClick={() => { setProj(null); setTyp(null); setPrFilter(null); setTakenFilter(null); setWorkFilter(null) }} title="Clear every filter">
                         All
                       </FilterChip>
                       <FilterChip active={prFilter === 'any'} color={PR_PURPLE} onClick={() => setPrFilter(prFilter === 'any' ? null : 'any')} n={items.filter((it) => matchesPrFilter(it, 'any')).length} title="Tickets with a merged or declined pull request">
@@ -388,10 +397,21 @@ export function CompletedOverlay({
                       {taken.total > 0 && (
                         <>
                           <span className="mx-1 h-5 w-px shrink-0 bg-[var(--line-strong)]" aria-hidden />
-                          <FilterChip active={takenFilter === 'any'} color={TAKEN_COLOR} onClick={() => setTakenFilter(takenFilter === 'any' ? null : 'any')} n={taken.total} title="Tickets taken from you — un-assigned, given to someone else, called off, or your PR declined">
+                          <FilterChip active={takenFilter === 'any'} color={TAKEN_COLOR} onClick={() => { setTakenFilter(takenFilter === 'any' ? null : 'any'); setWorkFilter(null) }} n={taken.total} title="Tickets taken from you — un-assigned, given to someone else, called off, or your PR declined">
                             <MoveIcon size={11} color={lift(takenFilter === 'any' ? TAKEN_COLOR : 'currentColor')} />
                             Taken from you
                           </FilterChip>
+                          {takenFilter && (
+                            <>
+                              <FilterChip active={workFilter === 'worked'} color={WORK_COLOR} onClick={() => setWorkFilter(workFilter === 'worked' ? null : 'worked')} n={taken.worked} title="Taken from you AFTER you had worked on it — a pull request, time In Progress, comments or sub-tickets of yours">
+                                <CheckIcon size={11} color={lift(workFilter === 'worked' ? WORK_COLOR : 'currentColor')} />
+                                You worked on it
+                              </FilterChip>
+                              <FilterChip active={workFilter === 'none'} color={NO_WORK_COLOR} onClick={() => setWorkFilter(workFilter === 'none' ? null : 'none')} n={taken.none} title="Assigned to you but never worked on: no pull request, no comment of yours, never In Progress">
+                                No work of yours
+                              </FilterChip>
+                            </>
+                          )}
                           {takenFilter &&
                             TAKEN_ORDER.filter((r) => taken[r] > 0).map((r) => {
                               const m = takenMeta(r)
@@ -515,7 +535,13 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
         borderLeftColor: tm.color,
         // A context parent (owned by someone else) gets a faint tint rather than reduced
         // opacity — still fully legible, but instantly distinguishable from my own tickets.
-        background: mine ? 'var(--surface-solid)' : tint(CONTEXT, 0.05),
+        // A ticket taken from me: one I worked on is tinted orange with a solid frame; one I only ever held keeps the
+        // plain surface with a DASHED frame — told apart without reading anything.
+        background: taken ? (taken.worked ? tint(TAKEN_COLOR, 0.07) : 'var(--surface-solid)') : mine ? 'var(--surface-solid)' : tint(CONTEXT, 0.05),
+        borderStyle: taken && !taken.worked ? 'dashed' : undefined,
+        borderTopColor: taken?.worked ? tint(TAKEN_COLOR, 0.4) : undefined,
+        borderRightColor: taken?.worked ? tint(TAKEN_COLOR, 0.4) : undefined,
+        borderBottomColor: taken?.worked ? tint(TAKEN_COLOR, 0.4) : undefined,
       }}
     >
       <div className="flex items-center gap-2.5 px-3 py-2.5">
@@ -543,6 +569,7 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
             <PointsTag points={it.storyPoints} />
           </span>
           <span className="min-w-0 flex-1 truncate text-[14.5px] font-semibold text-[var(--ink)] group-hover:underline">{it.title}</span>
+          {taken && <TakenPills taken={taken} />}
 
           {/* Lineage / ownership chips travel WITH the title — they describe what the ticket
               is, not how it landed, and keeping them out of the rail is what lets the rail align. */}
