@@ -39,6 +39,9 @@
   --glow: 0 10px 40px -12px;
   --link: #0b5cff; /* Atlassian-ish blue */
   --pr-link: #9333ea; /* bright PR violet */
+  --primary: #155eef;
+  --primary-hover: #0b4fd4;
+  --primary-contrast: #ffffff;
 }
 
 /* Night mode: near-black (styles/glass.css deepens the surfaces further), text pushed toward white for readability. */
@@ -57,6 +60,9 @@
   --glow: 0 14px 50px -14px;
   --link: #6fb0ff; /* brighter blue for dark bg */
   --pr-link: #cfa0ff; /* bright PR violet for dark bg */
+  --primary: #4f8cff;
+  --primary-hover: #6da0ff;
+  --primary-contrast: #07101f;
 }
 
 * {
@@ -73,13 +79,34 @@ body {
   margin: 0;
   font-family: var(--font-sans);
   color: var(--ink);
-  background:
-    radial-gradient(1100px 700px at 12% -8%, color-mix(in oklab, var(--bg-2), white 3%), transparent 60%),
-    radial-gradient(1000px 600px at 100% 0%, color-mix(in oklab, var(--bg-2), #6d5bd0 5%), transparent 55%),
-    var(--bg);
-  background-attachment: fixed;
+  background: var(--bg);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+.jb-primary-action {
+  background: var(--primary);
+  color: var(--primary-contrast);
+}
+
+.jb-primary-action:not(:disabled):hover {
+  background: var(--primary-hover);
+}
+
+.jb-icon-action {
+  display: inline-grid;
+  height: 2.25rem;
+  width: 2.25rem;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--surface-solid);
+  color: var(--ink-soft);
+}
+
+.jb-icon-action:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
 }
 
 a {
@@ -97,8 +124,12 @@ a {
 /* Header search is a native search field, so the ring above (and the browser's own
    search highlight) draw a blue line inside the pill on click and while typing.
    The pill border is the focus cue instead. */
-.jb-search {
+.jb-search > div {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.jb-search:focus-within > div {
+  border-color: var(--link);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--link) 18%, transparent);
 }
 #jb-search {
   appearance: none;
