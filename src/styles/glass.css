@@ -1,7 +1,7 @@
 /* ── Liquid Glass ───────────────────────────────────────────────────────────────────────────────────────────────────
    Apple's Liquid Glass (ecc:liquid-glass-design) translated to CSS. The material is CLEAR and NEUTRAL: the colour on
    screen comes from the content (column hues, badges, chips), never from the glass itself — so no tint on panels, a
-   near-white (light) / near-black (dark) page with only a faint ambient hint, and a neutral dim behind dialogs.
+   near-white (light) / near-black (dark) page, and a neutral dim behind dialogs.
 
    · material — translucent fill, light falling from the top (--glass-sheen), a 1px gradient rim on the lit edge
      (bright top-left, fading round the sides) inside a faint hairline. Every `bg-[var(--surface-solid)]` panel and card
@@ -82,26 +82,6 @@
 /* In dark, the backdrop's saturate() pulls the board's colours up through the (nearly opaque) sheets as a muddy tint. */
 .dark {
   --glass-sat: 115%;
-}
-
-/* ── Ambient background: a faint hint of colour for the glass to pick up — mostly white / near-black ─────────────── */
-body {
-  background:
-    radial-gradient(900px 640px at 4% -10%, rgba(99, 102, 241, 0.09), transparent 62%),
-    radial-gradient(780px 560px at 100% 0%, rgba(236, 72, 153, 0.05), transparent 60%),
-    radial-gradient(960px 720px at 76% 110%, rgba(20, 184, 166, 0.07), transparent 60%),
-    radial-gradient(720px 540px at -6% 96%, rgba(59, 130, 246, 0.06), transparent 60%),
-    var(--bg);
-  background-attachment: fixed;
-}
-.dark body {
-  background:
-    radial-gradient(900px 640px at 4% -10%, rgba(99, 102, 241, 0.1), transparent 62%),
-    radial-gradient(780px 560px at 100% 0%, rgba(217, 70, 239, 0.05), transparent 60%),
-    radial-gradient(960px 720px at 76% 110%, rgba(20, 184, 166, 0.05), transparent 60%),
-    radial-gradient(720px 540px at -6% 96%, rgba(37, 99, 235, 0.07), transparent 60%),
-    var(--bg);
-  background-attachment: fixed;
 }
 
 /* ── The material: fill + top light + inner highlight, on every glass surface ───────────────────────────────────── */
@@ -355,7 +335,7 @@ button[aria-label^='Close' i]:active {
 
 /* ── Settings → "Motion & animations" OFF: a calm, flat, still board ───────────────────────────────────────────────
    The switch owns every decorative effect, not only movement: the glass (blur, sheen, rim, grain, reflection), the
-   ambient gradient behind the page, the pointer light and every hover / tap lift. What stays is the CONTENT's colour —
+   pointer light and every hover / tap lift. What stays is the CONTENT's colour —
    columns, badges, states — on plain opaque surfaces, exactly as readable. CSS transitions and animations are stopped by
    the `jb-no-anim` rule in index.css, framer-motion by motionPolicy.ts; the theme switch skips its reveal
    (lib/themeTransition.ts). Selectors carry `html` so they outrank the `:root` / `.dark` token blocks above. */
