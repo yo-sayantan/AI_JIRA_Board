@@ -1,12 +1,9 @@
-import { memo, useEffect, useState } from 'react'
-import { motion, useSpring } from 'motion/react'
+import { memo } from 'react'
 import { BOARD_COLUMNS } from '../../lib/columns'
 import type { ColumnKey, Ticket } from '../../types'
 
-import { MegaphoneIcon, MoveIcon, TrophyIcon, TicketGlyph } from '../common/Icons'
 import { TAKEN_COLOR as TAKEN } from '../../lib/taken'
-import { lift, selectedText, tint } from '../../lib/tone'
-import { PRESS, PRESS_SCALE } from '../../lib/motion'
+import { lift } from '../../lib/tone'
 
 // Identity of the Raised-by-me view — indigo, deliberately not a red/alarm family.
 const RAISED = '#6366f1'
@@ -16,16 +13,6 @@ const RAISED = '#6366f1'
  * null is "All" — the whole board, selected by default. Picking a column chip again returns to All.
  */
 export type StatSelection = ColumnKey | null
-
-function AnimatedNumber({ value }: { value: number }) {
-  const spring = useSpring(value, { stiffness: 110, damping: 22 })
-  const [display, setDisplay] = useState(value)
-  useEffect(() => {
-    spring.set(value)
-  }, [value, spring])
-  useEffect(() => spring.on('change', (v) => setDisplay(Math.round(v))), [spring])
-  return <span className="tabular-nums">{display}</span>
-}
 
 export const Stats = memo(function Stats({
   tickets,
@@ -58,110 +45,89 @@ export const Stats = memo(function Stats({
   const total = tickets.length
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2">
-      {/* "All" — the whole board; first in the row and selected by default. */}
-      <button
-        onClick={() => onSelect(null)}
-        aria-pressed={active === null}
-        title="Show every column"
-        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-[background-color,border-color,color] duration-150 ${
-          active === null
-            ? 'border-transparent bg-[var(--ink)] text-[var(--bg)]'
-            : 'border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] hover:border-[var(--muted)]'
-        }`}
-      >
-        <TicketGlyph size={13} /> All <b className="tabular-nums"><AnimatedNumber value={total} /></b>
-      </button>
+    <nav className="jb-board-tools mb-3 flex min-w-0 items-center gap-3" aria-label="Board controls">
+      <div role="toolbar" aria-label="Board filters" className="flex min-w-max items-center gap-1.5">
+        {/* "All" — the whole board; first in the row and selected by default. */}
+        <button
+          type="button"
+          aria-pressed={active === null}
+          onClick={() => onSelect(null)}
+          title="Show every column"
+          className="jb-filter-button inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-semibold"
+          style={{ ['--filter-accent' as string]: 'var(--ink)' }}
+        >
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--muted)]" />
+          <span>All</span>
+          <span className="tabular-nums">{total}</span>
+        </button>
 
-      {BOARD_COLUMNS.filter((c) => !(hideBlocked && c.key === 'blocked')).map((c) => {
-        const n = counts(c.key)
-        const isActive = active === c.key
-        return (
-          <motion.button
-            key={c.key}
-            whileHover={{ y: -1 }}
-            whileTap={{ scale: PRESS_SCALE }}
-            transition={PRESS}
-            onClick={() => onSelect(isActive ? null : c.key)}
-            className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors"
-            style={{
-              borderColor: isActive ? lift(c.accent) : 'var(--line)',
-              background: isActive ? tint(c.accent, 0.16) : 'var(--surface-solid)',
-              color: isActive ? selectedText(c.accent) : 'var(--ink-soft)',
-              boxShadow: isActive ? `0 0 0 1px ${tint(c.accent, 0.55)}` : 'none',
-            }}
-          >
-            <span className="inline-block h-2 w-2 rounded-full" style={{ background: c.accent }} />
-            {c.label}
-            <b style={{ color: lift(c.accent) }}>
-              <AnimatedNumber value={n} />
-            </b>
-          </motion.button>
-        )
-      })}
+        {BOARD_COLUMNS.filter((c) => !(hideBlocked && c.key === 'blocked')).map((c) => {
+          const n = counts(c.key)
+          const isActive = active === c.key
+          return (
+            <button
+              key={c.key}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => onSelect(isActive ? null : c.key)}
+              className="jb-filter-button inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-semibold"
+              style={{ ['--filter-accent' as string]: lift(c.accent) }}
+            >
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: c.accent }} />
+              <span>{c.label}</span>
+              <span className="tabular-nums" style={{ color: lift(c.accent) }}>{n}</span>
+            </button>
+          )
+        })}
+      </div>
 
       {(completedCount != null || raisedCount != null) && (
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          {/* Deliberately quieter than the gold Completed trophy: the board's flat chip
-              pattern (thin outline, tinted fill) in the view's indigo. open/total because
-              "still needs fixing" is the number this view exists for. */}
+        <div role="toolbar" aria-label="Board destinations" className="ml-auto flex min-w-max items-center gap-1.5 border-l border-[var(--line)] pl-3">
           {raisedCount != null && (
-            <motion.button
-              whileHover={{ y: -1 }}
-              whileTap={{ scale: PRESS_SCALE }}
-              transition={PRESS}
+            <button
+              type="button"
               onClick={onOpenRaised}
               title={`Tickets you raised (sub-tickets excluded) — ${raisedCount.open} of ${raisedCount.total} still open. See each one's status, who holds it now, and every hand-off.`}
-              className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-[7.5px] text-[12.5px] font-bold transition-colors"
-              style={{ borderColor: tint(RAISED, 0.45), color: lift(RAISED), background: tint(RAISED, 0.07) }}
+              className="jb-filter-button inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-semibold"
+              style={{ ['--filter-accent' as string]: lift(RAISED) }}
             >
-              <MegaphoneIcon size={14} color={lift(RAISED)} />
-              Raised{' '}
-              <b className="tabular-nums">
-                <AnimatedNumber value={raisedCount.open} />
-              </b>
-              <span className="-ml-0.5 text-[11px] font-semibold tabular-nums opacity-60">/ {raisedCount.total}</span>
-            </motion.button>
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: RAISED }} />
+              <span>Raised</span>
+              <span className="tabular-nums" style={{ color: lift(RAISED) }}>{raisedCount.open}</span>
+              <span className="-ml-0.5 text-[11px] tabular-nums opacity-60">/ {raisedCount.total}</span>
+            </button>
           )}
 
-          {/* Where the tickets taken from me live: in Completed, with a pill each. Quiet flat chip in the taken orange. */}
           {completedCount != null && takenCount && takenCount.total > 0 && (
-            <motion.button
-              whileHover={{ y: -1 }}
-              whileTap={{ scale: PRESS_SCALE }}
-              transition={PRESS}
+            <button
+              type="button"
               onClick={() => onOpenCompleted?.({ taken: true })}
               title={`${takenCount.total} ticket${takenCount.total === 1 ? ' was' : 's were'} assigned to you and then taken away (un-assigned, reassigned, called off or its PR declined) — ${takenCount.worked} of them after you had worked on ${takenCount.worked === 1 ? 'it' : 'them'}. They are listed in Completed with the reason.`}
-              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-[7.5px] text-[12px] font-bold transition-colors"
-              style={{ borderColor: tint(TAKEN, 0.5), color: `color-mix(in srgb, ${lift(TAKEN)} 60%, var(--ink))`, background: tint(TAKEN, 0.1) }}
+              className="jb-filter-button inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-semibold"
+              style={{ ['--filter-accent' as string]: lift(TAKEN) }}
               data-taken-chip
             >
-              <MoveIcon size={13} color="currentColor" /> Taken from you{' '}
-              <b>
-                <AnimatedNumber value={takenCount.total} />
-              </b>
-            </motion.button>
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: TAKEN }} />
+              <span>Taken from you</span>
+              <span className="tabular-nums" style={{ color: lift(TAKEN) }}>{takenCount.total}</span>
+            </button>
           )}
 
           {completedCount != null && (
-            <motion.button
-              whileTap={{ scale: PRESS_SCALE }}
-              transition={PRESS}
+            <button
+              type="button"
               onClick={() => onOpenCompleted?.()}
               title="View all completed tickets"
-              className="gold-sheen inline-flex items-center rounded-full border-[3px] px-4 py-2 text-[13.5px] font-extrabold text-[#5b3d00]"
-              style={{ borderColor: '#b45309' }}
+              className="jb-filter-button inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-semibold"
+              style={{ ['--filter-accent' as string]: 'var(--muted)' }}
             >
-              <span className="relative z-[1] inline-flex items-center gap-2">
-                <TrophyIcon size={16} glint /> Completed{' '}
-                <b>
-                  <AnimatedNumber value={completedCount} />
-                </b>
-              </span>
-            </motion.button>
+              <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--muted)]" />
+              <span>Completed</span>
+              <span className="tabular-nums">{completedCount}</span>
+            </button>
           )}
         </div>
       )}
-    </div>
+    </nav>
   )
 })

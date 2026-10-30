@@ -109,6 +109,32 @@ body {
   color: var(--ink);
 }
 
+.jb-board-tools {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.jb-board-tools::-webkit-scrollbar {
+  display: none;
+}
+
+.jb-filter-button {
+  border-color: var(--line);
+  background: var(--surface-solid);
+  color: var(--ink-soft);
+}
+
+.jb-filter-button:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.jb-filter-button[aria-pressed='true'] {
+  border-color: var(--filter-accent);
+  background: color-mix(in srgb, var(--filter-accent) 9%, var(--surface-solid));
+  color: var(--ink);
+}
+
 a {
   color: inherit;
 }

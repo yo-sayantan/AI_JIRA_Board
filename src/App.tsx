@@ -243,11 +243,11 @@ export default function App() {
 
   // The board is an app shell: the header, the demo banner and the filter chips stay where they are, and only the board
   // scrolls — in <main>, the ONE scroll area, where each lane's title is sticky (Column.tsx `.jb-lane-head`). Dragging a
-  // card near main's top or bottom edge scrolls it, with the targets' names still in view. pb-14 keeps the last cards
-  // clear of the fixed footer. A short window (under 640px tall) would leave the board a sliver under the header and chips,
+  // card near main's top or bottom edge scrolls it, with the targets' names still in view. A short window (under 640px
+  // tall) would leave the board a sliver under the header and controls,
   // so there the page scrolls as before (the lane titles then stick to the window instead).
   return (
-    <div className="flex h-dvh w-full flex-col px-4 pb-14 md:px-6 lg:px-8 [@media(max-height:640px)]:h-auto [@media(max-height:640px)]:pb-24">
+    <div className="flex h-dvh w-full flex-col px-4 pb-4 md:px-6 lg:px-8 [@media(max-height:640px)]:h-auto [@media(max-height:640px)]:pb-8">
       <Header
         data={data}
         now={now}
@@ -331,8 +331,6 @@ export default function App() {
 
       {hasAnyActive && userArchived.length > 0 && <ArchivedUndo keys={userArchived} onUndo={restoreArchived} />}
       </motion.main>
-
-      <Footer />
 
       {/* Shared backdrop behind the whole drawer stack; click it to dismiss everything. */}
       <AnimatePresence>
