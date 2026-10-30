@@ -105,19 +105,6 @@
     var(--shadow);
 }
 
-/* Board cards paint their own shadow inline (motion), so their highlight is a pseudo-element under the content. */
-.ticket-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background-image: var(--glass-sheen);
-  box-shadow:
-    inset 0 1px 0 var(--spec),
-    inset 0 0 0 1px var(--spec-soft);
-}
-
 /* ── Chrome: the floating bars, sheets and menus ───────────────────────────────────────────────────────────────── */
 header.sticky:not(.jb-board-header),
 footer.fixed,
@@ -256,8 +243,7 @@ button[aria-label^='Close' i]:active {
 .glass-interactive:active {
   transform: scale(0.985);
 }
-.glass-interactive::after,
-.ticket-card::after {
+.glass-interactive::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -267,12 +253,10 @@ button[aria-label^='Close' i]:active {
   opacity: 0;
   transition: opacity 0.25s ease;
 }
-.glass-interactive:hover::after,
-.ticket-card:hover::after {
+.glass-interactive:hover::after {
   opacity: 1;
 }
-.jb-no-anim .glass-interactive::after,
-.jb-no-anim .ticket-card::after {
+.jb-no-anim .glass-interactive::after {
   display: none;
 }
 .jb-no-anim .glass-interactive:active {
@@ -314,8 +298,7 @@ button[aria-label^='Close' i]:active {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
-  .glass-interactive::after,
-  .ticket-card::after {
+  .glass-interactive::after {
     display: none;
   }
 }
@@ -370,8 +353,6 @@ html.jb-no-anim *::after {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
-html.jb-no-anim .ticket-card::before,
-html.jb-no-anim .ticket-card::after,
 html.jb-no-anim .glass-interactive::after {
   display: none;
 }

@@ -222,16 +222,14 @@ select.jb-field:disabled {
   box-shadow: var(--shadow);
 }
 
-/* Board cards: border and status tint ease in on their own clock, slower than the lift,
-   so the column color brightens after the card has started to rise. */
 .ticket-card {
   --card-accent: var(--muted);
   border-color: var(--line);
-  transition: border-color 0.7s ease, background-color 0.7s ease;
+  transition: border-color 150ms ease, background-color 150ms ease;
 }
 .ticket-card:hover {
-  border-color: color-mix(in srgb, var(--card-accent) 46%, var(--line));
-  background-color: color-mix(in srgb, var(--card-accent) 8%, var(--surface-solid));
+  border-color: color-mix(in srgb, var(--card-accent) 35%, var(--line));
+  background-color: color-mix(in srgb, var(--card-accent) 4%, var(--surface-solid));
 }
 /* Board columns: width eases when an empty column folds to a rail or opens to a drop zone (flex-basis / grow / shrink /
    min-width are the animatable parts of a flex column). Every part that changes with the drag is listed, or the board would
@@ -276,36 +274,6 @@ select.jb-field:disabled {
   from {
     opacity: 0;
   }
-}
-.ticket-card-wash,
-.ticket-card-glow,
-.ticket-card-edge {
-  opacity: 0;
-}
-/* Resting cards are already tinted with their column's colour; hover only deepens it. */
-.ticket-card-wash {
-  opacity: 0.8;
-}
-.ticket-card-edge {
-  opacity: 0.85;
-}
-.ticket-card-wash {
-  transition: opacity 0.7s ease;
-}
-.ticket-card-glow {
-  transition: opacity 0.9s ease;
-}
-.ticket-card-edge {
-  transition: opacity 0.55s ease 0.08s;
-}
-.ticket-card:hover .ticket-card-wash {
-  opacity: 1;
-}
-.ticket-card:hover .ticket-card-glow {
-  opacity: 0.55;
-}
-.ticket-card:hover .ticket-card-edge {
-  opacity: 1;
 }
 
 /* ── Scrollbars ─────────────────────────────────────────────────────── */
@@ -586,25 +554,6 @@ select.jb-field:disabled {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-
-/* The board's first paint (Board.tsx `intro`, once per page load): each lane's cards cascade in,
-   35 ms apart, 0.3 s strong ease-out. `backwards` only holds the first frame through the delay — when
-   it ends, framer-motion's inline transform (hover lift, layout) is in charge again. Reduce-motion and
-   the Motion switch skip it. */
-@keyframes jb-card-in {
-  from { opacity: 0; transform: translateY(8px); }
-}
-.jb-board-intro .ticket-card { animation: jb-card-in 0.3s var(--ease-out) backwards; }
-.jb-board-intro .ticket-card:nth-child(2) { animation-delay: 35ms; }
-.jb-board-intro .ticket-card:nth-child(3) { animation-delay: 70ms; }
-.jb-board-intro .ticket-card:nth-child(4) { animation-delay: 105ms; }
-.jb-board-intro .ticket-card:nth-child(5) { animation-delay: 140ms; }
-.jb-board-intro .ticket-card:nth-child(6) { animation-delay: 175ms; }
-.jb-board-intro .ticket-card:nth-child(n + 7) { animation-delay: 210ms; }
-@media (prefers-reduced-motion: reduce) {
-  .jb-board-intro .ticket-card { animation: none; }
-}
-.jb-no-anim .jb-board-intro .ticket-card { animation: none; }
 
 @media (prefers-reduced-motion: reduce) {
   *,

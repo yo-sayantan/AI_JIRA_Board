@@ -11,9 +11,9 @@ import { LAYOUT } from '../../lib/motion'
 /** A dashed drop box: faint at rest, lit while a card hovers it. */
 export function dropBoxStyle(accent: string, active: boolean): CSSProperties {
   return {
-    borderColor: tint(accent, active ? 0.72 : 0.26),
-    background: tint(accent, active ? 0.13 : 0.045),
-    boxShadow: active ? `0 0 0 3px ${tint(accent, 0.18)}, 0 12px 28px -16px ${tint(accent, 0.5)}` : undefined,
+    borderColor: active ? tint(accent, 0.72) : 'var(--line)',
+    background: active ? tint(accent, 0.1) : 'transparent',
+    boxShadow: active ? `0 0 0 2px ${tint(accent, 0.16)}` : undefined,
   }
 }
 
@@ -29,7 +29,7 @@ export function CountPill({ accent, count }: { accent: string; count: number }) 
 }
 
 /**
- * A space's header: icon chip, uppercase label, count. `folded` keeps only the icon (a rail). While a card is dragged, a
+ * A space's header: inline icon, uppercase label, count. `folded` keeps only the icon (a rail). While a card is dragged, a
  * space that will not take it says WHY from its header (`denied` → `DeniedChip`, a callout floating just below the title) —
  * never as a banner in the box below, which pushed every card down by its height the moment a drag started.
  */
@@ -59,25 +59,18 @@ export function SpaceHeader({
   active?: boolean
 }) {
   return (
-    <header className="relative mb-2 flex h-5 items-center gap-2 px-1">
-      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ background: tint(accent, 0.16) }} title={title}>
+    <header className="relative mb-2 flex h-6 items-center gap-2 px-1">
+      <span className="inline-flex shrink-0 items-center justify-center" title={title}>
         {icon}
       </span>
       <AnimatePresence initial={false}>
         {!folded && (
-          <motion.span
-            key="label"
-            className="flex min-w-0 flex-1 items-center gap-2"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-          >
-            <span className="truncate text-[11px] font-bold uppercase tracking-wider" style={{ color: lift(accent) }}>
+          <motion.div key="label" className="flex min-w-0 flex-1 items-center gap-2" initial={false}>
+            <h2 className="truncate text-[11px] font-bold uppercase tracking-wider text-[var(--ink-soft)]">
               {label}
-            </span>
+            </h2>
             {count !== undefined && <CountPill accent={accent} count={count} />}
-          </motion.span>
+          </motion.div>
         )}
       </AnimatePresence>
       {denied && !folded && <DeniedChip check={denied} alt={alt} active={active} />}
