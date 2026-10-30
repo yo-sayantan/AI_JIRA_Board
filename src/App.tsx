@@ -224,7 +224,7 @@ export default function App() {
 
   if (source === 'empty') {
     return (
-      <div className="w-full px-4 pb-24 md:px-6 lg:px-8">
+      <div className="w-full px-2 pb-24">
         <EmptyState
           served={served}
           refreshing={refreshing}
@@ -243,11 +243,11 @@ export default function App() {
 
   // The board is an app shell: the header, the demo banner and the filter chips stay where they are, and only the board
   // scrolls — in <main>, the ONE scroll area, where each lane's title is sticky (Column.tsx `.jb-lane-head`). Dragging a
-  // card near main's top or bottom edge scrolls it, with the targets' names still in view. A short window (under 640px
-  // tall) would leave the board a sliver under the header and controls,
+  // card near main's top or bottom edge scrolls it, with the targets' names still in view. pb-14 keeps the last cards
+  // clear of the fixed footer. A short window (under 640px tall) would leave the board a sliver under the header and chips,
   // so there the page scrolls as before (the lane titles then stick to the window instead).
   return (
-    <div className="flex h-dvh w-full flex-col px-4 pb-4 md:px-6 lg:px-8 [@media(max-height:640px)]:h-auto [@media(max-height:640px)]:pb-8">
+    <div className="flex h-dvh w-full flex-col px-2 pb-14 [@media(max-height:640px)]:h-auto [@media(max-height:640px)]:pb-24">
       <Header
         data={data}
         now={now}
@@ -295,7 +295,7 @@ export default function App() {
           comes forward again as it closes — the scrim does the dimming. */}
       <motion.main
         animate={overlayOpen ? RECEDE : { scale: 1, transition: RECEDE.transition }}
-        className="jb-board-scroll -mx-2 min-h-0 flex-1 overflow-auto overscroll-contain px-2 [@media(max-height:640px)]:overflow-visible"
+        className="jb-board-scroll -mx-2 min-h-0 flex-1 overflow-auto overscroll-contain px-5 [@media(max-height:640px)]:overflow-visible"
       >
       {!hasAnyActive ? (
         <FunEmptyBoard
@@ -331,6 +331,8 @@ export default function App() {
 
       {hasAnyActive && userArchived.length > 0 && <ArchivedUndo keys={userArchived} onUndo={restoreArchived} />}
       </motion.main>
+
+      <Footer />
 
       {/* Shared backdrop behind the whole drawer stack; click it to dismiss everything. */}
       <AnimatePresence>

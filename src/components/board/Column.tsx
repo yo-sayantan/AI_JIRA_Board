@@ -259,7 +259,7 @@ export const Column = memo(function Column({
           {!ownOff && (
           <div
             ref={ownBox}
-            className={`relative flex flex-col gap-2 rounded-xl border border-dashed p-2 transition-[background,border-color,box-shadow] duration-150 ${stacked ? '' : 'flex-1'}`}
+            className={`relative flex flex-col gap-2 rounded-2xl border border-dashed p-2 transition-[background,border-color,box-shadow] duration-150 ${stacked ? '' : 'flex-1'}`}
             style={{ ...dropBoxStyle(meta.accent, over === 'col'), opacity: deniedOpacity(ownDenied, over === 'col') }}
             title={ownDenied?.reason ?? undefined}
           >

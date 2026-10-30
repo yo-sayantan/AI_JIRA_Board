@@ -61,8 +61,8 @@ export function ArchiveMenu({ served, busy, blocked, done, total, pct, parallel,
           aria-label={busy ? 'Archive rebuild in progress — open options' : 'Rebuild the Completed archive'}
           aria-expanded={open}
           title={busy ? 'Rebuilding the Completed archive. Open for progress.' : 'Rebuild the Completed archive — all closed tickets, a date range, or one ticket'}
-          className={`relative grid h-9 w-9 place-items-center overflow-hidden rounded-xl text-white card-shadow${busy ? ' jb-archive-busy' : ''}`}
-          style={{ background: 'linear-gradient(135deg, #10d29a, #16a34a)', boxShadow: '0 6px 16px -8px rgba(16,185,129,0.75)' }}
+          className={`jb-raise relative grid h-9 w-9 place-items-center overflow-hidden rounded-xl text-white card-shadow${busy ? ' jb-archive-busy' : ''}`}
+          style={{ ['--hue' as string]: GREEN, background: 'linear-gradient(135deg, #10d29a, #16a34a)', boxShadow: '0 6px 16px -8px rgba(16,185,129,0.75)' }}
         >
           {busy && (
             <motion.span

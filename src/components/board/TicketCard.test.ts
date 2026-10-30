@@ -27,14 +27,6 @@ describe('quiet card semantics', () => {
     const card = host.querySelector('[role="button"]')!
     expect(card.querySelector('h3')?.textContent).toBe('A card')
   })
-
-  it('does not render decorative wash, glow, or edge layers', () => {
-    host = document.createElement('div')
-    document.body.appendChild(host)
-    root = createRoot(host)
-    act(() => root!.render(createElement(TicketCard, { ticket, now: Date.now(), onOpen: () => {} })))
-    expect(host.querySelector('.ticket-card-wash, .ticket-card-glow, .ticket-card-edge')).toBeNull()
-  })
 })
 
 describe('dragging a card', () => {

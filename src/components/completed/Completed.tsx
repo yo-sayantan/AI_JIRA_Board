@@ -290,22 +290,18 @@ export function CompletedOverlay({
                 </button>
               </div>
               {!empty && (
-                <div className={`grid grid-cols-2 gap-2.5 px-6 pb-5 pt-4 sm:grid-cols-3 ${taken.total > 0 ? 'lg:grid-cols-6' : 'lg:grid-cols-5'}`}>
+                <div
+                  role="group"
+                  aria-label="Summary"
+                  className={`mx-6 mb-5 mt-4 grid grid-cols-2 rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] py-1 sm:grid-cols-3 ${taken.total > 0 ? 'lg:grid-cols-6' : 'lg:grid-cols-5'}`}
+                >
                   <StatTile n={doneItems.length} label="Tickets done" color={DONE} icon={<TrophyIcon size={14} />} />
                   <StatTile n={totalPts} label="Story points" color={'#3b82f6'} icon={<SparkleIcon size={14} color={lift('#3b82f6')} />} />
                   <StatTile n={stats.merged} label="PRs merged" color={CONTEXT} icon={<PrStateIcon state="merged" color={lift(CONTEXT)} size={14} />} />
                   <StatTile n={stats.releases} label="Releases" color={'#ec4899'} icon={<TypeIcon type="Release" color={lift('#ec4899')} size={14} />} />
                   <StatTile n={stats.onboarding} label="Onboarding" color={'#84cc16'} icon={<TypeIcon type="Onboarding" color={lift('#84cc16')} size={14} />} />
                   {taken.total > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => { setTakenFilter(takenFilter ? null : 'any'); setWorkFilter(null) }}
-                      aria-pressed={!!takenFilter}
-                      className="rounded-2xl text-left outline-offset-2"
-                      title={takenFilter ? 'Show every ticket again' : 'List only the tickets taken from you, with why'}
-                    >
-                      <StatTile n={taken.total} label={takenFilter ? 'Taken from you ✓' : 'Taken from you'} color={TAKEN_COLOR} icon={<MoveIcon size={14} color={lift(TAKEN_COLOR)} />} />
-                    </button>
+                    <StatTile n={taken.total} label="Taken from you" color={TAKEN_COLOR} icon={<MoveIcon size={14} color={lift(TAKEN_COLOR)} />} />
                   )}
                 </div>
               )}
@@ -569,7 +565,6 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
             <PointsTag points={it.storyPoints} />
           </span>
           <span className="min-w-0 flex-1 truncate text-[14.5px] font-semibold text-[var(--ink)] group-hover:underline">{it.title}</span>
-          {taken && <TakenPills taken={taken} />}
 
           {/* Lineage / ownership chips travel WITH the title — they describe what the ticket
               is, not how it landed, and keeping them out of the rail is what lets the rail align. */}
@@ -601,6 +596,9 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
               context
             </span>
           )}
+          {/* Last, flush against the rail, at fixed widths: whatever lineage chips a row has sit to the left, so the
+              reason pill and the work pill form two straight columns down the list. */}
+          {taken && <TakenPills taken={taken} />}
         </button>
 
         {/* Right rail — right-to-left: Closed date, PR, environment, comments. */}
@@ -795,12 +793,10 @@ function FilterChip({ active, color, onClick, n, title, children }: { active: bo
   )
 }
 
+/** One figure in the summary panel — data, not a control: no frame of its own, no hover, a divider between figures. */
 function StatTile({ n, label, color, icon }: { n: number; label: string; color: string; icon: ReactNode }) {
   return (
-    <div
-      className="rounded-2xl border px-3.5 py-2.5 transition-transform hover:-translate-y-0.5"
-      style={{ borderColor: tint(color, 0.28), background: `linear-gradient(150deg, ${tint(color, 0.14)}, ${tint(color, 0.05)})` }}
-    >
+    <div className="min-w-0 px-4 py-2 lg:border-l lg:border-[var(--line)] lg:first:border-l-0">
       <div className="flex items-center gap-1.5">
         <span className="inline-flex">{icon}</span>
         <span className="text-[22px] font-black leading-none tabular-nums" style={{ color: lift(color) }}>

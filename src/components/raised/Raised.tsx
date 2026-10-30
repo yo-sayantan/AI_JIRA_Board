@@ -308,7 +308,7 @@ export function RaisedOverlay({
                 </div>
               </div>
               {!empty && (
-                <div className="grid grid-cols-2 gap-2.5 px-6 pb-5 pt-4 sm:grid-cols-3 lg:grid-cols-5">
+                <div role="group" aria-label="Summary" className="mx-6 mb-5 mt-4 grid grid-cols-2 rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] py-1 sm:grid-cols-3 lg:grid-cols-5">
                   <StatTile n={items.length} label="Raised" color={RAISED} icon={<MegaphoneIcon size={14} color={lift(RAISED)} />} />
                   <StatTile n={stats.open} label="Still open" color={OPEN} icon={<ClockIcon size={14} color={lift(OPEN)} />} />
                   <StatTile n={stats.fixed} label="Fixed" color={FIXED} icon={<CheckIcon size={14} color={lift(FIXED)} />} />
@@ -714,12 +714,10 @@ function FilterChip({ active, color, onClick, n, title, children }: { active: bo
   )
 }
 
+/** One figure in the summary panel — data, not a control: no frame of its own, no hover, a divider between figures. */
 function StatTile({ n, label, color, icon }: { n: number; label: string; color: string; icon: ReactNode }) {
   return (
-    <div
-      className="rounded-2xl border px-3.5 py-2.5 transition-transform hover:-translate-y-0.5"
-      style={{ borderColor: tint(color, 0.28), background: `linear-gradient(150deg, ${tint(color, 0.14)}, ${tint(color, 0.05)})` }}
-    >
+    <div className="min-w-0 px-4 py-2 lg:border-l lg:border-[var(--line)] lg:first:border-l-0">
       <div className="flex items-center gap-1.5">
         <span className="inline-flex">{icon}</span>
         <span className="text-[22px] font-black leading-none tabular-nums" style={{ color: lift(color) }}>

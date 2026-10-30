@@ -9,6 +9,7 @@ import { ArchiveMenu } from './ArchiveMenu'
 import { flushSync } from 'react-dom'
 import { switchTheme } from '../../lib/themeTransition'
 import { lift, tint } from '../../lib/tone'
+import { HOVER_SCALE, PRESS, PRESSABLE, PRESS_SCALE } from '../../lib/motion'
 
 export type RunProgress = {
   done: number
@@ -31,8 +32,8 @@ function hasCount(p: RunProgress | null | undefined): boolean {
 }
 
 /**
- * A fixed-width button that doubles as its own progress bar. Idle: solid blue with a label.
- * Busy: the same blue fills left→right (the unfilled part is dimmed/faded),
+ * A fixed-width button that doubles as its own progress bar. Idle: solid bright gradient with
+ * a label. Busy: the same bright colour fills left→right (the unfilled part is dimmed/faded),
  * and the label is just `x/y · z%` — no word, so the width never has to change.
  */
 function ProgressButton({
@@ -43,6 +44,8 @@ function ProgressButton({
   ariaLabel,
   title,
   idleLabel,
+  gradient,
+  shadow,
   idleIcon,
 }: {
   busy: boolean
@@ -52,6 +55,8 @@ function ProgressButton({
   ariaLabel: string
   title: string
   idleLabel: string
+  gradient: string
+  shadow: string
   idleIcon: ReactNode
 }) {
   const pctNum = busy ? Math.max(0, Math.min(100, displayPct(progress))) : 0
@@ -60,47 +65,70 @@ function ProgressButton({
 
   return (
     <>
-      <motion.button
-        type="button"
-        onClick={onClick}
-        disabled={disabled}
-        aria-label={ariaLabel}
-        aria-busy={busy || undefined}
-        title={
-          busy && progress?.current
-            ? `${title}\nNow: ${progress.current}${progress.total ? ` (${progress.done}/${progress.total})` : ''}`
-            : title
-        }
-        // Fixed width so the label swapping (idle text ↔ x/y · %) never resizes the button.
-        className="jb-primary-action relative inline-flex h-9 w-[148px] shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-lg px-3 text-[13px] font-semibold"
-        style={{ opacity: disabled && !busy ? 0.6 : 1 }}
-      >
-        {/* Dimming scrim over the UNFILLED (right) portion — recedes as pct grows, so the deep
-            bright colour "fills in" from the left. */}
-        {busy && (
-          <motion.span
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 right-0 z-0"
-            initial={false}
-            animate={{ left: `${pct}%` }}
-            transition={{ type: 'spring', stiffness: 120, damping: 22, mass: 0.6 }}
-            style={{ background: 'rgba(0,0,0,0.34)' }}
-          />
-        )}
-        <span className="relative z-10 inline-flex items-center gap-1.5">
-          <motion.span
-            className="inline-flex"
-            animate={busy ? { rotate: 360 } : { rotate: 0 }}
-            transition={busy ? { repeat: Infinity, duration: 0.8, ease: 'linear' } : { type: 'spring', stiffness: 300, damping: 20 }}
-          >
-            {busy ? <RefreshIcon size={15} color="currentColor" /> : idleIcon}
-          </motion.span>
-          <span className="tabular-nums">{label}</span>
-        </span>
-      </motion.button>
-      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-        {busy ? label : ''}
+    <motion.button
+      whileHover={disabled ? undefined : { y: -1 }}
+      whileTap={disabled ? undefined : { scale: PRESS_SCALE }}
+      transition={PRESS}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      aria-busy={busy || undefined}
+      title={
+        busy && progress?.current
+          ? `${title}\nNow: ${progress.current}${progress.total ? ` (${progress.done}/${progress.total})` : ''}`
+          : title
+      }
+      // Fixed width so the label swapping (idle text ↔ x/y · %) never resizes the button.
+      className="jb-raise relative inline-flex h-9 w-[168px] shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-xl px-3 text-[13px] font-bold text-white transition-[filter] hover:brightness-[1.08]"
+      style={{ ['--hue' as string]: '#2684ff', background: gradient, boxShadow: `0 6px 18px -6px ${shadow}`, opacity: disabled && !busy ? 0.6 : 1 }}
+    >
+      {/* Dimming scrim over the UNFILLED (right) portion — recedes as pct grows, so the deep
+          bright colour "fills in" from the left. */}
+      {busy && (
+        <motion.span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 z-0"
+          initial={false}
+          animate={{ left: `${pct}%` }}
+          transition={{ type: 'spring', stiffness: 120, damping: 22, mass: 0.6 }}
+          style={{ background: 'rgba(0,0,0,0.34)' }}
+        />
+      )}
+      {/* Bright leading edge at the fill boundary for a crisp "wet paint" look. */}
+      {busy && (
+        <motion.span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 z-[1] w-[3px]"
+          initial={false}
+          animate={{ left: `calc(${pct}% - 1.5px)` }}
+          transition={{ type: 'spring', stiffness: 120, damping: 22, mass: 0.6 }}
+          style={{ background: 'rgba(255,255,255,0.85)', boxShadow: '0 0 8px rgba(255,255,255,0.6)' }}
+        />
+      )}
+      {/* Shimmer while we don't yet have a ticket count (early phases). */}
+      {busy && !hasCount(progress) && (
+        <motion.span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 z-[1] w-1/4"
+          animate={{ left: ['-25%', '100%'] }}
+          transition={{ repeat: Infinity, duration: 1.1, ease: 'linear' }}
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)' }}
+        />
+      )}
+      <span className="relative z-10 inline-flex items-center gap-1.5" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}>
+        <motion.span
+          className="inline-flex"
+          animate={busy ? { rotate: 360 } : { rotate: 0 }}
+          transition={busy ? { repeat: Infinity, duration: 0.8, ease: 'linear' } : { type: 'spring', stiffness: 300, damping: 20 }}
+        >
+          {busy ? <RefreshIcon size={15} color="#fff" /> : idleIcon}
+        </motion.span>
+        <span className="tabular-nums">{label}</span>
       </span>
+    </motion.button>
+    <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      {busy ? label : ''}
+    </span>
     </>
   )
 }
@@ -163,40 +191,53 @@ export const Header = memo(function Header({
   const archiveProgress = archiveRefreshing ? runProgress : null
 
   return (
-    <header className="jb-board-header sticky top-0 z-30 mb-3 border-b border-[var(--line)] bg-[var(--surface-solid)] px-1 py-3 md:px-2">
-      <div className="jb-header-layout flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <TicketGlyph size={18} />
-          <div className="min-w-0 leading-tight">
-            <h1 className="truncate text-[16px] font-bold tracking-tight text-[var(--ink)]">My Jira Board</h1>
-            <span className="block truncate text-[11.5px] text-[var(--muted)]">{name}</span>
+    <header className="sticky top-2 z-30 mb-4 mt-2 rounded-2xl border border-[var(--line)] bg-[var(--bg)]/80 px-4 py-3 backdrop-blur-xl md:px-5">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="flex items-center gap-2.5">
+          <motion.span
+            initial={{ rotate: -12, scale: 0.8, opacity: 0 }}
+            animate={{ rotate: 0, scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+            className="grid h-9 w-9 place-items-center rounded-xl"
+            style={{ background: 'linear-gradient(135deg, #6d5bd0, #3b82f6)' }}
+          >
+            <TicketGlyph size={20} />
+          </motion.span>
+          <div className="leading-tight">
+            <h1 className="bg-gradient-to-r from-[var(--ink)] to-[var(--muted)] bg-clip-text text-[17px] font-extrabold tracking-tight text-transparent">
+              My Jira Board
+            </h1>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-[var(--muted)]">
+              <span>{name}</span>
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full border px-2 py-[2px]"
+                style={{ borderColor: tint(fr.color, 0.45), background: tint(fr.color, 0.1) }}
+                title={
+                  data.generatedAt
+                    ? `The board reflects JIRA as of ${fr.full} (the last intern run). It is ${fr.label} relative to now.`
+                    : 'The intern has not produced a dump yet.'
+                }
+              >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: fr.color }} />
+                {data.generatedAt ? (
+                  <>
+                    <span className="text-[var(--ink-soft)]">last run {fr.full}</span>
+                    <b style={{ color: lift(fr.color) }}>· {fr.label}</b>
+                  </>
+                ) : (
+                  <b style={{ color: lift(fr.color) }}>no intern run yet</b>
+                )}
+              </span>
+            </div>
           </div>
         </div>
 
-        <span
-          className="jb-header-freshness inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-transparent px-2 py-[2px] text-[11.5px] text-[var(--muted)]"
-          title={
-            data.generatedAt
-              ? `The board reflects JIRA as of ${fr.full} (the last intern run). It is ${fr.label} relative to now.`
-              : 'The intern has not produced a dump yet.'
-          }
-        >
-          <span className="h-1.5 w-1.5 rounded-full" style={{ background: fr.color }} />
-          {data.generatedAt ? (
-            <>
-              <span className="text-[var(--ink-soft)]">last run {fr.full}</span>
-              <b style={{ color: lift(fr.color) }}>· {fr.label}</b>
-            </>
-          ) : (
-            <b style={{ color: lift(fr.color) }}>no intern run yet</b>
-          )}
-        </span>
-
-        <div className="jb-header-controls ml-auto flex min-w-0 flex-1 items-center justify-end gap-2">
+        <div className="ml-auto flex items-center gap-2">
           {/* Current sprint — compact two-line block: name + workdays left, dates + progress. */}
           {sprint && sp && (
             <div
-              className="hidden shrink-0 flex-col gap-0.5 rounded-lg border border-[var(--line)] bg-transparent px-2.5 py-1 leading-tight md:flex"
+              className="hidden shrink-0 flex-col gap-0.5 rounded-xl border px-2.5 py-1 leading-tight md:flex"
+              style={{ borderColor: tint(sp.color, 0.4), background: tint(sp.color, 0.08) }}
               title={
                 (sprint.start && sprint.end
                   ? `Sprint ${sprint.name}: ${fmtDate(sprint.start)} → ${fmtDate(sprint.end)}`
@@ -228,25 +269,25 @@ export const Header = memo(function Header({
             </div>
           )}
 
-          <div className="jb-search min-w-[12rem] flex-1 md:max-w-[24rem]">
-            <label htmlFor="jb-search" className="sr-only">Search tickets</label>
-            <div className="flex h-9 items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--surface-solid)] px-3">
+          <label htmlFor="jb-search" className="jb-search flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] px-3 py-1.5 card-shadow focus-within:border-[var(--muted)]">
+            <span className="sr-only">Search tickets</span>
+            <span className="text-[var(--muted)]">
               <SearchIcon size={14} />
-              <input
-                id="jb-search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                type="search"
-                placeholder={shortcuts ? 'Search tickets  /' : 'Search tickets'}
-                className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--ink)] outline-none placeholder:text-[var(--muted)]"
-              />
-              {query && (
-                <button type="button" onClick={() => setQuery('')} aria-label="Clear search" className="text-[var(--muted)] hover:text-[var(--ink)]">
-                  <span aria-hidden>×</span>
-                </button>
-              )}
-            </div>
-          </div>
+            </span>
+            <input
+              id="jb-search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              type="search"
+              placeholder={shortcuts ? 'Search…  ( / )' : 'Search…'}
+              className="w-36 bg-transparent text-[13px] text-[var(--ink)] outline-none placeholder:text-[var(--muted)] md:w-60"
+            />
+            {query && (
+              <button type="button" onClick={() => setQuery('')} className="text-[var(--muted)] hover:text-[var(--ink)]" aria-label="Clear search">
+                <span aria-hidden>✕</span>
+              </button>
+            )}
+          </label>
 
           <ProgressButton
             busy={refreshing}
@@ -260,7 +301,9 @@ export const Header = memo(function Header({
                 : `Reload the latest data dump from disk${shortcuts ? '  (r)' : ''}`
             }
             idleLabel={served ? 'Refresh board' : 'Reload'}
-            idleIcon={<RefreshIcon size={15} color="currentColor" />}
+            gradient="linear-gradient(135deg, #7c5cff, #2684ff)"
+            shadow="rgba(38,132,255,0.55)"
+            idleIcon={<RefreshIcon size={15} color="#fff" />}
           />
 
           {served && (
@@ -281,8 +324,8 @@ export const Header = memo(function Header({
           {reports && <ReportsMenu {...reports} />}
 
           {onOpenKeys && (
-            <button
-              type="button"
+            <motion.button
+              {...PRESSABLE}
               onClick={onOpenKeys}
               aria-label={keysBadge ? `API keys — ${keysBadge.label}` : keysMissing ? 'API keys — a required key is missing' : 'API keys'}
               title={
@@ -292,7 +335,8 @@ export const Header = memo(function Header({
                     ? 'API keys — add your Jira token so the board can fetch'
                     : 'API keys — Jira, Bitbucket, Cloud AI…'
               }
-              className="jb-icon-action relative"
+              className="jb-raise jb-hue relative grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] card-shadow hover:border-[var(--muted)] hover:text-[var(--ink)]"
+              style={{ ['--hue' as string]: '#f97316' }}
             >
               <KeyIcon size={16} />
               {(keysBadge || keysMissing) && (
@@ -302,36 +346,41 @@ export const Header = memo(function Header({
                   style={{ background: keysBadge?.color ?? '#f59e0b' }}
                 />
               )}
-            </button>
+            </motion.button>
           )}
 
           {onOpenSettings && (
-            <button
-              type="button"
+            <motion.button
+              {...PRESSABLE}
               onClick={onOpenSettings}
               aria-label="Board settings"
               title="Settings — appearance, features, AI usage"
-              className="jb-icon-action"
+              className="jb-raise jb-hue grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] card-shadow hover:border-[var(--muted)] hover:text-[var(--ink)]"
+              style={{ ['--hue' as string]: '#14b8a6' }}
             >
               <GearIcon size={16} />
-            </button>
+            </motion.button>
           )}
 
           {/* Help — opens the Setup & Deployment guide. An <a>, not a fetch/route, so it still works
               when the server is down (file:// falls back to the sibling help/ folder). */}
-          <a
+          <motion.a
+            {...PRESSABLE}
             href={guideUrl()}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Setup and deployment guide"
             title="Setup & deployment guide — requirements, install steps for Windows/macOS/Linux, git & Docker commands, troubleshooting"
-            className="jb-icon-action"
+            className="jb-raise jb-hue grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] card-shadow hover:border-[var(--muted)] hover:text-[var(--ink)]"
+            style={{ ['--hue' as string]: '#0ea5e9' }}
           >
             <QuestionIcon size={16} />
-          </a>
+          </motion.a>
 
-          <button
-            type="button"
+          <motion.button
+            whileHover={{ scale: HOVER_SCALE, rotate: dark ? -8 : 8 }}
+            whileTap={{ scale: PRESS_SCALE, rotate: -15 }}
+            transition={PRESS}
             onClick={(e) => {
               // The reveal snapshots the page before and after `apply`, so the theme must change synchronously in it:
               // flushSync renders the new setting, and the class is set right here too (applySettings repeats it).
@@ -343,10 +392,11 @@ export const Header = memo(function Header({
             }}
             aria-label="Toggle theme"
             aria-pressed={dark}
-            className="jb-icon-action"
+            className="jb-raise jb-hue grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] card-shadow hover:border-[var(--muted)]"
+            style={{ ['--hue' as string]: dark ? '#6366f1' : '#f59e0b' }}
           >
             {dark ? <MoonIcon size={16} /> : <SunIcon size={16} />}
-          </button>
+          </motion.button>
         </div>
       </div>
     </header>

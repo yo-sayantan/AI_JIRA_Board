@@ -19,7 +19,7 @@ export function TakenPills({ taken }: { taken: TakenFromMe }) {
   return (
     <span className="flex shrink-0 items-center gap-1.5" data-taken-pills>
       <span
-        className="inline-flex h-[22px] items-center gap-1 rounded-full border px-2 text-[10.5px] font-bold leading-none whitespace-nowrap"
+        className="inline-flex h-[22px] w-[112px] items-center justify-center gap-1 rounded-full border px-2 text-[10.5px] font-bold leading-none whitespace-nowrap"
         style={{ borderColor: tint(meta.color, 0.5), color: `color-mix(in srgb, ${lift(meta.color)} 55%, var(--ink))`, background: tint(meta.color, 0.13) }}
         title={`${meta.label} — ${meta.hint}`}
         data-taken-reason={taken.reason}
@@ -29,7 +29,7 @@ export function TakenPills({ taken }: { taken: TakenFromMe }) {
       </span>
       {did ? (
         <span
-          className="inline-flex h-[22px] items-center gap-1 rounded-full px-2 text-[10.5px] font-bold leading-none whitespace-nowrap text-white"
+          className="inline-flex h-[22px] w-[128px] items-center justify-center gap-1 rounded-full px-2 text-[10.5px] font-bold leading-none whitespace-nowrap text-white"
           style={{ background: readableFill(WORK_COLOR), boxShadow: `inset 0 1px 0 rgba(255,255,255,0.28), 0 1px 2px ${tint(WORK_COLOR, 0.4)}` }}
           title={`${w.label}: ${w.hint}`}
           data-taken-work="worked"
@@ -39,7 +39,7 @@ export function TakenPills({ taken }: { taken: TakenFromMe }) {
         </span>
       ) : (
         <span
-          className="inline-flex h-[22px] items-center gap-1 rounded-full border border-dashed px-2 text-[10.5px] font-semibold leading-none whitespace-nowrap text-[var(--muted)]"
+          className="inline-flex h-[22px] w-[128px] items-center justify-center gap-1 rounded-full border border-dashed px-2 text-[10.5px] font-semibold leading-none whitespace-nowrap text-[var(--muted)]"
           style={{ borderColor: tint(NO_WORK_COLOR, 0.8) }}
           title={`${w.label}: ${w.hint}`}
           data-taken-work="none"

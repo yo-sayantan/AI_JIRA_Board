@@ -1,7 +1,7 @@
 /* ── Liquid Glass ───────────────────────────────────────────────────────────────────────────────────────────────────
    Apple's Liquid Glass (ecc:liquid-glass-design) translated to CSS. The material is CLEAR and NEUTRAL: the colour on
    screen comes from the content (column hues, badges, chips), never from the glass itself — so no tint on panels, a
-   near-white (light) / near-black (dark) page, and a neutral dim behind dialogs.
+   near-white (light) / near-black (dark) page with only a faint ambient hint, and a neutral dim behind dialogs.
 
    · material — translucent fill, light falling from the top (--glass-sheen), a 1px gradient rim on the lit edge
      (bright top-left, fading round the sides) inside a faint hairline. Every `bg-[var(--surface-solid)]` panel and card
@@ -84,12 +84,32 @@
   --glass-sat: 115%;
 }
 
+/* ── Ambient background: a faint hint of colour for the glass to pick up — mostly white / near-black ─────────────── */
+body {
+  background:
+    radial-gradient(900px 640px at 4% -10%, rgba(99, 102, 241, 0.09), transparent 62%),
+    radial-gradient(780px 560px at 100% 0%, rgba(236, 72, 153, 0.05), transparent 60%),
+    radial-gradient(960px 720px at 76% 110%, rgba(20, 184, 166, 0.07), transparent 60%),
+    radial-gradient(720px 540px at -6% 96%, rgba(59, 130, 246, 0.06), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+.dark body {
+  background:
+    radial-gradient(900px 640px at 4% -10%, rgba(99, 102, 241, 0.1), transparent 62%),
+    radial-gradient(780px 560px at 100% 0%, rgba(217, 70, 239, 0.05), transparent 60%),
+    radial-gradient(960px 720px at 76% 110%, rgba(20, 184, 166, 0.05), transparent 60%),
+    radial-gradient(720px 540px at -6% 96%, rgba(37, 99, 235, 0.07), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
 /* ── The material: fill + top light + inner highlight, on every glass surface ───────────────────────────────────── */
 /* `bg-[var(--surface-solid)]` is how the app already paints a panel, so matching it re-skins all of them at once.
    The highlight is an inset shadow; the element's own Tailwind shadow / ring is kept (they are variables, re-composed
    here). Print slides (.jb-pdf) stay flat white. */
 .glass,
-[class*='bg-[var(--surface-solid)]']:not(.ticket-card):not(.jb-board-header):not(.jb-pdf *) {
+[class*='bg-[var(--surface-solid)]']:not(.ticket-card):not(.jb-pdf *) {
   background-image: var(--glass-sheen);
   box-shadow:
     inset 0 1px 0 var(--spec),
@@ -105,8 +125,21 @@
     var(--shadow);
 }
 
+/* Board cards paint their own shadow inline (motion), so their highlight is a pseudo-element under the content. */
+.ticket-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: var(--glass-sheen);
+  box-shadow:
+    inset 0 1px 0 var(--spec),
+    inset 0 0 0 1px var(--spec-soft);
+}
+
 /* ── Chrome: the floating bars, sheets and menus ───────────────────────────────────────────────────────────────── */
-header.sticky:not(.jb-board-header),
+header.sticky,
 footer.fixed,
 .jb-dialog-panel,
 .jb-sheet,
@@ -122,28 +155,16 @@ footer.fixed,
 }
 
 /* Bars: the floating header and footer, and every sticky bar inside a sheet (`bg-[var(--bg)]/NN`). */
-header.sticky:not(.jb-board-header),
+header.sticky,
 footer.fixed,
 [class*='bg-[var(--bg)]/'] {
   background-color: var(--bar);
 }
-header.sticky:not(.jb-board-header),
+header.sticky,
 footer.fixed {
   background-image: var(--glass-sheen), var(--glass-grain);
   border-color: var(--line);
   box-shadow: var(--shadow);
-}
-
-.jb-board-header {
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  background-color: var(--surface-solid);
-  background-image: none;
-  box-shadow: none;
-}
-
-.jb-board-header::before {
-  display: none;
 }
 
 /* Dialogs and drawers were opaque (`bg-[var(--bg)]`), which defeats the translucency — they become sheets. */
@@ -172,7 +193,7 @@ footer.fixed {
 
 /* The glass edge: a 1px gradient ring, bright where the light hits (top-left) and fading round the sides, drawn just
    inside the hairline border. A masked pseudo-element, so it follows the corner radius and never takes a click. */
-header.sticky:not(.jb-board-header)::before,
+header.sticky::before,
 footer.fixed::before,
 .jb-dialog-panel::before,
 .jb-sheet::before,
@@ -243,7 +264,8 @@ button[aria-label^='Close' i]:active {
 .glass-interactive:active {
   transform: scale(0.985);
 }
-.glass-interactive::after {
+.glass-interactive::after,
+.ticket-card::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -253,10 +275,12 @@ button[aria-label^='Close' i]:active {
   opacity: 0;
   transition: opacity 0.25s ease;
 }
-.glass-interactive:hover::after {
+.glass-interactive:hover::after,
+.ticket-card:hover::after {
   opacity: 1;
 }
-.jb-no-anim .glass-interactive::after {
+.jb-no-anim .glass-interactive::after,
+.jb-no-anim .ticket-card::after {
   display: none;
 }
 .jb-no-anim .glass-interactive:active {
@@ -298,7 +322,8 @@ button[aria-label^='Close' i]:active {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
   }
-  .glass-interactive::after {
+  .glass-interactive::after,
+  .ticket-card::after {
     display: none;
   }
 }
@@ -318,7 +343,7 @@ button[aria-label^='Close' i]:active {
 
 /* ── Settings → "Motion & animations" OFF: a calm, flat, still board ───────────────────────────────────────────────
    The switch owns every decorative effect, not only movement: the glass (blur, sheen, rim, grain, reflection), the
-   pointer light and every hover / tap lift. What stays is the CONTENT's colour —
+   ambient gradient behind the page, the pointer light and every hover / tap lift. What stays is the CONTENT's colour —
    columns, badges, states — on plain opaque surfaces, exactly as readable. CSS transitions and animations are stopped by
    the `jb-no-anim` rule in index.css, framer-motion by motionPolicy.ts; the theme switch skips its reveal
    (lib/themeTransition.ts). Selectors carry `html` so they outrank the `:root` / `.dark` token blocks above. */
@@ -353,6 +378,8 @@ html.jb-no-anim *::after {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
+html.jb-no-anim .ticket-card::before,
+html.jb-no-anim .ticket-card::after,
 html.jb-no-anim .glass-interactive::after {
   display: none;
 }
