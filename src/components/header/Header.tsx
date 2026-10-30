@@ -64,6 +64,7 @@ function ProgressButton({
   const label = busy ? (hasCount(progress) ? `${progress!.done}/${progress!.total} · ${pct}%` : `${pct}%`) : idleLabel
 
   return (
+    <>
     <motion.button
       whileHover={disabled ? undefined : { y: -1 }}
       whileTap={disabled ? undefined : { scale: PRESS_SCALE }}
@@ -78,8 +79,8 @@ function ProgressButton({
           : title
       }
       // Fixed width so the label swapping (idle text ↔ x/y · %) never resizes the button.
-      className="relative inline-flex h-9 w-[168px] shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-xl px-3 text-[13px] font-bold text-white transition-[filter] hover:brightness-[1.08]"
-      style={{ background: gradient, boxShadow: `0 6px 18px -6px ${shadow}`, opacity: disabled && !busy ? 0.6 : 1 }}
+      className="jb-raise relative inline-flex h-9 w-[168px] shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-xl px-3 text-[13px] font-bold text-white transition-[filter] hover:brightness-[1.08]"
+      style={{ ['--hue' as string]: '#2684ff', background: gradient, boxShadow: `0 6px 18px -6px ${shadow}`, opacity: disabled && !busy ? 0.6 : 1 }}
     >
       {/* Dimming scrim over the UNFILLED (right) portion — recedes as pct grows, so the deep
           bright colour "fills in" from the left. */}
@@ -125,6 +126,10 @@ function ProgressButton({
         <span className="tabular-nums">{label}</span>
       </span>
     </motion.button>
+    <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      {busy ? label : ''}
+    </span>
+    </>
   )
 }
 
@@ -264,13 +269,13 @@ export const Header = memo(function Header({
             </div>
           )}
 
-          <label className="jb-search flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] px-3 py-1.5 card-shadow focus-within:border-[var(--muted)]">
+          <label htmlFor="jb-search" className="jb-search flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] px-3 py-1.5 card-shadow focus-within:border-[var(--muted)]">
+            <span className="sr-only">Search tickets</span>
             <span className="text-[var(--muted)]">
               <SearchIcon size={14} />
             </span>
             <input
               id="jb-search"
-              aria-label="Search tickets"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               type="search"
@@ -278,8 +283,8 @@ export const Header = memo(function Header({
               className="w-36 bg-transparent text-[13px] text-[var(--ink)] outline-none placeholder:text-[var(--muted)] md:w-60"
             />
             {query && (
-              <button onClick={() => setQuery('')} className="text-[var(--muted)] hover:text-[var(--ink)]" aria-label="Clear">
-                ✕
+              <button type="button" onClick={() => setQuery('')} className="text-[var(--muted)] hover:text-[var(--ink)]" aria-label="Clear search">
+                <span aria-hidden>✕</span>
               </button>
             )}
           </label>
@@ -330,7 +335,8 @@ export const Header = memo(function Header({
                     ? 'API keys — add your Jira token so the board can fetch'
                     : 'API keys — Jira, Bitbucket, Cloud AI…'
               }
-              className="relative grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] card-shadow hover:border-[var(--muted)] hover:text-[var(--ink)]"
+              className="jb-raise jb-hue relative grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] card-shadow hover:border-[var(--muted)] hover:text-[var(--ink)]"
+              style={{ ['--hue' as string]: '#f97316' }}
             >
               <KeyIcon size={16} />
               {(keysBadge || keysMissing) && (
@@ -349,7 +355,8 @@ export const Header = memo(function Header({
               onClick={onOpenSettings}
               aria-label="Board settings"
               title="Settings — appearance, features, AI usage"
-              className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] card-shadow hover:border-[var(--muted)] hover:text-[var(--ink)]"
+              className="jb-raise jb-hue grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] card-shadow hover:border-[var(--muted)] hover:text-[var(--ink)]"
+              style={{ ['--hue' as string]: '#14b8a6' }}
             >
               <GearIcon size={16} />
             </motion.button>
@@ -364,7 +371,8 @@ export const Header = memo(function Header({
             rel="noopener noreferrer"
             aria-label="Setup and deployment guide"
             title="Setup & deployment guide — requirements, install steps for Windows/macOS/Linux, git & Docker commands, troubleshooting"
-            className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] card-shadow hover:border-[var(--muted)] hover:text-[var(--ink)]"
+            className="jb-raise jb-hue grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] card-shadow hover:border-[var(--muted)] hover:text-[var(--ink)]"
+            style={{ ['--hue' as string]: '#0ea5e9' }}
           >
             <QuestionIcon size={16} />
           </motion.a>
@@ -384,7 +392,8 @@ export const Header = memo(function Header({
             }}
             aria-label="Toggle theme"
             aria-pressed={dark}
-            className="grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] card-shadow hover:border-[var(--muted)]"
+            className="jb-raise jb-hue grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] card-shadow hover:border-[var(--muted)]"
+            style={{ ['--hue' as string]: dark ? '#6366f1' : '#f59e0b' }}
           >
             {dark ? <MoonIcon size={16} /> : <SunIcon size={16} />}
           </motion.button>

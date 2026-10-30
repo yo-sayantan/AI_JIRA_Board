@@ -321,9 +321,9 @@ export const TicketCard = memo(function TicketCard({
         )}
       </div>
 
-      <div className={`relative mt-1 line-clamp-2 font-semibold leading-snug text-[var(--ink)] ${sub ? 'text-[12px]' : 'text-[13px]'}`}>
+      <h3 className={`relative mt-1 line-clamp-2 font-semibold leading-snug text-[var(--ink)] ${sub ? 'text-[12px]' : 'text-[13px]'}`}>
         {ticket.title}
-      </div>
+      </h3>
 
       <div className={`relative flex flex-wrap items-center gap-1 ${sub ? 'mt-1' : 'mt-1.5'}`}>
         <PriorityGlyph priority={ticket.priority} />

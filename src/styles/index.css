@@ -86,12 +86,61 @@ a {
   color: inherit;
 }
 
-/* Keyboard focus: one clear, consistent ring everywhere (mouse clicks stay clean —
-   :focus-visible only fires for keyboard/AT navigation). */
+/* Keyboard focus: a thin NEUTRAL ring, never the link blue — browsers also count a click that reopens focus
+   (a dialog closing hands it back to its button) as :focus-visible, and a blue ring there read as a bug. */
 :focus-visible {
-  outline: 2px solid var(--link);
+  outline: 1.5px solid color-mix(in srgb, var(--ink) 38%, transparent);
   outline-offset: 2px;
   border-radius: 4px;
+}
+/* Buttons and links show focus the way they show hover: one thin boundary in their own hue (--hue). */
+:root :is(button, a[href], [role='button'], summary):focus-visible {
+  outline: 1px solid color-mix(in srgb, var(--hue, var(--ink)) 45%, transparent);
+  outline-offset: 2px;
+}
+/* Every search box draws focus on its own frame (focus-within), so the field inside it gets no ring at all.
+   (Unlayered, so it outranks the global ring above; Tailwind's `outline-none` sits in a layer and does not.) */
+label:focus-within > input:focus,
+label:focus-within > input:focus-visible {
+  outline: none;
+}
+
+/* A raised button: on hover (and keyboard focus) it gains a thin boundary in its own hue, lifts 2px and casts a
+   layered shadow — a tight contact shadow plus a soft one tinted by --hue — so it reads as standing off the page.
+   The boundary is an outline and the shadow a drop-shadow filter, so neither fights a button's inline border or
+   box-shadow (selected chips, the refresh button's glow). */
+.jb-raise {
+  outline: 1px solid transparent;
+  outline-offset: 2px;
+  transition:
+    translate 0.18s var(--ease-out),
+    filter 0.18s ease,
+    outline-color 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+.jb-raise:not(:disabled):hover,
+.jb-raise:focus-visible {
+  translate: 0 -2px;
+  outline-color: color-mix(in srgb, var(--hue, var(--ink)) 45%, transparent);
+  filter: brightness(1.03) drop-shadow(0 1px 1px rgba(15, 23, 42, 0.14)) drop-shadow(0 6px 8px color-mix(in srgb, var(--hue, #0f172a) 28%, transparent));
+}
+/* The header's utility buttons: on hover a light wash of the colour of what they do (--hue). */
+.jb-hue:not(:disabled):hover,
+.jb-hue:focus-visible {
+  border-color: color-mix(in srgb, var(--hue) 40%, var(--line));
+  background-color: color-mix(in srgb, var(--hue) 11%, var(--surface-solid));
+  color: color-mix(in srgb, var(--hue) 78%, var(--ink));
+}
+.dark .jb-hue:not(:disabled):hover,
+.dark .jb-hue:focus-visible {
+  background-color: color-mix(in srgb, var(--hue) 16%, var(--surface-solid));
+  color: color-mix(in srgb, var(--hue) 55%, var(--ink));
+}
+.jb-no-anim .jb-raise:hover,
+.jb-no-anim .jb-raise:focus-visible {
+  translate: none;
 }
 
 /* Header search is a native search field, so the ring above (and the browser's own
@@ -448,16 +497,39 @@ select.jb-field:disabled {
     0 6px 16px rgba(245, 158, 11, 0.40),
     inset 0 1px 0 rgba(255, 255, 255, 0.6);
   animation: gold-pan 4s ease-in-out infinite;
-  transition: filter 0.28s ease, box-shadow 0.28s ease;
+  transition: filter 0.28s ease, box-shadow 0.28s ease, translate 0.2s var(--ease-out);
 }
-/* Hover: NO size change — just a slightly richer, brighter gold + a touch more
-   glow. Understated and classy. */
+/* Hover: NO size change — a richer, brighter gold, a 1px lift, and a layered shadow: a tight contact
+   shadow, a mid warm one and a wide soft glow, so the depth reads as light under the pill, not a flat smear. */
 .gold-sheen:hover {
   filter: brightness(1.06) saturate(1.12);
+  translate: 0 -1px;
   box-shadow:
-    0 1px 2px rgba(180, 83, 9, 0.42),
-    0 8px 22px rgba(245, 158, 11, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    0 1px 2px rgba(180, 83, 9, 0.45),
+    0 4px 10px -2px rgba(217, 119, 6, 0.42),
+    0 14px 30px -8px rgba(245, 158, 11, 0.6),
+    0 0 0 1px rgba(253, 230, 138, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    inset 0 -2px 4px rgba(180, 83, 9, 0.18);
+}
+/* The reflection: a still glossy highlight over the top half, as light catches a polished curved surface.
+   Under the label (z-1), above the gold; static, so reduce-motion and the Motion switch keep it. */
+.gold-sheen::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  top: 1px;
+  left: 8%;
+  right: 8%;
+  height: 46%;
+  border-radius: 999px;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0.18) 70%, rgba(255, 255, 255, 0) 100%);
+  opacity: 0.75;
+  transition: opacity 0.28s ease;
+}
+.gold-sheen:hover::after {
+  opacity: 1;
 }
 /* The glossy highlight band — a steep white glaze sweeps across, then rests,
    on a loop. Sits above the gold (z-0), below the label (label is z-1). */
@@ -576,6 +648,7 @@ select.jb-field:disabled {
 /* The same parked frames the OS reduce-motion rule gives the gold trophy. */
 .jb-no-anim .gold-sheen { animation: none; background-position: 35% 50%; }
 .jb-no-anim .gold-sheen::before { display: none; }
+.jb-no-anim .gold-sheen:hover { translate: none; }
 .jb-no-anim .trophy-glint { animation: none; opacity: 0; }
 
 /* ── PR Readiness Report → PDF slide deck ─────────────────────────────────────

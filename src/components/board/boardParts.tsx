@@ -73,9 +73,9 @@ export function SpaceHeader({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
           >
-            <span className="truncate text-[11px] font-bold uppercase tracking-wider" style={{ color: lift(accent) }}>
+            <h2 className="truncate text-[11px] font-bold uppercase tracking-wider" style={{ color: lift(accent) }}>
               {label}
-            </span>
+            </h2>
             {count !== undefined && <CountPill accent={accent} count={count} />}
           </motion.span>
         )}

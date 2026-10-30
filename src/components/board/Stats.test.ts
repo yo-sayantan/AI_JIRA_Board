@@ -38,6 +38,7 @@ describe('the chip row', () => {
     const picked = mount('todo')
     expect(picked.chips[0].getAttribute('aria-pressed')).toBe('false')
     const todo = picked.chips.find((c) => /^To Do/.test(c.textContent ?? ''))!
+    expect(todo.getAttribute('aria-pressed')).toBe('true')
     act(() => todo.click())
     expect(picked.onSelect).toHaveBeenLastCalledWith(null)
   })
@@ -50,6 +51,22 @@ function mountWith(props: Record<string, unknown>) {
   act(() => root!.render(createElement(Stats, { tickets: [], completedCount: 130, raisedCount: null, active: null, onSelect: () => {}, ...props } as never)))
   return host
 }
+
+it('separates board filters from destination actions with accessible names', () => {
+  const el = mountWith({
+    raisedCount: { total: 8, open: 3 },
+    takenCount: { total: 2, worked: 1 },
+  })
+  const toolbars = [...el.querySelectorAll('[role="toolbar"]')]
+  expect(toolbars.map((bar) => bar.getAttribute('aria-label'))).toEqual([
+    'Board filters',
+    'Board destinations',
+  ])
+  const filters = [...toolbars[0].querySelectorAll('button')]
+  expect(filters.every((button) => button.hasAttribute('aria-pressed'))).toBe(true)
+  const destinations = [...toolbars[1].querySelectorAll('button')]
+  expect(destinations.every((button) => !button.hasAttribute('aria-pressed'))).toBe(true)
+})
 
 describe('the board’s pointer to the tickets taken from you', () => {
   it('shows a chip with the count, and opens Completed already filtered to them', () => {

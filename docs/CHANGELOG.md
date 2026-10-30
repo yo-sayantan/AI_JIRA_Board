@@ -5,6 +5,7 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Board shell: the colours stay, and Completed stays the large gold control.** Raised and Taken from you are a step smaller. Completed keeps the larger gold type and trophy, on a shorter pill, and its glow is no longer cut off along the lane titles. Hover lifts a control and draws a thin outline in that control's own colour; the gold pill also shows a reflection. Focus is a neutral ring, including inside the search boxes. On a Completed row the reason pill and the worked / never-worked pill share fixed widths, so they line up down the list. Settings sections sit closer together, with Tools (Reset, Export, Import, Help) above AI. Reset and Import change the draft; Save still commits it. Export downloads that draft as `jira-board-settings.json`. The summary tiles on Completed and Raised are one read-only strip. The header and footer sit closer to the window edge; the chips and lanes keep a little more inset.
 - **Taken from you: pills you can see, worked-on vs never-worked, and a pointer on the board.** Each taken row now carries two
   pills in its title line — why it left you, and "You worked on it" (solid green) or "No work of yours" (hollow, dashed, grey)
   — and its frame follows (orange-tinted solid vs plain dashed), so the two kinds read apart without opening anything. The

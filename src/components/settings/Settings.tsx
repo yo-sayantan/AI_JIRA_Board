@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { ACTIVE_CADENCE, AI_LEVELS, BOARD_CADENCE, FEATURES, LIMITS, REPORT_STYLES, clampSetting, type AiCloudProvider, type FeatureKey, type Settings } from '../../lib/settings'
+import { ACTIVE_CADENCE, AI_LEVELS, BOARD_CADENCE, DEFAULT_SETTINGS, FEATURES, LIMITS, REPORT_STYLES, clampSetting, parseSettings, type AiCloudProvider, type FeatureKey, type Settings } from '../../lib/settings'
 import { getAiModels, getCloudModels, pullAiModel, guideUrl, type AiCatalogModel, type AiInternStatus, type AiPullProgress, type CloudModelChoice, type CloudListInfo, type CloudPrice, type OllamaContainerInfo } from '../../lib/runner'
 import { DEFAULT_COSTLY_USD, groupByProvider, isPricey, levelAllows, levelPriceText, usd } from '../../lib/cloudModels'
 import fallbackCatalog from '../../../ai-intern/models.json'
@@ -346,6 +346,94 @@ function OllamaStatusRow({
   )
 }
 
+const TOOL = 'jb-raise jb-hue flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--surface-2)] px-2.5 text-[11.5px] font-semibold text-[var(--ink-soft)] disabled:cursor-default disabled:opacity-40'
+
+/**
+ * Quick actions on the DRAFT. Nothing here saves by itself: Reset and Import only change the draft, and Save commits
+ * it like every other control in this window. Export downloads what is on screen, saved or not.
+ */
+function SettingsTools({ settings, onChange, setNote }: { settings: Settings; onChange: (next: Settings) => void; setNote: (note: string) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const atDefaults = JSON.stringify(settings) === JSON.stringify(DEFAULT_SETTINGS)
+  const exportSettings = () => {
+    const url = URL.createObjectURL(new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'jira-board-settings.json'
+    a.click()
+    // Revoked a tick later: some browsers start the download only after the click handler returns.
+    setTimeout(() => URL.revokeObjectURL(url), 0)
+    setNote('Exported jira-board-settings.json')
+  }
+  const importSettings = async (file: File) => {
+    try {
+      onChange(parseSettings(JSON.parse(await file.text())))
+      setNote(`Imported ${file.name} — review, then Save`)
+    } catch {
+      setNote(`${file.name} is not a settings export`)
+    }
+  }
+  return (
+    <>
+      <div className="grid grid-cols-4 gap-1.5">
+        <button
+          type="button"
+          className={TOOL}
+          style={{ ['--hue' as string]: '#f59e0b' }}
+          disabled={atDefaults}
+          onClick={() => {
+            onChange(DEFAULT_SETTINGS)
+            setNote('Defaults restored — Save to keep them')
+          }}
+          title={atDefaults ? 'Already at the defaults' : 'Put every setting back to its default (takes effect when you Save)'}
+        >
+          <RefreshIcon size={12} color="currentColor" /> Reset
+        </button>
+        <button type="button" className={TOOL} style={{ ['--hue' as string]: '#14b8a6' }} onClick={exportSettings} title="Export — download these settings as a JSON file">
+          <DownloadIcon size={12} color="currentColor" /> Export
+        </button>
+        <button type="button" className={TOOL} style={{ ['--hue' as string]: '#0ea5e9' }} onClick={() => fileRef.current?.click()} title="Import — load settings from an exported JSON file (takes effect when you Save)">
+          <DocIcon size={12} color="currentColor" /> Import
+        </button>
+        <a href={guideUrl()} target="_blank" rel="noopener noreferrer" className={TOOL} style={{ ['--hue' as string]: '#8b5cf6' }} title="Open the setup and help guide">
+          <QuestionIcon size={12} /> Help
+        </a>
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          e.target.value = ''
+          if (file) void importSettings(file)
+        }}
+      />
+    </>
+  )
+}
+
+/** The Tools header line: what the last action did, else the keyboard shortcuts. */
+function ToolsAside({ note, shortcuts }: { note: string | null; shortcuts: boolean }) {
+  const key = 'rounded border border-[var(--line)] px-1 font-sans text-[10px] text-[var(--ink-soft)]'
+  return (
+    <span className="flex min-w-0 items-center gap-2 truncate text-[var(--muted)]" role="status" aria-live="polite">
+      {note ? (
+        <span className="truncate font-semibold text-[var(--ink-soft)]">{note}</span>
+      ) : shortcuts ? (
+        <>
+          <span><kbd className={key}>/</kbd> search</span>
+          <span><kbd className={key}>r</kbd> refresh</span>
+          <span><kbd className={key}>Esc</kbd> close</span>
+        </>
+      ) : (
+        <span className="truncate">Shortcuts off — turn on under Features</span>
+      )}
+    </span>
+  )
+}
+
 export function SettingsPanel({
   open,
   settings: saved,
@@ -363,11 +451,15 @@ export function SettingsPanel({
   aiStatus?: AiInternStatus | null
 }) {
   const [draft, setDraft] = useState(saved)
+  const [toolNote, setToolNote] = useState<string | null>(null)
   const wasOpen = useRef(false)
   const panelRef = useRef<HTMLElement>(null)
   useDialogFocus(open, panelRef)
   useEffect(() => {
-    if (open && !wasOpen.current) setDraft(saved)
+    if (open && !wasOpen.current) {
+      setDraft(saved)
+      setToolNote(null)
+    }
     wasOpen.current = open
   }, [open, saved])
 
@@ -440,8 +532,8 @@ export function SettingsPanel({
               </button>
             </header>
 
-            <div className="grid min-h-0 grid-cols-[minmax(0,1fr)] gap-3 px-4 pb-4 pt-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-              <div className="flex min-w-0 flex-col gap-3">
+            <div className="grid min-h-0 grid-cols-[minmax(0,1fr)] gap-[5px] px-4 pb-4 pt-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <div className="flex min-w-0 flex-col gap-[5px]">
                 <Section title="Appearance">
                   <Segmented
                     label="Appearance"
@@ -501,6 +593,7 @@ export function SettingsPanel({
 
                 <Section
                   title="Background jobs"
+                  className="flex-1"
                   off={!settings.jobsEnabled}
                   aside={
                     !settings.jobsEnabled ? (
@@ -533,9 +626,15 @@ export function SettingsPanel({
                 </Section>
               </div>
 
-              <div className="flex min-w-0 flex-col">
+              <div className="flex min-w-0 flex-col gap-[5px]">
+                <Section title="Tools" aside={<ToolsAside note={toolNote} shortcuts={settings.features.shortcuts} />}>
+                  <SettingsTools settings={settings} onChange={onChange} setNote={setToolNote} />
+                </Section>
+
+                {/* Fills the right column down to the bottom of the left one. */}
                 <Section
                   title="AI"
+                  className="flex-1"
                   off={!settings.aiEnabled}
                   aside={
                     !settings.aiEnabled ? (
@@ -568,7 +667,6 @@ export function SettingsPanel({
                     </div>
                   </div>
                 </Section>
-
               </div>
 
               <Section

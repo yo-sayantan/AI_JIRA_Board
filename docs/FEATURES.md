@@ -408,6 +408,7 @@ Overlay with three areas (`src/components/settings/Settings.tsx`):
   lifts, no card entrances or drawer slides, spinners run once, and the theme switch has no reveal. Column, badge and state
   colours stay. The CSS half is the "Motion & animations OFF" block in `styles/glass.css` plus the `jb-no-anim` rule in
   `styles/index.css`; framer-motion's half is `lib/motionPolicy.ts`.
+- **Tools** — Reset, Export, Import, and Help, above AI. Reset and Import change the draft only; Save still commits it. Export downloads the draft as `jira-board-settings.json`. The section line shows the last action, or the keyboard shortcuts (`/` search, `r` refresh, Esc close) when shortcuts are on.
 - **AI** — one level, Low · Medium · High · Max, that sets timeout, cloud effort and which cloud models are selectable
   (output price per 1M: Low ≤ $1 · Medium ≤ $5 · High < $10 · Max all; the rest greyed out — see AI-PIPELINE.md), backend
   local (Ollama tag dropdown, host-Ollama checkbox, model pulls with live progress) or cloud (provider / model — the models

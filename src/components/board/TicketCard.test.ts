@@ -18,6 +18,17 @@ afterEach(() => {
 
 const ticket: Ticket = { key: 'ABC-1', title: 'A card', status: 'In Progress', column: 'prog' }
 
+describe('quiet card semantics', () => {
+  it('uses the ticket title as a heading inside the operable card', () => {
+    host = document.createElement('div')
+    document.body.appendChild(host)
+    root = createRoot(host)
+    act(() => root!.render(createElement(TicketCard, { ticket, now: Date.now(), onOpen: () => {} })))
+    const card = host.querySelector('[role="button"]')!
+    expect(card.querySelector('h3')?.textContent).toBe('A card')
+  })
+})
+
 describe('dragging a card', () => {
   it('carries a translucent clone, so the drop zone stays visible through it', () => {
     vi.useFakeTimers()

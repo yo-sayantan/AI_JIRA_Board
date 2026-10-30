@@ -58,13 +58,18 @@ export const Stats = memo(function Stats({
   const total = tickets.length
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2">
+    // Above the board's scroll area: the gold trophy's glow reaches past this row's margin, and the board
+    // (painted later) would otherwise cut it off in a straight line along the lane titles.
+    // Inset a little inside the header and footer (which run to the shell's edge): same side padding as the board below.
+    <div className="relative z-[25] mb-4 flex flex-wrap items-center gap-2 px-3">
+      <div role="toolbar" aria-label="Board filters" className="contents">
       {/* "All" — the whole board; first in the row and selected by default. */}
       <button
+        type="button"
         onClick={() => onSelect(null)}
         aria-pressed={active === null}
         title="Show every column"
-        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-[background-color,border-color,color] duration-150 ${
+        className={`jb-raise flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-[background-color,border-color,color] duration-150 ${
           active === null
             ? 'border-transparent bg-[var(--ink)] text-[var(--bg)]'
             : 'border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] hover:border-[var(--muted)]'
@@ -82,9 +87,12 @@ export const Stats = memo(function Stats({
             whileHover={{ y: -1 }}
             whileTap={{ scale: PRESS_SCALE }}
             transition={PRESS}
+            type="button"
+            aria-pressed={isActive}
             onClick={() => onSelect(isActive ? null : c.key)}
-            className="flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors"
+            className="jb-raise flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors"
             style={{
+              ['--hue' as string]: c.accent,
               borderColor: isActive ? lift(c.accent) : 'var(--line)',
               background: isActive ? tint(c.accent, 0.16) : 'var(--surface-solid)',
               color: isActive ? selectedText(c.accent) : 'var(--ink-soft)',
@@ -99,9 +107,10 @@ export const Stats = memo(function Stats({
           </motion.button>
         )
       })}
+      </div>
 
       {(completedCount != null || raisedCount != null) && (
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+        <div role="toolbar" aria-label="Board destinations" className="ml-auto flex flex-wrap items-center gap-2">
           {/* Deliberately quieter than the gold Completed trophy: the board's flat chip
               pattern (thin outline, tinted fill) in the view's indigo. open/total because
               "still needs fixing" is the number this view exists for. */}
@@ -112,15 +121,15 @@ export const Stats = memo(function Stats({
               transition={PRESS}
               onClick={onOpenRaised}
               title={`Tickets you raised (sub-tickets excluded) — ${raisedCount.open} of ${raisedCount.total} still open. See each one's status, who holds it now, and every hand-off.`}
-              className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-[7.5px] text-[12.5px] font-bold transition-colors"
-              style={{ borderColor: tint(RAISED, 0.45), color: lift(RAISED), background: tint(RAISED, 0.07) }}
+              className="jb-raise inline-flex h-8 items-center gap-1.5 rounded-full border px-3.5 text-[11.5px] font-bold transition-colors"
+              style={{ ['--hue' as string]: RAISED, borderColor: tint(RAISED, 0.45), color: lift(RAISED), background: tint(RAISED, 0.07) }}
             >
-              <MegaphoneIcon size={14} color={lift(RAISED)} />
+              <MegaphoneIcon size={13} color={lift(RAISED)} />
               Raised{' '}
               <b className="tabular-nums">
                 <AnimatedNumber value={raisedCount.open} />
               </b>
-              <span className="-ml-0.5 text-[11px] font-semibold tabular-nums opacity-60">/ {raisedCount.total}</span>
+              <span className="-ml-0.5 text-[10px] font-semibold tabular-nums opacity-60">/ {raisedCount.total}</span>
             </motion.button>
           )}
 
@@ -132,11 +141,11 @@ export const Stats = memo(function Stats({
               transition={PRESS}
               onClick={() => onOpenCompleted?.({ taken: true })}
               title={`${takenCount.total} ticket${takenCount.total === 1 ? ' was' : 's were'} assigned to you and then taken away (un-assigned, reassigned, called off or its PR declined) — ${takenCount.worked} of them after you had worked on ${takenCount.worked === 1 ? 'it' : 'them'}. They are listed in Completed with the reason.`}
-              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-[7.5px] text-[12px] font-bold transition-colors"
-              style={{ borderColor: tint(TAKEN, 0.5), color: `color-mix(in srgb, ${lift(TAKEN)} 60%, var(--ink))`, background: tint(TAKEN, 0.1) }}
+              className="jb-raise inline-flex h-8 items-center gap-1.5 rounded-full border px-3.5 text-[11.5px] font-bold transition-colors"
+              style={{ ['--hue' as string]: TAKEN, borderColor: tint(TAKEN, 0.5), color: `color-mix(in srgb, ${lift(TAKEN)} 60%, var(--ink))`, background: tint(TAKEN, 0.1) }}
               data-taken-chip
             >
-              <MoveIcon size={13} color="currentColor" /> Taken from you{' '}
+              <MoveIcon size={12} color="currentColor" /> Taken from you{' '}
               <b>
                 <AnimatedNumber value={takenCount.total} />
               </b>
@@ -149,11 +158,11 @@ export const Stats = memo(function Stats({
               transition={PRESS}
               onClick={() => onOpenCompleted?.()}
               title="View all completed tickets"
-              className="gold-sheen inline-flex items-center rounded-full border-[3px] px-4 py-2 text-[13.5px] font-extrabold text-[#5b3d00]"
+              className="gold-sheen inline-flex h-11 items-center rounded-full border-[3px] px-3.5 text-[14.5px] font-extrabold text-[#5b3d00]"
               style={{ borderColor: '#b45309' }}
             >
               <span className="relative z-[1] inline-flex items-center gap-2">
-                <TrophyIcon size={16} glint /> Completed{' '}
+                <TrophyIcon size={18} glint /> Completed{' '}
                 <b>
                   <AnimatedNumber value={completedCount} />
                 </b>

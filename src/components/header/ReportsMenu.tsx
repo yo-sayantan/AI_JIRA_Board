@@ -115,8 +115,8 @@ export function ReportsMenu({ served, generating, withPrCount, reportCount, boar
               ? `${busy} PR readiness report${busy === 1 ? '' : 's'} generating in the background — click for options`
               : "Generate PR Readiness Reports — all tickets with a pull request, the dashboard's tickets, a time window, or one ticket"
           }
-          className="grid h-9 w-9 place-items-center rounded-xl border bg-[var(--surface-solid)] card-shadow hover:border-[var(--muted)]"
-          style={{ borderColor: busy ? tint(AI, 0.5) : 'var(--line)' }}
+          className="jb-raise jb-hue grid h-9 w-9 place-items-center rounded-xl border bg-[var(--surface-solid)] card-shadow hover:border-[var(--muted)]"
+          style={{ ['--hue' as string]: AI, borderColor: busy ? tint(AI, 0.5) : 'var(--line)' }}
         >
           <AiSpark busy={busy > 0} />
         </motion.button>

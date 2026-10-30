@@ -224,7 +224,7 @@ export default function App() {
 
   if (source === 'empty') {
     return (
-      <div className="w-full px-4 pb-24 md:px-6 lg:px-8">
+      <div className="w-full px-2 pb-24">
         <EmptyState
           served={served}
           refreshing={refreshing}
@@ -247,7 +247,7 @@ export default function App() {
   // clear of the fixed footer. A short window (under 640px tall) would leave the board a sliver under the header and chips,
   // so there the page scrolls as before (the lane titles then stick to the window instead).
   return (
-    <div className="flex h-dvh w-full flex-col px-4 pb-14 md:px-6 lg:px-8 [@media(max-height:640px)]:h-auto [@media(max-height:640px)]:pb-24">
+    <div className="flex h-dvh w-full flex-col px-2 pb-14 [@media(max-height:640px)]:h-auto [@media(max-height:640px)]:pb-24">
       <Header
         data={data}
         now={now}
@@ -295,7 +295,7 @@ export default function App() {
           comes forward again as it closes — the scrim does the dimming. */}
       <motion.main
         animate={overlayOpen ? RECEDE : { scale: 1, transition: RECEDE.transition }}
-        className="jb-board-scroll -mx-2 min-h-0 flex-1 overflow-auto overscroll-contain px-2 [@media(max-height:640px)]:overflow-visible"
+        className="jb-board-scroll -mx-2 min-h-0 flex-1 overflow-auto overscroll-contain px-5 [@media(max-height:640px)]:overflow-visible"
       >
       {!hasAnyActive ? (
         <FunEmptyBoard

@@ -34,6 +34,12 @@ function drop(el: Element, key = 'ABC-1', clientY?: number, altKey = false) {
 }
 
 describe('Column — empty columns and the On Hold space', () => {
+  it('exposes the lane name as a heading', () => {
+    const waiting = { key: 'Q-1', title: 'Waiting', status: 'Ready for QA', column: 'qa' as const }
+    const section = render({ meta: COLUMN_META.qa, tickets: [waiting] })
+    expect(section.querySelector('h2')?.textContent).toContain('QA')
+  })
+
   it('folds an empty column to a rail; with On Hold the rail names both targets', () => {
     expect(render({ meta: COLUMN_META.rev }).getAttribute('aria-label')).toBe('In Review — empty')
     act(() => root!.unmount())
