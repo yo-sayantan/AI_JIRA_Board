@@ -14,7 +14,9 @@ export function useBoardData(served: boolean, onError?: (msg: string) => void, d
   // belonging to the user's real board, which is not this mode's to touch.
   const [archived, setArchived] = useState<ReadonlySet<string>>(() => (demo ? new Set() : loadArchivedKeys(injectedDump())))
   // `npm run dev` fixtures (?data=…, lib/devData.ts) get an archive set of their own, never written to jb-archived.
-  const devSet = useDevDataset()
+  // They are a demo-mode tool: with demo mode off a leftover ?data= is ignored, since the switch that clears it is hidden.
+  const requestedSet = useDevDataset()
+  const devSet = demo ? requestedSet : null
   const [devArchived, setDevArchived] = useState<ReadonlySet<string>>(() => new Set())
   const devRaw = useMemo(() => (devSet ? devDump(devSet, Date.now()) : null), [devSet])
   const view = useMemo(() => (devRaw ? loadData(devRaw, devArchived) : loadData(raw, archived)), [devRaw, devArchived, raw, archived])

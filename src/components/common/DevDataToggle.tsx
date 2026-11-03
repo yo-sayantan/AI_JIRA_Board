@@ -1,9 +1,12 @@
 import { DEV_DATASETS, setDevDataset, useDevDataset, type DevDataset } from '../../lib/devData'
 
-/** `npm run dev` only: flip the board between its own data and the fixtures in lib/devData.ts. Not part of the design under test. */
+/**
+ * `npm run dev` + demo mode only: flip the demo board to the fixtures in lib/devData.ts. Not part of the design under
+ * test. Unset is demo mode's own sample board (jira-intern/demo/data.json).
+ */
 export function DevDataToggle() {
   const current = useDevDataset()
-  const options: { id: DevDataset | null; label: string }[] = [{ id: null, label: 'Live' }, ...DEV_DATASETS]
+  const options: { id: DevDataset | null; label: string }[] = [{ id: null, label: 'Demo board' }, ...DEV_DATASETS]
   return (
     <div
       role="radiogroup"

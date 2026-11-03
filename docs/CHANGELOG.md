@@ -5,6 +5,11 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Dev: the worst-case data switch is a demo-mode tool.** Under `npm run dev` the Demo board / Dev sample / Worst case /
+  Empty / One / 400 cards switch shows only while Settings → Demo mode is on, and the board ignores a leftover `?data=`
+  while demo mode is off (the switch that clears it is hidden then). "Demo board" is demo mode's own sample board; "Dev
+  sample" is `src/fixtures.ts`.
+
 - **Progress fills and spinners stay smooth while the board is busy.** The refresh button, the archive menu, the model
   download bar and a ticket's checklist bar animated `left` / `width`, which re-lays-out every frame — and the first two run
   while a fetch keeps the page busy. They now move with `scaleX` / `translateX`, and the Settings switch knob with
