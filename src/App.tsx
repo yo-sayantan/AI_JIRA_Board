@@ -35,6 +35,7 @@ import { keysBadge, missingRequired, visibleHealth } from './lib/apiKeys'
 import { Toasts } from './components/common/Toast'
 import { NoticesDock } from './components/common/NoticesDock'
 import { Footer } from './components/common/Footer'
+import { DevDataToggle } from './components/common/DevDataToggle'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { RECEDE, SCRIM } from './lib/motion'
 
@@ -236,6 +237,7 @@ export default function App() {
         />
         {keysDialog}
         <Footer />
+        {import.meta.env.DEV && <DevDataToggle />}
         <Toasts toasts={toasts} onDismiss={dismiss} onPause={pauseToasts} onResume={resumeToasts} />
       </div>
     )
@@ -333,6 +335,7 @@ export default function App() {
       </motion.main>
 
       <Footer />
+      {import.meta.env.DEV && <DevDataToggle />}
 
       {/* Shared backdrop behind the whole drawer stack; click it to dismiss everything. */}
       <AnimatePresence>

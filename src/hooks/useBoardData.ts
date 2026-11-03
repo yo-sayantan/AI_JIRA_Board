@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { injectedDump, loadArchivedKeys, loadData, persistArchivedKeys } from '../data'
 import { demoDump, fetchDemoDump } from '../demo'
 import { getDataDump } from '../lib/runner'
+import { devDump, useDevDataset } from '../lib/devData'
 
 /**
  * The dump the board renders, plus the keys the user moved to Completed by hand. Served mode swaps
@@ -12,7 +13,11 @@ export function useBoardData(served: boolean, onError?: (msg: string) => void, d
   // Demo mode keeps its own archive set in memory: writing to jb-archived would prune the keys
   // belonging to the user's real board, which is not this mode's to touch.
   const [archived, setArchived] = useState<ReadonlySet<string>>(() => (demo ? new Set() : loadArchivedKeys(injectedDump())))
-  const view = useMemo(() => loadData(raw, archived), [raw, archived])
+  // `npm run dev` fixtures (?data=…, lib/devData.ts) get an archive set of their own, never written to jb-archived.
+  const devSet = useDevDataset()
+  const [devArchived, setDevArchived] = useState<ReadonlySet<string>>(() => new Set())
+  const devRaw = useMemo(() => (devSet ? devDump(devSet, Date.now()) : null), [devSet])
+  const view = useMemo(() => (devRaw ? loadData(devRaw, devArchived) : loadData(raw, archived)), [devRaw, devArchived, raw, archived])
 
   // Flipping the toggle swaps the whole dump — and the archive set that belongs with it.
   const wasDemo = useRef(demo)
@@ -42,17 +47,25 @@ export function useBoardData(served: boolean, onError?: (msg: string) => void, d
     // Jobs finishing close together each reload; only the newest fetch may land, or a slow
     // older response would put stale data back on the board.
     const seq = ++latestReload.current
-    if (demo) return // nothing to reload — the sample board is built in the browser
+    if (demo || devSet) return // nothing to reload — the sample board is built in the browser
     if (!served) return location.reload()
     const next = await getDataDump()
     if (seq !== latestReload.current) return
     // A failed fetch keeps the copy on screen; reloading the page would throw it away for nothing.
     if (next) setRaw(next)
     else onErrorRef.current?.('Could not load fresh data — showing the last copy.')
-  }, [served, demo])
+  }, [served, demo, devSet])
 
   const updateArchived = useCallback(
     (update: (keys: Set<string>) => void) => {
+      if (devSet) {
+        setDevArchived((prev) => {
+          const next = new Set(prev)
+          update(next)
+          return next
+        })
+        return
+      }
       setArchived((prev) => {
         const next = new Set(prev)
         update(next)
@@ -60,7 +73,7 @@ export function useBoardData(served: boolean, onError?: (msg: string) => void, d
         return next
       })
     },
-    [demo],
+    [demo, devSet],
   )
   const archive = useCallback((key: string) => updateArchived((keys) => keys.add(key)), [updateArchived])
   const restoreArchived = useCallback(() => updateArchived((keys) => keys.clear()), [updateArchived])
