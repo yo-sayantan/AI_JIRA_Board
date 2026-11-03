@@ -4,12 +4,12 @@ import { fixture } from '../fixtures'
 import { emptyDump, hugeDump, oneDump, worstCaseDump } from '../fixtures.worstCase'
 
 /**
- * `npm run dev` only: swap the dump the board renders for a fixture, chosen with `?data=` so a reload keeps it.
- * Unset = the board's normal data. Production builds never read the URL (import.meta.env.DEV is false there, and the
- * fixtures are dropped with it).
+ * `npm run dev` with demo mode on: swap the demo board for a fixture, chosen with `?data=` so a reload keeps it.
+ * Unset = demo mode's own sample board; with demo mode off the selection is ignored (useBoardData). Production builds
+ * never read the URL (import.meta.env.DEV is false there, and the fixtures are dropped with it).
  */
 export const DEV_DATASETS = [
-  { id: 'demo', label: 'Demo data' },
+  { id: 'demo', label: 'Dev sample' },
   { id: 'worst', label: 'Worst case' },
   { id: 'empty', label: 'Empty' },
   { id: 'one', label: 'One' },

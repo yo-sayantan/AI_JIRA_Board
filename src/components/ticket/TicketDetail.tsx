@@ -35,7 +35,7 @@ import {
   FlaskIcon,
 } from '../common/Icons'
 import { lift, onFill, tint } from '../../lib/tone'
-import { COLLAPSE, DRAWER, DRAWER_EXIT, DRAWER_RETURN, flickDismisses } from '../../lib/motion'
+import { COLLAPSE, DRAWER, DRAWER_EXIT, DRAWER_RETURN, FILL, flickDismisses } from '../../lib/motion'
 
 /**
  * The one-click path from a ticket to its management-grade verdict. Three states: a report exists
@@ -96,7 +96,7 @@ function PrReportButton({
     return (
       <div className={`${BANNER_FRAME} flex items-center gap-3 px-3.5 py-2.5`} style={bannerStyle(ai)} role="status">
         <BannerIcon hue={ai}>
-          <motion.span className="inline-flex" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}>
+          <motion.span className="inline-flex" animate={{ transform: ['rotate(0deg)', 'rotate(360deg)'] }} transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}>
             <RefreshIcon size={14} color={lift(ai)} />
           </motion.span>
         </BannerIcon>
@@ -734,7 +734,7 @@ function AcceptanceChecklist({ storageKey, items, accent }: { storageKey: string
     <div>
       <div className="mb-2 flex items-center gap-2">
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--surface-2)]">
-          <motion.div className="h-full rounded-full" style={{ background: accent }} animate={{ width: `${pct}%` }} transition={{ type: 'spring', stiffness: 200, damping: 26 }} />
+          <motion.div className="h-full w-full origin-left rounded-full" style={{ background: accent }} animate={{ transform: `scaleX(${pct / 100})` }} transition={FILL} />
         </div>
         <span className="text-[11px] font-semibold tabular-nums text-[var(--muted)]">{done}/{items.length}</span>
       </div>

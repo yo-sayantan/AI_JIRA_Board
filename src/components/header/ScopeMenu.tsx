@@ -3,14 +3,12 @@ import { AnimatePresence, motion } from 'motion/react'
 import { currentYear, dateInputDaysAgo } from '../../lib/format'
 import { APP_CONFIG } from '../../lib/appConfig'
 import { onFill, tint } from '../../lib/tone'
-import { POPOVER, PRESS } from '../../lib/motion'
+import { FILL, POPOVER, PRESS } from '../../lib/motion'
 
 export type MenuScope = { scope: 'all' } | { scope: 'year'; year: number } | { scope: 'since'; since: string } | { scope: 'key'; key: string }
 
 const KEY_RE = /^[A-Za-z][A-Za-z0-9]+-\d+$/
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-const SPRING = { type: 'spring', stiffness: 120, damping: 22, mass: 0.6 } as const
-
 const daysAgo = (n: number) => dateInputDaysAgo(n, APP_CONFIG.timeZone)
 
 export interface ScopeMenuProps {
@@ -86,29 +84,31 @@ export function ScopeMenu({ color, trigger, title, subtitle, progress, served, o
             >
               {busy && (
                 <>
+                  {/* scaleX, not width: the fill ticks during a rebuild, and a width change re-lays-out the menu per frame. */}
                   <motion.span
                     aria-hidden
-                    className="pointer-events-none absolute inset-y-0 left-0"
+                    className="pointer-events-none absolute inset-y-0 left-0 w-full origin-left"
                     initial={false}
-                    animate={{ width: `${fill}%` }}
-                    transition={SPRING}
+                    animate={{ transform: `scaleX(${fill / 100})` }}
+                    transition={FILL}
                     style={{ background: `linear-gradient(90deg, ${tint(color, 0.55)}, ${tint(color, 0.28)})` }}
                   />
                   <motion.span
                     aria-hidden
-                    className="pointer-events-none absolute inset-y-0 z-[1] w-[2px]"
+                    className="pointer-events-none absolute inset-0 z-[1]"
                     initial={false}
-                    animate={{ left: `calc(${fill}% - 1px)` }}
-                    transition={SPRING}
-                    style={{ background: 'rgba(255,255,255,0.85)' }}
-                  />
+                    animate={{ transform: `translateX(calc(${fill}% - 1px))` }}
+                    transition={FILL}
+                  >
+                    <span className="absolute inset-y-0 left-0 w-[2px]" style={{ background: 'rgba(255,255,255,0.85)' }} />
+                  </motion.span>
                 </>
               )}
               {busy && shimmer && (
                 <motion.span
                   aria-hidden
-                  className="pointer-events-none absolute inset-y-0 z-[1] w-1/3"
-                  animate={{ left: ['-33%', '100%'] }}
+                  className="pointer-events-none absolute inset-y-0 left-0 z-[1] w-1/3"
+                  animate={{ transform: ['translateX(-100%)', 'translateX(300%)'] }}
                   transition={{ repeat: Infinity, duration: 1.1, ease: 'linear' }}
                   style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)' }}
                 />

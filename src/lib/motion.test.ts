@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DIALOG, EASE_DRAWER, EASE_OUT, HOVER_SCALE, POPOVER, PRESS, PRESS_SCALE, SCRIM, TOAST, flickDismisses, project } from './motion'
+import { DIALOG, EASE_DRAWER, EASE_OUT, FILL, HOVER_SCALE, POPOVER, PRESS, PRESS_SCALE, SCRIM, TOAST, flickDismisses, project } from './motion'
 
 const duration = (t: { transition: { duration: number } }) => t.transition.duration
 
@@ -9,6 +9,8 @@ describe('motion tokens', () => {
     expect(PRESS_SCALE).toBeLessThanOrEqual(0.98)
     expect(HOVER_SCALE).toBeLessThanOrEqual(1.05)
     expect((PRESS as { duration: number }).duration).toBeLessThanOrEqual(0.16)
+    expect((FILL as { duration: number }).duration).toBeLessThanOrEqual(0.3)
+    expect((FILL as { bounce: number }).bounce).toBe(0)
   })
 
   it('never eases in: every curve starts fast (first control point rises at least as fast as it runs)', () => {

@@ -237,7 +237,7 @@ export default function App() {
         />
         {keysDialog}
         <Footer />
-        {import.meta.env.DEV && <DevDataToggle />}
+        {import.meta.env.DEV && demo && <DevDataToggle />}
         <Toasts toasts={toasts} onDismiss={dismiss} onPause={pauseToasts} onResume={resumeToasts} />
       </div>
     )
@@ -335,7 +335,7 @@ export default function App() {
       </motion.main>
 
       <Footer />
-      {import.meta.env.DEV && <DevDataToggle />}
+      {import.meta.env.DEV && demo && <DevDataToggle />}
 
       {/* Shared backdrop behind the whole drawer stack; click it to dismiss everything. */}
       <AnimatePresence>

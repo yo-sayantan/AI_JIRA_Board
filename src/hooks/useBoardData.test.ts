@@ -15,10 +15,10 @@ afterEach(() => {
   host = root = null
 })
 
-function mountDemo() {
+function mountDemo(demo = true) {
   const ref: { current: Board | null } = { current: null }
   function Probe() {
-    ref.current = useBoardData(false, undefined, true)
+    ref.current = useBoardData(false, undefined, demo)
     return null
   }
   host = document.createElement('div')
@@ -37,5 +37,20 @@ describe('Demo mode reset', () => {
     act(() => board().resetDemo())
     expect(board().userArchived).toEqual([])
     expect(board().data.tickets.some((t) => t.key === done.key)).toBe(true)
+  })
+})
+
+describe('dev fixtures (?data=)', () => {
+  afterEach(() => history.replaceState(null, '', '/'))
+  const WORST_USER = 'Wiśniewska-Kowalczyk, Aleksandra'
+
+  it('swap in only while demo mode is on', () => {
+    history.replaceState(null, '', '/?data=worst')
+    expect(mountDemo(true)().data.user?.name).toBe(WORST_USER)
+  })
+
+  it('are ignored with demo mode off, where the switch that clears them is hidden', () => {
+    history.replaceState(null, '', '/?data=worst')
+    expect(mountDemo(false)().data.user?.name).not.toBe(WORST_USER)
   })
 })

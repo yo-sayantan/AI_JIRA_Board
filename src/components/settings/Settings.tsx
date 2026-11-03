@@ -805,8 +805,8 @@ function FeatureCard({
         style={{ background: on ? color : 'var(--line-strong)' }}
       >
         <span
-          className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-[left]"
-          style={{ left: on ? 'calc(100% - 14px)' : '2px' }}
+          className="absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform duration-150 ease-out"
+          style={{ transform: on ? 'translateX(12px)' : 'translateX(0)' }}
         />
       </span>
     </button>
@@ -1503,8 +1503,8 @@ function LocalModelPicker({
           >
             {downloading && known && (
               <div
-                className="h-full rounded-full transition-[width] duration-300 ease-out"
-                style={{ width: `${Math.max(4, pct)}%`, background: AI }}
+                className="h-full w-full origin-left rounded-full transition-transform duration-300 ease-out"
+                style={{ transform: `scaleX(${Math.max(4, pct) / 100})`, background: AI }}
               />
             )}
             {downloading && !known && (

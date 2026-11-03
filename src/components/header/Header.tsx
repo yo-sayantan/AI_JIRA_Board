@@ -9,7 +9,7 @@ import { ArchiveMenu } from './ArchiveMenu'
 import { flushSync } from 'react-dom'
 import { switchTheme } from '../../lib/themeTransition'
 import { lift, tint } from '../../lib/tone'
-import { HOVER_SCALE, PRESS, PRESSABLE, PRESS_SCALE } from '../../lib/motion'
+import { FILL, HOVER_SCALE, PRESS, PRESSABLE, PRESS_SCALE } from '../../lib/motion'
 
 export type RunProgress = {
   done: number
@@ -82,35 +82,39 @@ function ProgressButton({
       className="jb-raise relative inline-flex h-9 w-[168px] shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-xl px-3 text-[13px] font-bold text-white transition-[filter] hover:brightness-[1.08]"
       style={{ ['--hue' as string]: '#2684ff', background: gradient, boxShadow: `0 6px 18px -6px ${shadow}`, opacity: disabled && !busy ? 0.6 : 1 }}
     >
-      {/* Dimming scrim over the UNFILLED (right) portion — recedes as pct grows, so the deep
-          bright colour "fills in" from the left. */}
+      {/* Dimming scrim over the UNFILLED (right) portion — recedes as pct grows, so the deep bright colour "fills
+          in" from the left. scaleX instead of animating `left`: the fill updates on every progress tick, during a fetch, and a
+          width change re-lays-out the button each frame. Anchored right, so it shrinks off the filled part. */}
       {busy && (
         <motion.span
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-0 z-0"
+          className="pointer-events-none absolute inset-y-0 right-0 z-0 w-full origin-right"
           initial={false}
-          animate={{ left: `${pct}%` }}
-          transition={{ type: 'spring', stiffness: 120, damping: 22, mass: 0.6 }}
+          animate={{ transform: `scaleX(${1 - pct / 100})` }}
+          transition={FILL}
           style={{ background: 'rgba(0,0,0,0.34)' }}
         />
       )}
-      {/* Bright leading edge at the fill boundary for a crisp "wet paint" look. */}
+      {/* Bright leading edge at the fill boundary for a crisp "wet paint" look. The bar rides the left edge of a
+          full-width layer, so translateX's percentage is the button's width and the edge tracks the fill. */}
       {busy && (
         <motion.span
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 z-[1] w-[3px]"
+          className="pointer-events-none absolute inset-0 z-[1]"
           initial={false}
-          animate={{ left: `calc(${pct}% - 1.5px)` }}
-          transition={{ type: 'spring', stiffness: 120, damping: 22, mass: 0.6 }}
-          style={{ background: 'rgba(255,255,255,0.85)', boxShadow: '0 0 8px rgba(255,255,255,0.6)' }}
-        />
+          animate={{ transform: `translateX(calc(${pct}% - 1.5px))` }}
+          transition={FILL}
+        >
+          <span className="absolute inset-y-0 left-0 w-[3px]" style={{ background: 'rgba(255,255,255,0.85)', boxShadow: '0 0 8px rgba(255,255,255,0.6)' }} />
+        </motion.span>
       )}
-      {/* Shimmer while we don't yet have a ticket count (early phases). */}
+      {/* Shimmer while we don't yet have a ticket count (early phases). A quarter-width band: -100% to 400% of its
+          own width runs it from just off the left edge to just off the right. */}
       {busy && !hasCount(progress) && (
         <motion.span
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 z-[1] w-1/4"
-          animate={{ left: ['-25%', '100%'] }}
+          className="pointer-events-none absolute inset-y-0 left-0 z-[1] w-1/4"
+          animate={{ transform: ['translateX(-100%)', 'translateX(400%)'] }}
           transition={{ repeat: Infinity, duration: 1.1, ease: 'linear' }}
           style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)' }}
         />
@@ -118,8 +122,8 @@ function ProgressButton({
       <span className="relative z-10 inline-flex items-center gap-1.5" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.35)' }}>
         <motion.span
           className="inline-flex"
-          animate={busy ? { rotate: 360 } : { rotate: 0 }}
-          transition={busy ? { repeat: Infinity, duration: 0.8, ease: 'linear' } : { type: 'spring', stiffness: 300, damping: 20 }}
+          animate={busy ? { transform: ['rotate(0deg)', 'rotate(360deg)'] } : { transform: 'rotate(0deg)' }}
+          transition={busy ? { repeat: Infinity, duration: 0.8, ease: 'linear' } : PRESS}
         >
           {busy ? <RefreshIcon size={15} color="#fff" /> : idleIcon}
         </motion.span>

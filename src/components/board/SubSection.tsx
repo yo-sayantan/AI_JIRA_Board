@@ -74,7 +74,7 @@ export const SubSection = memo(function SubSection({
     >
       {!bare && <SpaceHeader accent={accent} icon={icon} label={label} count={tickets.length} denied={denied} alt={alt} active={hot} />}
       <div
-        className={`flex flex-col gap-2 ${bare ? 'flex-1' : ''} rounded-2xl border border-dashed p-2 transition-[background,border-color,box-shadow,opacity] duration-150`}
+        className={`flex flex-col gap-2 ${bare ? 'flex-1' : ''} rounded-2xl border border-dashed p-2 transition-[background-color,border-color,box-shadow,opacity] duration-150`}
         title={denied?.reason ?? (empty ? hint : undefined)}
         style={{ ...dropBoxStyle(accent, droppable && over), opacity: deniedOpacity(denied, over) }}
       >
