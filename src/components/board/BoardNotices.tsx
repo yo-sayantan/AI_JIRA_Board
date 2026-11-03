@@ -1,11 +1,13 @@
-import { FlaskIcon, EyeOffIcon, RefreshIcon } from '../common/Icons'
+import { FlaskIcon, EyeOffIcon, RefreshIcon, SearchIcon } from '../common/Icons'
 import { lift } from '../../lib/tone'
 
 export function NoMatches({ query, onClear }: { query: string; onClear: () => void }) {
   return (
     <div className="grid min-h-[34vh] place-items-center rounded-2xl border border-dashed border-[var(--line-strong)] bg-[var(--surface-2)] text-center">
       <div>
-        <div className="mb-2 text-3xl">🔍</div>
+        <div className="mb-2 flex justify-center text-[var(--muted)]">
+          <SearchIcon size={26} />
+        </div>
         <p className="text-[14px] font-semibold text-[var(--ink)]">No tickets match “{query}”.</p>
         <button onClick={onClear} className="mt-2 text-[12.5px] text-[#8b9cff] hover:underline">
           Clear search

@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { CopyButton } from '../common/ui'
-import { FlaskIcon, KeyIcon, RefreshIcon } from '../common/Icons'
+import { FlaskIcon, KeyIcon, RefreshIcon, TicketGlyph } from '../common/Icons'
 import { lift, tint } from '../../lib/tone'
 
 
@@ -38,7 +38,7 @@ export function EmptyState({
           className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl text-[32px]"
           style={{ background: 'linear-gradient(135deg, #6d5bd0, #3b82f6)' }}
         >
-          🗂️
+          <TicketGlyph size={30} />
         </motion.div>
         <h2 className="text-[16px] font-bold text-[var(--ink)]">Nothing to show… yet</h2>
         <p className="mt-2 text-[13px] leading-relaxed text-[var(--muted)]">

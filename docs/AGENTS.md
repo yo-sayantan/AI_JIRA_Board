@@ -242,7 +242,7 @@ ticket's branches, and that has its own status words):
 ## Build · test · run · deploy
 
 ```bash
-npm run dev          # Vite dev server with fixture data (src/fixtures.ts)
+npm run dev          # Vite dev server with fixture data (src/fixtures.ts); ?data=worst|empty|one|huge → src/fixtures.worstCase.ts
 npm run build        # tsc --noEmit && vite build → dist/index.html (single file)
 npm test             # python unittest under tests/
 npm run serve        # zero-dependency local server on :4321
