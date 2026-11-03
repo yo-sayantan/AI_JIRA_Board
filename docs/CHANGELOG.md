@@ -5,6 +5,14 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Progress fills and spinners stay smooth while the board is busy.** The refresh button, the archive menu, the model
+  download bar and a ticket's checklist bar animated `left` / `width`, which re-lays-out every frame — and the first two run
+  while a fetch keeps the page busy. They now move with `scaleX` / `translateX`, and the Settings switch knob with
+  `translateX`. Spinners (refresh, build chips, "syncing", the report spark) animate a `transform` string, so they leave the
+  main thread. The fills share one token, `FILL` in `src/lib/motion.ts` (a 0.3 s spring, no bounce), instead of two
+  hand-tuned springs; the report spark, the archive pulse and the status pipeline use the board's own curves instead of the
+  built-in `easeInOut` / `easeOut`, and the pipeline fill is 0.3 s instead of 0.5 s.
+
 - **Cards hold up with real-world worst-case data, from 60% to 140% browser zoom.** Every Jenkins environment's chip
   shows (the row wraps), so a failed Production build is never hidden past the card edge. A long key (10-letter project,
   6-digit number) keeps its points tag, which moves under the key instead of being clipped or painted over the age; on a

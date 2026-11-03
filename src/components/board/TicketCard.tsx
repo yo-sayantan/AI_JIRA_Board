@@ -295,7 +295,7 @@ export const TicketCard = memo(function TicketCard({
         >
           <motion.span
             className="inline-flex"
-            animate={refreshing ? { rotate: 360 } : { rotate: 0 }}
+            animate={refreshing ? { transform: ['rotate(0deg)', 'rotate(360deg)'] } : { transform: 'rotate(0deg)' }}
             transition={refreshing ? { repeat: Infinity, duration: 0.8, ease: 'linear' } : { duration: 0.2 }}
           >
             <RefreshIcon size={11} color="currentColor" />
@@ -322,7 +322,7 @@ export const TicketCard = memo(function TicketCard({
         </span>
         {moving ? (
           <span className="inline-flex h-[18px] shrink-0 items-center gap-1 text-[10px] font-semibold" style={{ color: lift(accent) }} title="Updating status in Jira…">
-            <motion.span className="inline-flex" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}>
+            <motion.span className="inline-flex" animate={{ transform: ['rotate(0deg)', 'rotate(360deg)'] }} transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}>
               <RefreshIcon size={10} color="currentColor" />
             </motion.span>
             syncing
@@ -427,7 +427,7 @@ function DoneBurst() {
             style={{ background: i % 2 ? '#f59e0b' : '#fde68a', boxShadow: '0 0 6px #f59e0b' }}
             initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
             animate={{ opacity: 0, x: Math.cos(a) * 28, y: Math.sin(a) * 22, scale: 0.2 }}
-            transition={{ duration: 0.7, ease: 'easeOut' }}
+            transition={{ duration: 0.7, ease: EASE_OUT }}
           />
         )
       })}

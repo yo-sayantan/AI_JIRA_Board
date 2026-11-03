@@ -44,6 +44,12 @@ export const PRESSABLE = {
   transition: PRESS,
 } as const
 
+/**
+ * A progress fill chasing a value that keeps updating (a refresh, a download, a checklist). A spring so a new
+ * value retargets mid-flight instead of restarting, with no bounce and inside the UI budget.
+ */
+export const FILL: Transition = { type: 'spring', duration: 0.3, bounce: 0 }
+
 /** Something on screen moving to a new place (layout shifts, cards re-flowing): ease-in-out, A to B. */
 export const LAYOUT: Transition = { duration: 0.3, ease: EASE_IN_OUT }
 

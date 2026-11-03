@@ -156,7 +156,7 @@ export function PrReportOverlay({
                   <ProvenanceChip provenance={report.enriched ? 'ai' : 'derived'} big />
                   {generating && (
                     <span className="inline-flex items-center gap-1 rounded-full border px-1.5 py-[2px] text-[10.5px] font-semibold normal-case tracking-normal" style={{ color: lift('#a855f7'), borderColor: tint('#a855f7', 0.4), background: tint('#a855f7', 0.1) }}>
-                      <motion.span className="inline-flex" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}>
+                      <motion.span className="inline-flex" animate={{ transform: ['rotate(0deg)', 'rotate(360deg)'] }} transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}>
                         <SparkleIcon size={9} color={lift('#a855f7')} />
                       </motion.span>
                       AI report generating…

@@ -12,7 +12,7 @@ export function BuildGlyph({ result, color, size = 10 }: { result: JenkinsBuild[
         aria-hidden
         className="inline-block shrink-0 rounded-full"
         style={{ width: size, height: size, border: `1.5px solid ${tint(color, 0.3)}`, borderTopColor: color }}
-        animate={{ rotate: 360 }}
+        animate={{ transform: ['rotate(0deg)', 'rotate(360deg)'] }}
         transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}
       />
     )

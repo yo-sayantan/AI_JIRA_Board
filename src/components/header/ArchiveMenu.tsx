@@ -3,7 +3,7 @@ import type { ArchiveScope } from '../../lib/runner'
 import { APP_CONFIG } from '../../lib/appConfig'
 import { TrophyIcon } from '../common/Icons'
 import { ScopeMenu, StopButton } from './ScopeMenu'
-import { PRESSABLE } from '../../lib/motion'
+import { EASE_IN_OUT, PRESSABLE } from '../../lib/motion'
 
 const GREEN = '#16a34a'
 
@@ -69,14 +69,14 @@ export function ArchiveMenu({ served, busy, blocked, done, total, pct, parallel,
               aria-hidden
               className="pointer-events-none absolute inset-[3px] rounded-lg"
               animate={{ opacity: [0.25, 0.9, 0.25] }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: EASE_IN_OUT }}
               style={{ boxShadow: 'inset 0 0 0 1.5px rgba(255,253,242,0.85)' }}
             />
           )}
           <motion.span
             className="relative inline-flex"
-            animate={busy ? { y: [0, -1.5, 0] } : { y: 0 }}
-            transition={busy ? { duration: 1.2, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }}
+            animate={busy ? { transform: ['translateY(0px)', 'translateY(-1.5px)', 'translateY(0px)'] } : { transform: 'translateY(0px)' }}
+            transition={busy ? { duration: 1.2, repeat: Infinity, ease: EASE_IN_OUT } : { duration: 0.2 }}
           >
             <TrophyIcon size={13} glint={busy} />
           </motion.span>

@@ -6,7 +6,7 @@ import { APP_CONFIG } from '../../lib/appConfig'
 import { SparkleIcon } from '../common/Icons'
 import { ScopeMenu, StopButton, type MenuScope } from './ScopeMenu'
 import { lift, tint } from '../../lib/tone'
-import { PRESSABLE } from '../../lib/motion'
+import { EASE_IN_OUT, PRESSABLE } from '../../lib/motion'
 
 const AI = '#a855f7'
 /** How long nothing may be generating before the next run counts as a new batch. */
@@ -33,7 +33,7 @@ function AiSpark({ busy }: { busy: boolean }) {
       <motion.span
         className="inline-flex"
         animate={busy ? { scale: [1, 1.2, 0.94, 1.12, 1], rotate: [0, -14, 12, 0] } : { scale: 1, rotate: 0 }}
-        transition={busy ? { duration: 1.35, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }}
+        transition={busy ? { duration: 1.35, repeat: Infinity, ease: EASE_IN_OUT } : { duration: 0.2 }}
       >
         <SparkleIcon size={16} color={lift(AI)} />
       </motion.span>
@@ -44,14 +44,14 @@ function AiSpark({ busy }: { busy: boolean }) {
             className="absolute -right-1 -top-1 h-1 w-1 rounded-full"
             style={{ background: AI }}
             animate={{ opacity: [0, 1, 0], scale: [0.3, 1.3, 0.3] }}
-            transition={{ duration: 1.05, repeat: Infinity, ease: 'easeInOut' }}
+            transition={{ duration: 1.05, repeat: Infinity, ease: EASE_IN_OUT }}
           />
           <motion.span
             aria-hidden
             className="absolute -left-1 bottom-0 h-[3px] w-[3px] rounded-full"
             style={{ background: '#e9d5ff' }}
             animate={{ opacity: [0, 1, 0], scale: [0.2, 1.1, 0.2] }}
-            transition={{ duration: 1.05, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
+            transition={{ duration: 1.05, repeat: Infinity, ease: EASE_IN_OUT, delay: 0.4 }}
           />
         </>
       )}

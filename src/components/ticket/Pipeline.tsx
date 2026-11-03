@@ -4,6 +4,7 @@ import type { ColumnKey } from '../../types'
 
 import { ColumnIcon, PauseIcon } from '../common/Icons'
 import { lift, tint } from '../../lib/tone'
+import { EASE_OUT } from '../../lib/motion'
 
 /**
  * Horizontal status pipeline: To Do → In Progress → In Review → QA → Done. Side states (Blocked,
@@ -28,7 +29,7 @@ export function Pipeline({ current, rawStatus }: { current: ColumnKey; rawStatus
                   className="absolute inset-0 rounded-full"
                   initial={{ scaleX: 0 }}
                   animate={{ scaleX: reached ? 1 : 0 }}
-                  transition={{ duration: 0.5, delay: 0.05 * i, ease: 'easeOut' }}
+                  transition={{ duration: 0.3, delay: 0.05 * i, ease: EASE_OUT }}
                   style={{ background: accent, transformOrigin: 'left' }}
                 />
               </div>

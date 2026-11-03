@@ -259,7 +259,7 @@ export const Column = memo(function Column({
           {!ownOff && (
           <div
             ref={ownBox}
-            className={`relative flex flex-col gap-2 rounded-2xl border border-dashed p-2 transition-[background,border-color,box-shadow] duration-150 ${stacked ? '' : 'flex-1'}`}
+            className={`relative flex flex-col gap-2 rounded-2xl border border-dashed p-2 transition-[background-color,border-color,box-shadow] duration-150 ${stacked ? '' : 'flex-1'}`}
             style={{ ...dropBoxStyle(meta.accent, over === 'col'), opacity: deniedOpacity(ownDenied, over === 'col') }}
             title={ownDenied?.reason ?? undefined}
           >
@@ -354,7 +354,7 @@ function DropZone({
       ref={boxRef}
       data-drop={sub?.droppable ? sub.id : undefined}
       // The label sits near the top: on a tall board the middle of the column is below the fold.
-      className={`flex flex-col items-center gap-1 rounded-2xl border-2 border-dashed px-1 text-center transition-[background,border-color,box-shadow,opacity] duration-150 ${stacked ? 'h-[132px] justify-center' : 'flex-1 justify-start pt-16'}`}
+      className={`flex flex-col items-center gap-1 rounded-2xl border-2 border-dashed px-1 text-center transition-[background-color,border-color,box-shadow,opacity] duration-150 ${stacked ? 'h-[132px] justify-center' : 'flex-1 justify-start pt-16'}`}
       style={{ ...dropBoxStyle(accent, active), opacity: deniedOpacity(denied, active) }}
       title={denied?.reason ?? undefined}
     >
