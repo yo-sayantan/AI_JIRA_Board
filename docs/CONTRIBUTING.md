@@ -11,6 +11,7 @@ test. No Python packages are needed — the pipeline is standard library only.
 ```bash
 npm install
 npm run dev              # Vite on localhost:5173 with the SAMPLE fixture (src/fixtures.ts) — every UI state, no Jira
+                         #   ?data=demo|worst|empty|one|huge swaps in a fixture (toggle at the bottom; src/lib/devData.ts)
 npm run serve            # the real server on 4321 against jira-intern/data.json (run a fetch first)
 npm run typecheck        # tsc --noEmit
 npm run build            # tsc --noEmit && vite build → dist/index.html

@@ -56,13 +56,16 @@ function setTranslucentDragImage(e: DragEvent, card: HTMLElement) {
 
 export const DRAG_MIME = 'application/x-jira-board-ticket'
 
-/** Full branch name, wrapping only after / or _ so a key like PROJ-267 stays intact. */
+/**
+ * Full branch name, wrapping after /, _ or a hyphen that is not followed by a digit — so a key like PROJ-267
+ * stays intact while a hyphen-only branch (bugfix/OPS-7-npe-in-…) still wraps instead of running off the card.
+ */
 function BranchName({ name }: { name: string }) {
-  const parts = name.split(/([/_])/)
+  const parts = name.split(/([/_]|-(?!\d))/)
   return (
     <span className="block font-mono text-[10px] leading-3 opacity-80" title={name}>
       {parts.map((part, i) =>
-        part === '/' || part === '_' ? (
+        part === '/' || part === '_' || part === '-' ? (
           <span key={i}>
             {part}
             <wbr />
@@ -300,16 +303,25 @@ export const TicketCard = memo(function TicketCard({
         </button>
       )}
 
-      <div className="relative flex items-center justify-between gap-2">
-        <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px] font-bold tracking-wide" style={{ color: lift(accent) }}>
-          {ticket.column === 'done' && <TrophyIcon size={12} />}
-          <TypeIcon type={effectiveType(ticket)} color={lift(tm.color)} size={13} />
-          {/* Keys never break at their hyphen — six columns leave each card ~220px. */}
-          <span className="whitespace-nowrap">{ticket.key}</span>
+      <div className="relative flex items-start justify-between gap-2">
+        {/* A long key (10-letter project, 6-digit number) leaves no room for the points beside it in a slim
+            column: the points tag wraps under the key instead of being clipped or painted over the age. */}
+        <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] font-bold tracking-wide" style={{ color: lift(accent) }}>
+          {/* Keys never break or truncate. A slim card (zoomed in, or a narrow lane) can't fit a 17-character key at
+              full size beside its icons, so there the key tightens and the Done trophy — the lane already says Done — yields. */}
+          <span className="inline-flex shrink-0 items-center gap-1.5 @max-[11rem]:gap-1">
+            {ticket.column === 'done' && (
+              <span className="inline-flex @max-[12.5rem]:hidden">
+                <TrophyIcon size={12} />
+              </span>
+            )}
+            <TypeIcon type={effectiveType(ticket)} color={lift(tm.color)} size={13} />
+            <span className="whitespace-nowrap @max-[11rem]:text-[10px] @max-[11rem]:tracking-normal">{ticket.key}</span>
+          </span>
           <PointsTag points={ticket.storyPoints} />
         </span>
         {moving ? (
-          <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold" style={{ color: lift(accent) }} title="Updating status in Jira…">
+          <span className="inline-flex h-[18px] shrink-0 items-center gap-1 text-[10px] font-semibold" style={{ color: lift(accent) }} title="Updating status in Jira…">
             <motion.span className="inline-flex" animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}>
               <RefreshIcon size={10} color="currentColor" />
             </motion.span>
@@ -317,11 +329,11 @@ export const TicketCard = memo(function TicketCard({
           </span>
         ) : (
           // Thin columns (To Do · QA · Done) leave no room for the age beside key and points — it yields.
-          rel && <span className="hidden shrink-0 text-[10px] text-[var(--muted)] @[13rem]:inline">{rel}</span>
+          rel && <span className="hidden shrink-0 text-[10px] leading-[18px] text-[var(--muted)] @[13rem]:inline">{rel}</span>
         )}
       </div>
 
-      <h3 className={`relative mt-1 line-clamp-2 font-semibold leading-snug text-[var(--ink)] ${sub ? 'text-[12px]' : 'text-[13px]'}`}>
+      <h3 className={`relative mt-1 line-clamp-2 font-semibold leading-snug text-[var(--ink)] [overflow-wrap:anywhere] ${sub ? 'text-[12px]' : 'text-[13px]'}`}>
         {ticket.title}
       </h3>
 
@@ -356,10 +368,10 @@ export const TicketCard = memo(function TicketCard({
       </div>
 
       {(builds.length > 0 || vulns) && (
-        <div className="relative mt-1 flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden">
+        <div className="relative mt-1 flex min-w-0 flex-wrap items-center gap-1">
           {vulns && <VulnChip vf={vulns} />}
           {builds.length > 0 && (
-            <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden" aria-label="Latest builds">
+            <div className="flex min-w-0 flex-wrap items-center gap-1" aria-label="Latest builds">
               {builds.map((b) => (
                 <BuildChip key={b.env} build={b} now={now} total={envBuildCount(ticket, b.env)} />
               ))}

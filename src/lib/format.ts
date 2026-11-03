@@ -34,7 +34,9 @@ export function priorityMeta(p?: string | null): PriorityMeta {
   if (/(critical|blocker)/.test(s)) return { label: p || 'Critical', color: '#dc2626', rank: 6, glyph: '⛔' }
   if (/(highest|p1)/.test(s)) return { label: p || 'Highest', color: '#ef4444', rank: 5, glyph: '⏫' }
   if (/(high|major|p2)/.test(s)) return { label: p || 'High', color: '#f97316', rank: 4, glyph: '🔼' }
-  if (/(medium|normal|p3)/.test(s) || s === '') return { label: p || 'Medium', color: '#eab308', rank: 3, glyph: '➖' }
+  // Unset is not Medium: projects that hide the Priority field send none, and the board must not invent one.
+  if (s === '') return { label: 'No priority', color: '#94a3b8', rank: 0, glyph: '•' }
+  if (/(medium|normal|p3)/.test(s)) return { label: p || 'Medium', color: '#eab308', rank: 3, glyph: '➖' }
   // "lowest" must be tested BEFORE "low" (it contains it) — same reason highest precedes high.
   if (/(lowest|trivial|p5)/.test(s)) return { label: p || 'Lowest', color: '#38bdf8', rank: 1, glyph: '⏬' }
   if (/(low|minor|p4)/.test(s)) return { label: p || 'Low', color: '#22c55e', rank: 2, glyph: '🔽' }

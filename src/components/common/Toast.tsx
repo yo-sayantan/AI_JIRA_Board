@@ -18,7 +18,7 @@ export interface ToastItem {
   seconds?: number
 }
 
-const ICON: Record<ToastKind, string> = { info: 'ⓘ', success: '✓', error: '⚠️', loading: '◌' }
+const ICON: Record<ToastKind, string> = { info: 'ⓘ', success: '✓', error: '⚠', loading: '◌' }
 const COLOR: Record<ToastKind, string> = { info: '#8b9cff', success: '#22c55e', error: '#ef4444', loading: '#8b9cff' }
 
 /** How far each toast behind the front one peeks out, and the gap between toasts when the stack opens. */

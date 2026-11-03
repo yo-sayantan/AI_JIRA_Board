@@ -237,7 +237,7 @@ export function RaisedOverlay({
                   <MegaphoneIcon size={24} color={lift(RAISED)} />
                 </span>
                 <div className="min-w-0">
-                  <h2 className="bg-gradient-to-r bg-clip-text text-[24px] font-black leading-none tracking-tight text-transparent" style={{ backgroundImage: `linear-gradient(95deg, ${RAISED}, #a855f7)` }}>
+                  <h2 className="text-[24px] font-black leading-none tracking-tight" style={{ color: lift(RAISED) }}>
                     Raised by me
                   </h2>
                   <p className="mt-1.5 truncate text-[12px] font-medium text-[var(--muted)]">
@@ -322,7 +322,9 @@ export function RaisedOverlay({
             <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
               {empty ? (
                 <div className="py-16 text-center">
-                  <div className="mb-3 text-3xl">📣</div>
+                  <div className="mb-3 flex justify-center">
+                    <MegaphoneIcon size={28} color={lift(RAISED)} />
+                  </div>
                   <p className="text-[14px] font-bold text-[var(--ink)]">No raised tickets found yet.</p>
                   <p className="mx-auto mt-1.5 max-w-sm text-[12.5px] text-[var(--muted)]">
                     {onRefresh ? 'Hit “Refresh raised” above' : 'Run a board refresh'} (with Jira connected) to pull every ticket you ever reported. Sub-tickets you cut under your own work don&apos;t count — those are yours by default.
@@ -456,7 +458,9 @@ export function RaisedOverlay({
                     })}
                     {filtered.length === 0 && (
                       <div className="py-14 text-center">
-                        <div className="mb-2 text-2xl">🔍</div>
+                        <div className="mb-2 flex justify-center text-[var(--muted)]">
+                          <SearchIcon size={22} />
+                        </div>
                         <p className="text-[13px] font-semibold text-[var(--ink)]">No raised tickets match{q ? ` “${q}”` : ''}.</p>
                       </div>
                     )}

@@ -253,7 +253,7 @@ export function CompletedOverlay({
                   <TrophyIcon size={24} glint />
                 </span>
                 <div className="min-w-0">
-                  <h2 className="bg-gradient-to-r bg-clip-text text-[24px] font-black leading-none tracking-tight text-transparent" style={{ backgroundImage: `linear-gradient(95deg, ${DONE}, #0ea5e9)` }}>
+                  <h2 className="text-[24px] font-black leading-none tracking-tight" style={{ color: lift(DONE) }}>
                     Completed
                   </h2>
                   <p className="mt-1.5 truncate text-[12px] font-medium text-[var(--muted)]">
@@ -311,7 +311,9 @@ export function CompletedOverlay({
             <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 sm:px-6">
               {empty ? (
                 <div className="py-16 text-center">
-                  <div className="mb-3 text-3xl">🗃️</div>
+                  <div className="mb-3 flex justify-center">
+                    <TrophyIcon size={28} />
+                  </div>
                   <p className="text-[14px] font-bold text-[var(--ink)]">No completed tickets yet.</p>
                   <p className="mx-auto mt-1.5 max-w-sm text-[12.5px] text-[var(--muted)]">
                     Run the intern (with Jira connected) to pull every Done ticket ever assigned to you.
@@ -474,7 +476,9 @@ export function CompletedOverlay({
                     })}
                     {filtered.length === 0 && (
                       <div className="py-14 text-center">
-                        <div className="mb-2 text-2xl">🔍</div>
+                        <div className="mb-2 flex justify-center text-[var(--muted)]">
+                          <SearchIcon size={22} />
+                        </div>
                         <p className="text-[13px] font-semibold text-[var(--ink)]">No {takenFilter ? 'taken' : 'completed'} tickets match{q ? ` “${q}”` : ''}.</p>
                       </div>
                     )}

@@ -5,6 +5,21 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **Cards hold up with real-world worst-case data, from 60% to 140% browser zoom.** Every Jenkins environment's chip
+  shows (the row wraps), so a failed Production build is never hidden past the card edge. A long key (10-letter project,
+  6-digit number) keeps its points tag, which moves under the key instead of being clipped or painted over the age; on a
+  slim card the key tightens and the Done trophy yields. Type icons no longer squash. A title with one long unbroken word
+  wraps and ends with an ellipsis, and a hyphen-only branch name wraps after its hyphens (never inside the ticket key).
+  A ticket with no priority shows none instead of Medium. Approvals read "2/2 +3", not "5/2+3". The Blocked chip counts
+  its On Hold space, so the chips add up to All. Counts have thousands separators ("1,284"). The header's controls wrap
+  instead of running off a narrow window.
+- **Fewer decorative tells.** The board title and the Completed / Raised headings are solid colour, not gradient text;
+  the empty states use the board's SVG icons instead of emoji; the error toast's icon is a plain glyph like the others.
+- **Dev: worst-case data behind a toggle.** `npm run dev` shows a Live / Demo data / Worst case / Empty / One / 400 cards
+  switch at the bottom of the board (`?data=…`, `src/lib/devData.ts`, fixtures in `src/fixtures.worstCase.ts`). Each
+  fixture keeps its own in-memory archive set, so `jb-archived` is never touched. Production builds drop the switch and
+  the fixtures.
+
 - **Board shell: the colours stay, and Completed stays the large gold control.** Raised and Taken from you are a step smaller. Completed keeps the larger gold type and trophy, on a shorter pill, and its glow is no longer cut off along the lane titles. Hover lifts a control and draws a thin outline in that control's own colour; the gold pill also shows a reflection. Focus is a neutral ring, including inside the search boxes. On a Completed row the reason pill and the worked / never-worked pill share fixed widths, so they line up down the list. Settings sections sit closer together, with Tools (Reset, Export, Import, Help) above AI. Reset and Import change the draft; Save still commits it. Export downloads that draft as `jira-board-settings.json`. The summary tiles on Completed and Raised are one read-only strip. The header and footer sit closer to the window edge; the chips and lanes keep a little more inset.
 - **Taken from you: pills you can see, worked-on vs never-worked, and a pointer on the board.** Each taken row now carries two
   pills in its title line — why it left you, and "You worked on it" (solid green) or "No work of yours" (hollow, dashed, grey)

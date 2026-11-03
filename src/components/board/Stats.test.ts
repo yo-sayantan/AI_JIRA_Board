@@ -34,6 +34,11 @@ describe('the chip row', () => {
     expect(chips.some((c) => /next sprint/i.test(c.textContent ?? ''))).toBe(false) // it is a space in To Do now
   })
 
+  it('counts On Hold in the Blocked chip, so the column chips add up to All', () => {
+    const { chips } = mount(null)
+    expect(chips.find((c) => /^\s*Blocked/.test(c.textContent ?? ''))!.textContent).toMatch(/Blocked\s*1$/)
+  })
+
   it('a column chip filters; picking it again returns to All', () => {
     const picked = mount('todo')
     expect(picked.chips[0].getAttribute('aria-pressed')).toBe('false')

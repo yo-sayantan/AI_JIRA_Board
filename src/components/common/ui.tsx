@@ -89,6 +89,7 @@ export function PriorityBadge({ priority }: { priority?: string | null }) {
  *  the always-on text is. Ticket detail keeps the full labelled `PriorityBadge` — this is
  *  deliberately card-only. */
 export function PriorityGlyph({ priority, size = 16 }: { priority?: string | null; size?: number }) {
+  if (!priority?.trim()) return null
   const m = priorityMeta(priority)
   return (
     <span
@@ -236,7 +237,11 @@ export function Approvals({ approvals }: { approvals?: number | null }) {
   return (
     <span
       className="inline-flex items-center gap-1 rounded-full border px-1.5 py-[2px] leading-none"
-      title={`${n} of ${REQUIRED_APPROVALS} approvals${full ? ' — approved ✓' : ' — needs ' + (REQUIRED_APPROVALS - n) + ' more'}`}
+      title={
+        n > REQUIRED_APPROVALS
+          ? `${n} approvals (${REQUIRED_APPROVALS} needed) — approved ✓`
+          : `${n} of ${REQUIRED_APPROVALS} approvals${full ? ' — approved ✓' : ' — needs ' + (REQUIRED_APPROVALS - n) + ' more'}`
+      }
       style={{ borderColor: tint(color, 0.45), background: tint(color, 0.12) }}
     >
       <span className="inline-flex items-center gap-0.5">
@@ -245,8 +250,8 @@ export function Approvals({ approvals }: { approvals?: number | null }) {
         ))}
       </span>
       <span className="text-[9.5px] font-bold tabular-nums" style={{ color: full ? lift('#22c55e') : 'var(--muted)' }}>
-        {n}/{REQUIRED_APPROVALS}
-        {n > REQUIRED_APPROVALS ? `+${n - REQUIRED_APPROVALS}` : ''}
+        {Math.min(n, REQUIRED_APPROVALS)}/{REQUIRED_APPROVALS}
+        {n > REQUIRED_APPROVALS ? ` +${n - REQUIRED_APPROVALS}` : ''}
       </span>
     </span>
   )

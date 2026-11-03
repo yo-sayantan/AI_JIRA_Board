@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { cardBranches, dtf, isAssignedToMe, primaryPrOf, releaseEnvOf, compareFutureSprints, parseSprint, sprintWhen, buildMeta, buildsOf, cardBuilds, fmtDuration, envLabel, buildTestsText, buildTooltip, pipelineKindMeta, envBuildCount, vulnFixesOf, vulnStatusMeta, vulnKindLabel, vulnSummary, vulnTooltip, vulnScanLine, consoleTailLines, unwrapBrief, dynatraceOf, dynatraceKindLabel, dynatraceStatusMeta, dynatraceWindowLabel, dynatraceSummary, dynatraceFailedSpans, dynatraceStaleLine, DYNATRACE_MAX_ITEMS } from './format'
+import { cardBranches, dtf, priorityMeta, isAssignedToMe, primaryPrOf, releaseEnvOf, compareFutureSprints, parseSprint, sprintWhen, buildMeta, buildsOf, cardBuilds, fmtDuration, envLabel, buildTestsText, buildTooltip, pipelineKindMeta, envBuildCount, vulnFixesOf, vulnStatusMeta, vulnKindLabel, vulnSummary, vulnTooltip, vulnScanLine, consoleTailLines, unwrapBrief, dynatraceOf, dynatraceKindLabel, dynatraceStatusMeta, dynatraceWindowLabel, dynatraceSummary, dynatraceFailedSpans, dynatraceStaleLine, DYNATRACE_MAX_ITEMS } from './format'
 import type { DynatraceEvidence, DynatraceItem, JenkinsBuild, VulnFixes, VulnFixItem } from '../types'
+
+describe('priorityMeta', () => {
+  it('reads an unset priority as none, not Medium', () => {
+    for (const p of [null, undefined, '', '  ']) expect(priorityMeta(p)).toMatchObject({ label: 'No priority', rank: 0 })
+    expect(priorityMeta('Medium').rank).toBe(3)
+  })
+})
 
 describe('dtf', () => {
   it('does not throw for an invalid zone and still formats', () => {

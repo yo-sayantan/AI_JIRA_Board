@@ -17,6 +17,8 @@ const RAISED = '#6366f1'
  */
 export type StatSelection = ColumnKey | null
 
+const COUNT = new Intl.NumberFormat()
+
 function AnimatedNumber({ value }: { value: number }) {
   const spring = useSpring(value, { stiffness: 110, damping: 22 })
   const [display, setDisplay] = useState(value)
@@ -24,7 +26,7 @@ function AnimatedNumber({ value }: { value: number }) {
     spring.set(value)
   }, [value, spring])
   useEffect(() => spring.on('change', (v) => setDisplay(Math.round(v))), [spring])
-  return <span className="tabular-nums">{display}</span>
+  return <span className="tabular-nums">{COUNT.format(display)}</span>
 }
 
 export const Stats = memo(function Stats({
@@ -54,7 +56,8 @@ export const Stats = memo(function Stats({
   onOpenCompleted?: (opts?: { taken?: boolean }) => void
   onOpenRaised?: () => void
 }) {
-  const counts = (k: ColumnKey) => tickets.filter((t) => t.column === k).length
+  // On Hold is a space inside the Blocked column, so the Blocked chip counts it — the chips then add up to All.
+  const counts = (k: ColumnKey) => tickets.filter((t) => t.column === k || (k === 'blocked' && t.column === 'hold')).length
   const total = tickets.length
 
   return (
@@ -129,7 +132,7 @@ export const Stats = memo(function Stats({
               <b className="tabular-nums">
                 <AnimatedNumber value={raisedCount.open} />
               </b>
-              <span className="-ml-0.5 text-[10px] font-semibold tabular-nums opacity-60">/ {raisedCount.total}</span>
+              <span className="-ml-0.5 text-[10px] font-semibold tabular-nums opacity-60">/ {COUNT.format(raisedCount.total)}</span>
             </motion.button>
           )}
 

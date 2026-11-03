@@ -204,7 +204,7 @@ export const Header = memo(function Header({
             <TicketGlyph size={20} />
           </motion.span>
           <div className="leading-tight">
-            <h1 className="bg-gradient-to-r from-[var(--ink)] to-[var(--muted)] bg-clip-text text-[17px] font-extrabold tracking-tight text-transparent">
+            <h1 className="text-[17px] font-extrabold tracking-tight text-[var(--ink)]">
               My Jira Board
             </h1>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-[var(--muted)]">
@@ -232,7 +232,7 @@ export const Header = memo(function Header({
           </div>
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
           {/* Current sprint — compact two-line block: name + workdays left, dates + progress. */}
           {sprint && sp && (
             <div
