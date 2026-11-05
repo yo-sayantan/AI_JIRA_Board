@@ -23,20 +23,14 @@ export function Pill({
 }) {
   const c = color ?? 'var(--muted)'
   const hex = c.startsWith('#')
-  // Modern badge: a gradient, not a flat fill. Solid ones run from the colour to a lighter, shifted
-  // tone with a faint inner highlight; tinted ones are a soft gradient wash with a colour border, and
-  // their text is the colour pulled toward --ink so it stays readable on a light OR dark board.
+  // A flat badge (Wayfind: no gradient, depth is never a shadow). Solid ones are the colour itself; tinted ones are a
+  // flat wash of it, their text the colour pulled toward --ink so it stays readable on a light OR dark board.
   const style = filled
-    ? {
-        background: `linear-gradient(135deg, ${c}, color-mix(in srgb, ${c} 72%, #ffffff))`,
-        color: onFill(c),
-        borderColor: 'transparent',
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.28), 0 1px 3px -1px ${tint(hex ? c : '#64748b', 0.55)}`,
-      }
+    ? { background: c, color: onFill(c), borderColor: 'transparent' }
     : {
         color: hex ? `color-mix(in srgb, ${lift(c)} 80%, var(--ink))` : c,
-        borderColor: tint(hex ? c : '#94a3b8', 0.34),
-        background: `linear-gradient(135deg, ${tint(hex ? c : '#bac2cd', 0.2)}, ${tint(hex ? c : '#bac2cd', 0.07)})`,
+        borderColor: 'transparent',
+        background: hex ? tint(c, 0.16) : 'var(--surface-2)',
       }
   return (
     <span
@@ -64,7 +58,7 @@ export function PointsTag({ points }: { points?: number | null }) {
   const has = typeof points === 'number'
   return (
     <span
-      className={`inline-flex shrink-0 items-center rounded-md border border-[var(--line)] bg-[var(--surface-2)] px-1.5 py-[1px] text-[10px] font-bold tabular-nums ${
+      className={`inline-flex shrink-0 items-center border border-[var(--line-strong)] px-1.5 py-[1px] text-[10px] font-medium tabular-nums ${
         has ? 'text-[var(--ink-soft)]' : 'text-[var(--muted)]'
       }`}
       title={has ? `${points} story point${points === 1 ? '' : 's'}` : 'No story points set'}
@@ -97,7 +91,7 @@ export function PriorityGlyph({ priority, size = 16 }: { priority?: string | nul
       title={`Priority: ${m.label}`}
       aria-label={`${m.label} priority`}
     >
-      <PriorityIcon rank={m.rank} color={lift(m.color)} size={size} />
+      <PriorityIcon bare rank={m.rank} color={lift(m.color)} size={size} />
     </span>
   )
 }
@@ -249,7 +243,7 @@ export function Approvals({ approvals }: { approvals?: number | null }) {
           <ApprovalDot key={i} filled={i < n} />
         ))}
       </span>
-      <span className="text-[9.5px] font-bold tabular-nums" style={{ color: full ? lift('#22c55e') : 'var(--muted)' }}>
+      <span className="text-[9.5px] font-bold tabular-nums" style={{ color: full ? 'var(--color-ready)' : 'var(--muted)' }}>
         {Math.min(n, REQUIRED_APPROVALS)}/{REQUIRED_APPROVALS}
         {n > REQUIRED_APPROVALS ? ` +${n - REQUIRED_APPROVALS}` : ''}
       </span>

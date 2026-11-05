@@ -1,0 +1,384 @@
+/* Hallmark · shape: app screen · genre: modern-minimal · theme: Wayfind (deal 2/3, seed personal-kanban-board-one-bc1e·08b5c0aa·2026-11-03·r0) · redesign: full
+ * nav: the kept top bar, recomposed as a signage bar · signature: the lane heads as platform signs (the status square, its name in 800, its count) and the sprint as an ink plate · states: board full, empty, one, demo, drag zones; drawer and dialogs on the tokens · wayfind: platform (light), night (dark)
+ * axes: light/mono/cool · posture: committed · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E3 S4 R4 V4 · weakest: E, colour literals in the overlay components still bypass the tokens; the shell, lanes, cards and pills are moved onto them and the rest is listed for the next pass */
+@import url('./tokens.css');
+@import url('./base.css');
+
+/* ── The board's own tokens, re-pointed at Wayfind. `html:root` outranks the `:root` / `.dark` blocks in index.css and
+   glass.css, so every component that paints with --bg / --ink / --surface-solid / --line follows without an edit. ── */
+html:root,
+html.dark {
+  --bg: var(--color-paper);
+  --bg-2: var(--color-paper-2);
+  --surface: var(--color-paper-3);
+  --surface-solid: var(--color-paper-3);
+  --surface-2: var(--color-paper-2);
+  --sheet: var(--color-paper);
+  --pop: var(--color-paper-3);
+  --bar: var(--color-paper);
+  --field: var(--color-paper-3);
+  --ink: var(--color-ink);
+  --ink-soft: var(--color-ink-2);
+  --muted: var(--color-muted);
+  --line: var(--color-rule);
+  --line-strong: var(--color-ink-rule);
+  --link: var(--color-accent);
+  --pr-link: var(--color-accent);
+  --shadow: none;
+  --shadow-sheet: var(--shadow-card);
+  --scrim: var(--color-scrim);
+  --close: var(--color-ink);
+  --close-soft: transparent;
+  --close-line: var(--color-ink);
+  /* The glass is gone: every sheen, rim, grain, reflection and pointer light switches off through its own token. */
+  --spec: transparent;
+  --spec-soft: transparent;
+  --pointer-spec: transparent;
+  --glass-sheen: none;
+  --rim: none;
+  --glass-grain: none;
+  --glass-reflect: none;
+  /* One face. Tailwind's font-sans / font-mono utilities read these. */
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-body);
+  /* Radius 0 everywhere except pills (rounded-full stays a pill: it is not a variable). */
+  --radius: 0;
+  --radius-xs: 0;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+  --radius-3xl: 0;
+  --radius-4xl: 0;
+}
+
+html:root body {
+  background: var(--color-paper);
+  background-attachment: scroll;
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+/* No glass anywhere: depth is borders. */
+html *,
+html *::before,
+html *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+html header.sticky::before,
+html footer.fixed::before,
+html .jb-dialog-panel::before,
+html .jb-sheet::before,
+html [role='menu']::before,
+html .ticket-card::before,
+html .ticket-card::after,
+html .glass-interactive::after {
+  display: none;
+}
+
+/* Sheets, dialogs and menus: paper inside a 2px ink border; the only soft shadow is under a surface that floats. */
+html .jb-dialog-panel,
+html .jb-sheet,
+html [role='menu'],
+html [role='listbox'],
+html .jb-float {
+  background-color: var(--color-paper);
+  background-image: none;
+  border: var(--rule-bar) solid var(--color-ink);
+  box-shadow: var(--shadow-card);
+  color: var(--color-ink);
+}
+html [role='tooltip'] {
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+  border: var(--rule-bar) solid var(--color-ink);
+  box-shadow: none;
+}
+
+/* Board labels are sentence case in the body face: no tracked capitals anywhere on the board. */
+html .jb-board-scroll .uppercase {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ── The bar: the top of the screen, paper with a 2px ink underside ───────────────────────────────────────────── */
+.wf-bar {
+  background: var(--color-paper);
+  border-bottom: var(--rule-bar) solid var(--color-ink);
+}
+.wf-wordmark {
+  font-weight: 800;
+  letter-spacing: var(--tracking-display);
+  color: var(--color-ink);
+}
+
+/* A square icon control. In a `.wf-cells` group neighbours share their 2px border, like a station picker. */
+.wf-cell {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: var(--rule-bar) solid var(--color-ink);
+  background: transparent;
+  color: var(--color-ink);
+  transition: background-color var(--dur-micro) steps(1), color var(--dur-micro) steps(1);
+}
+.wf-cell:hover:not(:disabled),
+.wf-cell[aria-expanded='true'] {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+.wf-cell:active:not(:disabled) {
+  background: var(--color-ink-2);
+  color: var(--color-paper);
+}
+.wf-cell:disabled {
+  border-color: var(--color-rule);
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+.wf-cell[aria-busy='true'],
+.wf-cell.is-busy {
+  color: var(--color-accent);
+}
+.wf-cells {
+  display: flex;
+  align-items: center;
+}
+.wf-cells > * + * {
+  margin-left: calc(var(--rule-bar) * -1);
+}
+
+/* The primary action: cobalt, square, 800. One per screen. */
+.wf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  height: 36px;
+  border: var(--rule-bar) solid var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  font-weight: 800;
+  transition: background-color var(--dur-micro) steps(1), border-color var(--dur-micro) steps(1);
+}
+.wf-btn:hover:not(:disabled) {
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  color: var(--color-paper);
+}
+.wf-btn:active:not(:disabled) {
+  background: var(--color-ink-2);
+  border-color: var(--color-ink-2);
+}
+.wf-btn:disabled {
+  cursor: default;
+}
+
+/* The search field: square, 2px ink, on the lightest paper. The field shows focus on its frame. */
+.wf-field {
+  border: var(--rule-bar) solid var(--color-ink);
+  background: var(--color-paper-3);
+}
+.wf-field:focus-within {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* The plate: a square of ink holding one instruction and its figure, the way a sign holds a platform number. */
+.wf-plate {
+  border: var(--rule-bar) solid var(--color-plate-rule);
+  background: var(--color-plate);
+  color: var(--color-plate-ink);
+}
+html:not(.dark) .wf-plate {
+  border-color: var(--color-plate);
+}
+.wf-figure {
+  color: var(--color-accent-2);
+  font-weight: 800;
+}
+.wf-plate-track {
+  background: var(--color-plate-rule);
+}
+/* A plate that is a control (Completed): hover and press change its border, the figure stays. */
+.wf-plate-btn {
+  transition: border-color var(--dur-micro) steps(1);
+}
+.wf-plate-btn:hover {
+  border-color: var(--color-accent);
+}
+.wf-plate-btn:active {
+  border-color: var(--color-accent-2);
+}
+
+/* A notice band across the board (demo mode): paper-2 inside a 2px ink border, its label on an ink plate. */
+.wf-band {
+  border: var(--rule-bar) solid var(--color-ink);
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+}
+.wf-ghost {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding-inline: var(--space-sm);
+  border: var(--rule-bar) solid var(--color-ink);
+  background: transparent;
+  color: var(--color-ink);
+  font-weight: 500;
+  transition: background-color var(--dur-micro) steps(1), color var(--dur-micro) steps(1);
+}
+.wf-ghost:hover:not(:disabled) {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+.wf-ghost:disabled {
+  border-color: var(--color-rule);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+.wf-plate-fill {
+  background: var(--color-accent-2);
+}
+
+/* Choice cells sharing 2px borders: the chosen one fills ink with paper text. */
+.wf-seg {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+.wf-seg > * {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  height: 32px;
+  padding-inline: var(--space-sm);
+  border: var(--rule-bar) solid var(--color-ink);
+  margin-left: calc(var(--rule-bar) * -1);
+  margin-bottom: calc(var(--rule-bar) * -1);
+  background: transparent;
+  color: var(--color-ink);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color var(--dur-micro) steps(1), color var(--dur-micro) steps(1);
+}
+.wf-seg > *:first-child {
+  margin-left: 0;
+}
+.wf-seg > *:hover {
+  background: var(--color-paper-2);
+}
+.wf-seg > [aria-pressed='true'] {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+.wf-seg b {
+  font-weight: 800;
+}
+
+/* A status's own colour, as a small square beside its name (a line's colour on a network map). */
+.wf-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  background: var(--sw, var(--color-muted));
+}
+
+/* ── Lanes: a 2px ink rule under each head; no box around the cards (a card is never inside a card) ──────────── */
+html .jb-lane-head {
+  background: var(--color-paper);
+}
+.wf-lane-head {
+  border-bottom: var(--rule-bar) solid var(--color-ink);
+  padding-bottom: var(--space-2xs);
+}
+.wf-lane-head h2 {
+  font-weight: 800;
+  color: var(--color-ink);
+}
+.wf-count {
+  font-weight: 500;
+  color: var(--color-muted);
+}
+
+/* ── Cards: square, a 2px ink border on the lightest paper; hover turns the border cobalt (state, not decoration). ─ */
+html .ticket-card {
+  background: var(--color-paper-3);
+  color: var(--color-ink);
+  border-width: var(--rule-bar);
+  border-color: var(--color-ink);
+  box-shadow: none;
+  transition: border-color var(--dur-micro) steps(1);
+}
+html .ticket-card:hover,
+html .ticket-card:focus-visible {
+  border-color: var(--color-accent);
+  background-color: var(--color-paper-3);
+}
+html .ticket-card.wf-overflow {
+  border-color: var(--color-error);
+}
+.wf-card-title {
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+/* ── The foot of the screen: paper with a 2px ink top rule ─────────────────────────────────────────────────────── */
+.wf-foot {
+  background: var(--color-paper);
+  border-top: var(--rule-bar) solid var(--color-ink);
+  color: var(--color-muted);
+}
+.wf-foot a {
+  color: var(--color-ink);
+  font-weight: 800;
+  text-decoration: underline;
+}
+.wf-foot a:hover {
+  color: var(--color-accent);
+}
+.wf-key {
+  border: var(--rule-hair) solid var(--color-ink-rule);
+  padding-inline: var(--space-2xs);
+  color: var(--color-ink);
+}
+
+/* The live dot: the card that just changed. It blinks once in steps, like a board flipping a row, and ends hidden. */
+.wf-live {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  background: var(--color-accent);
+  opacity: 0;
+  animation: wf-live-blink 1.6s steps(1, end) 1 both;
+}
+@keyframes wf-live-blink {
+  0% { opacity: 1; }
+  20% { opacity: 0.2; }
+  40% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes wf-live-fade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Fewer and gentler, not zero: the dot still says "this one changed", as one fade with no blink. */
+  .wf-live {
+    animation: wf-live-fade 1.6s var(--ease-out) 1 both;
+  }
+  .wf-cell,
+  .wf-btn,
+  .wf-seg > *,
+  html .ticket-card {
+    transition: none;
+  }
+}

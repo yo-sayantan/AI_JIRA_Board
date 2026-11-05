@@ -24,6 +24,7 @@
     "help": "open help/00-start-here.html"
   },
   "dependencies": {
+    "@fontsource/chivo-mono": "^5.3.0",
     "motion": "^14.4.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

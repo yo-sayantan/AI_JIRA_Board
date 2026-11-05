@@ -29,6 +29,37 @@ describe('quiet card semantics', () => {
   })
 })
 
+describe('the live dot on the card that just changed', () => {
+  const mount = (t: Ticket) => {
+    host = document.createElement('div')
+    document.body.appendChild(host)
+    root = createRoot(host)
+    act(() => root!.render(createElement(TicketCard, { ticket: t, now: Date.now(), onOpen: () => {} })))
+  }
+  const live = () => host!.querySelector('.wf-live')
+
+  it('is not shown on the first load', () => {
+    mount({ ...ticket, key: 'LIVE-1', lastUpdate: '2026-11-01T10:00:00Z' })
+    expect(live()).toBeNull()
+  })
+
+  it('shows when the same ticket arrives with a newer update', () => {
+    const t = { ...ticket, key: 'LIVE-2', lastUpdate: '2026-11-01T10:00:00Z' }
+    mount(t)
+    act(() => root!.render(createElement(TicketCard, { ticket: { ...t, lastUpdate: '2026-11-02T10:00:00Z' }, now: Date.now(), onOpen: () => {} })))
+    expect(live()).not.toBeNull()
+  })
+
+  it('survives the move to another lane, where the card mounts anew', () => {
+    const t = { ...ticket, key: 'LIVE-3', lastUpdate: '2026-11-01T10:00:00Z' }
+    mount(t)
+    act(() => root!.unmount())
+    host!.remove()
+    mount({ ...t, column: 'rev', status: 'Ready4Review', lastUpdate: '2026-11-02T10:00:00Z' })
+    expect(live()).not.toBeNull()
+  })
+})
+
 describe('dragging a card', () => {
   it('carries a translucent clone, so the drop zone stays visible through it', () => {
     vi.useFakeTimers()

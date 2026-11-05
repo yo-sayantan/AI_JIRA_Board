@@ -3,13 +3,13 @@ import { motion } from 'motion/react'
 import type { Ticket } from '../../types'
 import { COLUMN_META } from '../../lib/columns'
 import { DONE_BOARD_DAYS } from '../../lib/appConfig'
-import { priorityMeta, typeMeta, effectiveType, isClosedPr, prListOf, primaryPrOf, branchesOf, cardBranches, cardBuilds, envBuildCount, vulnFixesOf, relTime } from '../../lib/format'
+import { typeMeta, effectiveType, isClosedPr, prListOf, primaryPrOf, branchesOf, cardBranches, cardBuilds, envBuildCount, vulnFixesOf, relTime } from '../../lib/format'
 import { Pill, PriorityGlyph, PrBadge, Approvals, PointsTag } from '../common/ui'
 import { TypeIcon, RefreshIcon, TrophyIcon } from '../common/Icons'
 import { BuildChip } from '../common/Builds'
 import { VulnChip } from '../common/VulnFixes'
 import { lift, tint } from '../../lib/tone'
-import { EASE_OUT, LAYOUT, PRESS } from '../../lib/motion'
+import { EASE_OUT, LAYOUT } from '../../lib/motion'
 
 /** Days until this Done card auto-retires from the board into the Completed archive. */
 function archivesInDays(t: Ticket, now: number): number | null {
@@ -23,6 +23,11 @@ function archivesInDays(t: Ticket, now: number): number | null {
 }
 
 const celebratedDone = new Set<string>()
+/**
+ * The `lastUpdate` the board last showed for each key. Module-level because a refresh that moves a ticket to another lane
+ * mounts a new card there; a card whose value differs from the one seen before is the row that just changed.
+ */
+const seenUpdate = new Map<string, string | null>()
 
 /** dataTransfer type carrying the dragged ticket key; columns accept only this. */
 /** How see-through the card is while it is carried: enough to read the drop zone through it. */
@@ -124,9 +129,7 @@ export const TicketCard = memo(function TicketCard({
 }) {
   const meta = COLUMN_META[ticket.column]
   const accent = meta?.accent ?? '#64748b'
-  const prio = priorityMeta(ticket.priority)
   const tm = typeMeta(effectiveType(ticket))
-  const urgent = prio.rank >= 4
   const rel = relTime(ticket.lastUpdate, now)
   const prs = prListOf(ticket)
   // The banner follows the ticket's primary branch; PRs on other branches are counted below.
@@ -183,18 +186,17 @@ export const TicketCard = memo(function TicketCard({
   useEffect(() => {
     if (burst) celebratedDone.add(ticket.key)
   }, [burst, ticket.key])
+  // The row that just changed gets one cobalt live dot that blinks once (Wayfind); never on the board's first load. The
+  // timestamp keys the dot, so a second change restarts the blink; the animation ends hidden, so nothing needs a timer.
+  const [changedAt, setChangedAt] = useState(0)
+  useEffect(() => {
+    const now = ticket.lastUpdate ?? null
+    const had = seenUpdate.has(ticket.key)
+    const was = seenUpdate.get(ticket.key)
+    seenUpdate.set(ticket.key, now)
+    if (had && was !== now) setChangedAt(Date.now())
+  }, [ticket.key, ticket.lastUpdate])
 
-  const ring = [
-    urgent ? `0 0 0 1px ${tint(prio.color, 0.3)}` : '',
-    overflow ? '0 0 0 2px #dc2626' : '',
-  ]
-    .filter(Boolean)
-    .join(', ')
-  const ringSuffix = ring ? `, ${ring}` : ''
-  // Resting card sits on the board. Hover lifts it: a tight contact shadow plus a
-  // wider ambient shadow tinted with the column color, so the lift reads as depth.
-  const baseShadow = `inset 4px 0 0 ${accent}, 0 1px 2px rgba(2,6,23,0.07), 0 10px 20px -14px ${tint(accent, meta?.quiet ? 0.28 : 0.55)}${ringSuffix}`
-  const hoverShadow = `inset 4px 0 0 ${accent}, inset 0 1px 0 rgba(255,255,255,0.14), 0 1px 2px rgba(2,6,23,0.06), 0 14px 24px -12px rgba(2,6,23,0.42), 0 28px 44px -18px ${tint(accent, 0.48)}${ringSuffix}`
   const overflowTitle = overflow
     ? `Carried across ${ticket.sprintCount && ticket.sprintCount > 1 ? ticket.sprintCount : 'multiple'} sprints`
     : undefined
@@ -218,48 +220,13 @@ export const TicketCard = memo(function TicketCard({
           onOpen(ticket.key)
         }
       }}
-      initial={{ opacity: 0, y: 8, boxShadow: baseShadow }}
-      animate={{ opacity: 1, y: 0, zIndex: 0, boxShadow: baseShadow }}
-      exit={{ opacity: 0, scale: 0.96 }}
-      // Hovering a card happens all day, so the lift is small and quick (no slow float); the
-      // status-colour bloom underneath (.ticket-card-wash / -glow / -edge) stays deliberately slow.
-      transition={{
-        opacity: { duration: 0.24, ease: EASE_OUT },
-        y: { duration: 0.2, ease: EASE_OUT },
-        layout: LAYOUT,
-        boxShadow: { duration: 0.24, ease: EASE_OUT },
-        scale: PRESS,
-      }}
-      whileHover={quiet ? undefined : { y: -3, zIndex: 3, boxShadow: hoverShadow }}
-      whileTap={quiet ? undefined : { y: -1, scale: 0.99 }}
-      className={`ticket-card @container group relative flex w-full flex-col ${draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'} overflow-hidden rounded-xl border bg-[var(--surface-solid)] text-left ${sub ? 'px-2.5 py-2' : 'min-h-[168px] p-2.5'}`}
-      style={{
-        boxShadow: baseShadow,
-        borderColor: overflow ? '#dc2626' : undefined,
-        ['--card-accent' as string]: accent,
-      }}
+      // A card is a sign on the board: it does not lift or bloom. Moving between lanes is state, so the layout move stays;
+      // a card leaving fades out (the exit is the only motion it has of its own).
+      exit={{ opacity: 0 }}
+      transition={{ opacity: { duration: 0.16, ease: EASE_OUT }, layout: LAYOUT }}
+      className={`ticket-card @container group relative flex w-full flex-col ${draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'} overflow-hidden border-2 text-left${overflow ? ' wf-overflow' : ''} ${sub ? 'px-2.5 py-2' : 'min-h-[168px] p-2.5'}`}
+      style={{ ['--card-accent' as string]: accent }}
     >
-      {/* Status color blooms in slowly — a soft wash, then a thinner top light. */}
-      <span
-        aria-hidden
-        className="ticket-card-wash pointer-events-none absolute inset-0"
-        style={{
-          background: meta?.quiet
-            ? `linear-gradient(160deg, ${tint(accent, 0.08)} 0%, transparent 60%)`
-            : `linear-gradient(160deg, ${tint(accent, 0.2)} 0%, ${tint(accent, 0.07)} 42%, transparent 78%)`,
-        }}
-      />
-      <span
-        aria-hidden
-        className="ticket-card-glow pointer-events-none absolute -left-6 -top-10 h-28 w-40 rounded-full blur-2xl"
-        style={{ background: tint(accent, 0.45) }}
-      />
-      <span
-        aria-hidden
-        className="ticket-card-edge pointer-events-none absolute inset-x-0 top-0 h-px"
-        style={{ background: `linear-gradient(90deg, ${accent}, ${tint(accent, 0.15)} 70%, transparent)` }}
-      />
-
       {burst && <DoneBurst />}
 
       {onArchive && (
@@ -273,7 +240,7 @@ export const TicketCard = memo(function TicketCard({
           onKeyDown={(e) => e.stopPropagation()}
           title="Move to Completed now (removes it from the board)"
           aria-label="Move to Completed"
-          className="absolute right-1 top-1 z-10 grid h-5 w-5 cursor-pointer place-items-center rounded-md border border-[var(--line)] bg-[var(--surface-solid)] leading-none opacity-0 transition-opacity hover:border-[#f59e0b] focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
+          className="absolute right-1 top-1 z-10 grid h-5 w-5 cursor-pointer place-items-center rounded-md border border-[var(--line)] bg-[var(--surface-solid)] leading-none opacity-0 transition-opacity hover:border-[var(--color-ink)] focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100"
         >
           <TrophyIcon size={10} />
         </button>
@@ -317,6 +284,7 @@ export const TicketCard = memo(function TicketCard({
             )}
             <TypeIcon type={effectiveType(ticket)} color={lift(tm.color)} size={13} />
             <span className="whitespace-nowrap @max-[11rem]:text-[10px] @max-[11rem]:tracking-normal">{ticket.key}</span>
+            {changedAt > 0 && <span key={changedAt} className="wf-live keep-motion" title="Updated in the last refresh" />}
           </span>
           <PointsTag points={ticket.storyPoints} />
         </span>
@@ -400,7 +368,7 @@ function ReadinessDots({ rev, done }: { rev?: string | null; done?: string | nul
     const color = reason ? NOT_YET : READY
     const text = reason ?? `Ready for ${target}`
     return (
-      <span className="inline-flex items-center gap-[3px] text-[9.5px] font-bold uppercase tracking-wide" style={{ color: lift(color) }} title={text} aria-label={`${target}: ${text}`}>
+      <span className="inline-flex items-center gap-[3px] text-[10px] font-medium" style={{ color: lift(color) }} title={text} aria-label={`${target}: ${text}`}>
         <span aria-hidden className="h-[7px] w-[7px] rounded-full" style={{ background: reason ? 'transparent' : color, boxShadow: `inset 0 0 0 1.5px ${color}, 0 0 0 2px ${tint(color, 0.16)}` }} />
         {label}
       </span>
@@ -424,9 +392,9 @@ function DoneBurst() {
           <motion.span
             key={i}
             className="absolute h-1.5 w-1.5 rounded-full"
-            style={{ background: i % 2 ? '#f59e0b' : '#fde68a', boxShadow: '0 0 6px #f59e0b' }}
-            initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-            animate={{ opacity: 0, x: Math.cos(a) * 28, y: Math.sin(a) * 22, scale: 0.2 }}
+            style={{ background: i % 2 ? 'var(--color-accent-2)' : 'var(--color-ink)' }}
+            initial={{ opacity: 1, transform: 'translate(0px, 0px) scale(1)' }}
+            animate={{ opacity: 0, transform: `translate(${Math.round(Math.cos(a) * 28)}px, ${Math.round(Math.sin(a) * 22)}px) scale(0.2)` }}
             transition={{ duration: 0.7, ease: EASE_OUT }}
           />
         )

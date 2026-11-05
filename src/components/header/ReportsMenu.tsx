@@ -5,8 +5,6 @@ import type { ReportScope } from '../../lib/runner'
 import { APP_CONFIG } from '../../lib/appConfig'
 import { SparkleIcon } from '../common/Icons'
 import { ScopeMenu, StopButton, type MenuScope } from './ScopeMenu'
-import { lift, tint } from '../../lib/tone'
-import { EASE_IN_OUT, PRESSABLE } from '../../lib/motion'
 
 const AI = '#a855f7'
 /** How long nothing may be generating before the next run counts as a new batch. */
@@ -26,35 +24,11 @@ function formatModelLabel(label: string): string {
   return label.split('·').map(formatModelPart).filter(Boolean).join(' · ')
 }
 
-/** Twinkling sparkle while reports generate. The glyph stays; it does not spin like a refresh. */
+/** The reports glyph. While reports generate the cell turns cobalt (`aria-busy` on the trigger): live, not looping. */
 function AiSpark({ busy }: { busy: boolean }) {
   return (
-    <span className="relative grid place-items-center">
-      <motion.span
-        className="inline-flex"
-        animate={busy ? { scale: [1, 1.2, 0.94, 1.12, 1], rotate: [0, -14, 12, 0] } : { scale: 1, rotate: 0 }}
-        transition={busy ? { duration: 1.35, repeat: Infinity, ease: EASE_IN_OUT } : { duration: 0.2 }}
-      >
-        <SparkleIcon size={16} color={lift(AI)} />
-      </motion.span>
-      {busy && (
-        <>
-          <motion.span
-            aria-hidden
-            className="absolute -right-1 -top-1 h-1 w-1 rounded-full"
-            style={{ background: AI }}
-            animate={{ opacity: [0, 1, 0], scale: [0.3, 1.3, 0.3] }}
-            transition={{ duration: 1.05, repeat: Infinity, ease: EASE_IN_OUT }}
-          />
-          <motion.span
-            aria-hidden
-            className="absolute -left-1 bottom-0 h-[3px] w-[3px] rounded-full"
-            style={{ background: '#e9d5ff' }}
-            animate={{ opacity: [0, 1, 0], scale: [0.2, 1.1, 0.2] }}
-            transition={{ duration: 1.05, repeat: Infinity, ease: EASE_IN_OUT, delay: 0.4 }}
-          />
-        </>
-      )}
+    <span className="relative grid place-items-center" data-busy={busy || undefined}>
+      <SparkleIcon size={16} color="currentColor" />
     </span>
   )
 }
@@ -106,8 +80,8 @@ export function ReportsMenu({ served, generating, withPrCount, reportCount, boar
       color={AI}
       trigger={(open, toggle) => (
         <motion.button
-          {...PRESSABLE}
           onClick={toggle}
+          aria-busy={busy > 0 || undefined}
           aria-label={busy ? `Generating ${busy} PR readiness report${busy === 1 ? '' : 's'} — open report options` : 'Generate PR readiness reports'}
           aria-expanded={open}
           title={
@@ -115,8 +89,7 @@ export function ReportsMenu({ served, generating, withPrCount, reportCount, boar
               ? `${busy} PR readiness report${busy === 1 ? '' : 's'} generating in the background — click for options`
               : "Generate PR Readiness Reports — all tickets with a pull request, the dashboard's tickets, a time window, or one ticket"
           }
-          className="jb-raise jb-hue grid h-9 w-9 place-items-center rounded-xl border bg-[var(--surface-solid)] card-shadow hover:border-[var(--muted)]"
-          style={{ ['--hue' as string]: AI, borderColor: busy ? tint(AI, 0.5) : 'var(--line)' }}
+          className="wf-cell"
         >
           <AiSpark busy={busy > 0} />
         </motion.button>

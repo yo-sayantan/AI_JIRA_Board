@@ -8,7 +8,7 @@ import { futureSprintOf, sprintWhen } from '../../lib/format'
 import { CalendarIcon, ColumnIcon, PauseIcon } from '../common/Icons'
 import { SubSection } from './SubSection'
 import { DeniedNote, LandingSlot, SpaceHeader, dropBoxStyle, deniedOpacity } from './boardParts'
-import { lift, tint } from '../../lib/tone'
+import { lift } from '../../lib/tone'
 
 /** Which of a column's drop targets a card is over: the column itself, or its second space. */
 type DropTarget = 'col' | 'sub'
@@ -316,11 +316,11 @@ function RailBox({ boxRef, accent, label, stacked, sub }: { boxRef?: Ref<HTMLDiv
     <div
       ref={boxRef}
       data-drop={sub?.droppable ? sub.id : undefined}
-      className={`jb-rail-zone flex flex-col items-center gap-1.5 rounded-2xl border border-dashed py-2 ${stacked ? 'min-h-[132px]' : 'flex-1'}`}
-      style={dropBoxStyle(accent, false)}
+      className={`jb-rail-zone flex flex-col items-center gap-2 border-2 py-2 ${stacked ? 'min-h-[132px]' : 'flex-1'}`}
+      style={{ borderColor: 'var(--color-rule)' }}
     >
-      {sub && <SubIcon sub={sub} size={11} color={lift(accent)} />}
-      <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', color: tint(accent, 0.85) }}>
+      <span aria-hidden className="wf-swatch" style={{ ['--sw' as string]: accent }} />
+      <span className="text-[11px] font-extrabold" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', color: 'var(--color-ink)' }}>
         {label}
       </span>
     </div>
@@ -366,7 +366,7 @@ function DropZone({
           {active ? 'Release' : 'Drop here'}
         </span>
       )}
-      <span className="text-[10px] font-semibold uppercase leading-tight tracking-wider" style={{ color: tint(accent, 0.75) }}>
+      <span className="text-[11px] font-medium leading-tight" style={{ color: 'var(--color-ink)' }}>
         {label}
       </span>
     </div>

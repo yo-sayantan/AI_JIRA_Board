@@ -8,8 +8,8 @@ import { ReportsMenu, type ReportsMenuProps } from './ReportsMenu'
 import { ArchiveMenu } from './ArchiveMenu'
 import { flushSync } from 'react-dom'
 import { switchTheme } from '../../lib/themeTransition'
-import { lift, tint } from '../../lib/tone'
-import { FILL, HOVER_SCALE, PRESS, PRESSABLE, PRESS_SCALE } from '../../lib/motion'
+import { lift } from '../../lib/tone'
+import { FILL, PRESS } from '../../lib/motion'
 
 export type RunProgress = {
   done: number
@@ -44,8 +44,6 @@ function ProgressButton({
   ariaLabel,
   title,
   idleLabel,
-  gradient,
-  shadow,
   idleIcon,
 }: {
   busy: boolean
@@ -55,8 +53,9 @@ function ProgressButton({
   ariaLabel: string
   title: string
   idleLabel: string
-  gradient: string
-  shadow: string
+  /** Kept for callers; the Wayfind primary button is solid cobalt, so these no longer paint. */
+  gradient?: string
+  shadow?: string
   idleIcon: ReactNode
 }) {
   const pctNum = busy ? Math.max(0, Math.min(100, displayPct(progress))) : 0
@@ -66,9 +65,6 @@ function ProgressButton({
   return (
     <>
     <motion.button
-      whileHover={disabled ? undefined : { y: -1 }}
-      whileTap={disabled ? undefined : { scale: PRESS_SCALE }}
-      transition={PRESS}
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
@@ -79,8 +75,8 @@ function ProgressButton({
           : title
       }
       // Fixed width so the label swapping (idle text ↔ x/y · %) never resizes the button.
-      className="jb-raise relative inline-flex h-9 w-[168px] shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-xl px-3 text-[13px] font-bold text-white transition-[filter] hover:brightness-[1.08]"
-      style={{ ['--hue' as string]: '#2684ff', background: gradient, boxShadow: `0 6px 18px -6px ${shadow}`, opacity: disabled && !busy ? 0.6 : 1 }}
+      className="wf-btn relative w-[188px] shrink-0 overflow-hidden whitespace-nowrap px-3 text-[13px]"
+      style={{ opacity: disabled && !busy ? 0.6 : 1 }}
     >
       {/* Dimming scrim over the UNFILLED (right) portion — recedes as pct grows, so the deep bright colour "fills
           in" from the left. scaleX instead of animating `left`: the fill updates on every progress tick, during a fetch, and a
@@ -195,44 +191,36 @@ export const Header = memo(function Header({
   const archiveProgress = archiveRefreshing ? runProgress : null
 
   return (
-    <header className="sticky top-2 z-30 mb-4 mt-2 rounded-2xl border border-[var(--line)] bg-[var(--bg)]/80 px-4 py-3 backdrop-blur-xl md:px-5">
+    <header className="wf-bar sticky top-0 z-30 -mx-2 mb-4 px-4 py-3 md:px-5">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div className="flex items-center gap-2.5">
-          <motion.span
-            initial={{ rotate: -12, scale: 0.8, opacity: 0 }}
-            animate={{ rotate: 0, scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 18 }}
-            className="grid h-9 w-9 place-items-center rounded-xl"
-            style={{ background: 'linear-gradient(135deg, #6d5bd0, #3b82f6)' }}
-          >
+        <div className="flex items-center gap-3">
+          <span className="wf-plate grid h-9 w-9 shrink-0 place-items-center">
             <TicketGlyph size={20} />
-          </motion.span>
+          </span>
           <div className="leading-tight">
-            <h1 className="text-[17px] font-extrabold tracking-tight text-[var(--ink)]">
-              My Jira Board
-            </h1>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-[var(--muted)]">
-              <span>{name}</span>
-              <span
-                className="inline-flex items-center gap-1.5 rounded-full border px-2 py-[2px]"
-                style={{ borderColor: tint(fr.color, 0.45), background: tint(fr.color, 0.1) }}
-                title={
-                  data.generatedAt
-                    ? `The board reflects JIRA as of ${fr.full} (the last intern run). It is ${fr.label} relative to now.`
-                    : 'The intern has not produced a dump yet.'
-                }
-              >
-                <span className="h-1.5 w-1.5 rounded-full" style={{ background: fr.color }} />
-                {data.generatedAt ? (
-                  <>
-                    <span className="text-[var(--ink-soft)]">last run {fr.full}</span>
-                    <b style={{ color: lift(fr.color) }}>· {fr.label}</b>
-                  </>
-                ) : (
-                  <b style={{ color: lift(fr.color) }}>no intern run yet</b>
-                )}
-              </span>
-            </div>
+            <h1 className="wf-wordmark text-[17px]">My Jira Board</h1>
+            <p
+              className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11.5px] text-[var(--muted)]"
+              title={
+                data.generatedAt
+                  ? `The board reflects JIRA as of ${fr.full} (the last intern run). It is ${fr.label} relative to now.`
+                  : 'The intern has not produced a dump yet.'
+              }
+            >
+              <span className="text-[var(--ink)]">{name}</span>
+              {data.generatedAt ? (
+                <>
+                  <span>Last run {fr.full}</span>
+                  <b className="font-medium" style={{ color: lift(fr.color) }}>
+                    ({fr.label})
+                  </b>
+                </>
+              ) : (
+                <b className="font-medium" style={{ color: lift(fr.color) }}>
+                  No intern run yet
+                </b>
+              )}
+            </p>
           </div>
         </div>
 
@@ -240,40 +228,36 @@ export const Header = memo(function Header({
           {/* Current sprint — compact two-line block: name + workdays left, dates + progress. */}
           {sprint && sp && (
             <div
-              className="hidden shrink-0 flex-col gap-0.5 rounded-xl border px-2.5 py-1 leading-tight md:flex"
-              style={{ borderColor: tint(sp.color, 0.4), background: tint(sp.color, 0.08) }}
+              className="wf-plate hidden h-9 shrink-0 flex-col justify-center gap-0.5 px-2.5 leading-tight md:flex"
               title={
                 (sprint.start && sprint.end
                   ? `Sprint ${sprint.name}: ${fmtDate(sprint.start)} → ${fmtDate(sprint.end)}`
                   : `Sprint ${sprint.name}`) + ` — ${sp.label} (working days, Mon–Fri)`
               }
             >
-              <span className="flex items-center gap-1.5 text-[10.5px] font-bold text-[var(--ink-soft)]">
-                <CalendarIcon size={10} color={lift(sp.color)} />
-                {/* The pill sizes to the NAME — sprint names vary in length ("Team Sprint 13.2"
-                    alone needs ~118px, so the old 110px cap clipped every one of them). 280px is a
-                    backstop against a pathological name squeezing the search box, not a budget. */}
+              <span className="flex items-center gap-2 text-[10.5px] font-medium">
+                <CalendarIcon size={10} color="currentColor" />
+                {/* The plate sizes to the NAME — sprint names vary in length; 280px is a backstop against a pathological
+                    name squeezing the search box, not a budget. */}
                 <span className="max-w-[280px] shrink-0 truncate whitespace-nowrap">{sprint.name}</span>
-                <b className="ml-auto shrink-0 whitespace-nowrap pl-1" style={{ color: lift(sp.color) }}>
-                  {sp.label}
-                </b>
+                <b className="wf-figure ml-auto shrink-0 whitespace-nowrap pl-1">{sp.label}</b>
               </span>
-              <span className="flex items-center gap-1.5 text-[10px] text-[var(--muted)]">
+              <span className="flex items-center gap-2 text-[10px] opacity-80">
                 {sprint.start && sprint.end ? (
-                  <span className="whitespace-nowrap tabular-nums">{fmtDateShort(sprint.start)} → {fmtDateShort(sprint.end)}</span>
+                  <span className="whitespace-nowrap tabular-nums">{fmtDateShort(sprint.start)} to {fmtDateShort(sprint.end)}</span>
                 ) : (
                   <span>{sprint.state || 'sprint'}</span>
                 )}
                 {sp.pct != null && (
-                  <span className="relative h-1 min-w-8 flex-1 overflow-hidden rounded-full" style={{ background: tint(sp.color, 0.18) }}>
-                    <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.round(sp.pct * 100)}%`, background: sp.color }} />
+                  <span className="wf-plate-track relative h-1 min-w-8 flex-1 overflow-hidden">
+                    <span className="wf-plate-fill absolute inset-0 origin-left" style={{ transform: `scaleX(${sp.pct})` }} />
                   </span>
                 )}
               </span>
             </div>
           )}
 
-          <label htmlFor="jb-search" className="jb-search flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] px-3 py-1.5 card-shadow focus-within:border-[var(--muted)]">
+          <label htmlFor="jb-search" className="jb-search wf-field flex h-9 items-center gap-2 px-3">
             <span className="sr-only">Search tickets</span>
             <span className="text-[var(--muted)]">
               <SearchIcon size={14} />
@@ -305,11 +289,10 @@ export const Header = memo(function Header({
                 : `Reload the latest data dump from disk${shortcuts ? '  (r)' : ''}`
             }
             idleLabel={served ? 'Refresh board' : 'Reload'}
-            gradient="linear-gradient(135deg, #7c5cff, #2684ff)"
-            shadow="rgba(38,132,255,0.55)"
-            idleIcon={<RefreshIcon size={15} color="#fff" />}
+            idleIcon={<RefreshIcon size={15} color="currentColor" />}
           />
 
+          <div className="wf-cells" role="group" aria-label="Board tools">
           {served && (
             <ArchiveMenu
               served={served}
@@ -329,7 +312,6 @@ export const Header = memo(function Header({
 
           {onOpenKeys && (
             <motion.button
-              {...PRESSABLE}
               onClick={onOpenKeys}
               aria-label={keysBadge ? `API keys — ${keysBadge.label}` : keysMissing ? 'API keys — a required key is missing' : 'API keys'}
               title={
@@ -339,15 +321,14 @@ export const Header = memo(function Header({
                     ? 'API keys — add your Jira token so the board can fetch'
                     : 'API keys — Jira, Bitbucket, Cloud AI…'
               }
-              className="jb-raise jb-hue relative grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] card-shadow hover:border-[var(--muted)] hover:text-[var(--ink)]"
-              style={{ ['--hue' as string]: '#f97316' }}
+              className="wf-cell relative"
             >
               <KeyIcon size={16} />
               {(keysBadge || keysMissing) && (
                 <span
                   aria-hidden
-                  className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--bg)]"
-                  style={{ background: keysBadge?.color ?? '#f59e0b' }}
+                  className="absolute right-0.5 top-0.5 h-2 w-2"
+                  style={{ background: keysBadge?.color ?? 'var(--color-accent-2)' }}
                 />
               )}
             </motion.button>
@@ -355,12 +336,10 @@ export const Header = memo(function Header({
 
           {onOpenSettings && (
             <motion.button
-              {...PRESSABLE}
               onClick={onOpenSettings}
               aria-label="Board settings"
               title="Settings — appearance, features, AI usage"
-              className="jb-raise jb-hue grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] card-shadow hover:border-[var(--muted)] hover:text-[var(--ink)]"
-              style={{ ['--hue' as string]: '#14b8a6' }}
+              className="wf-cell"
             >
               <GearIcon size={16} />
             </motion.button>
@@ -369,22 +348,17 @@ export const Header = memo(function Header({
           {/* Help — opens the Setup & Deployment guide. An <a>, not a fetch/route, so it still works
               when the server is down (file:// falls back to the sibling help/ folder). */}
           <motion.a
-            {...PRESSABLE}
             href={guideUrl()}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Setup and deployment guide"
             title="Setup & deployment guide — requirements, install steps for Windows/macOS/Linux, git & Docker commands, troubleshooting"
-            className="jb-raise jb-hue grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] text-[var(--ink-soft)] card-shadow hover:border-[var(--muted)] hover:text-[var(--ink)]"
-            style={{ ['--hue' as string]: '#0ea5e9' }}
+            className="wf-cell"
           >
             <QuestionIcon size={16} />
           </motion.a>
 
           <motion.button
-            whileHover={{ scale: HOVER_SCALE, rotate: dark ? -8 : 8 }}
-            whileTap={{ scale: PRESS_SCALE, rotate: -15 }}
-            transition={PRESS}
             onClick={(e) => {
               // The reveal snapshots the page before and after `apply`, so the theme must change synchronously in it:
               // flushSync renders the new setting, and the class is set right here too (applySettings repeats it).
@@ -396,11 +370,11 @@ export const Header = memo(function Header({
             }}
             aria-label="Toggle theme"
             aria-pressed={dark}
-            className="jb-raise jb-hue grid h-9 w-9 place-items-center rounded-xl border border-[var(--line)] bg-[var(--surface-solid)] card-shadow hover:border-[var(--muted)]"
-            style={{ ['--hue' as string]: dark ? '#6366f1' : '#f59e0b' }}
+            className="wf-cell"
           >
             {dark ? <MoonIcon size={16} /> : <SunIcon size={16} />}
           </motion.button>
+          </div>
         </div>
       </div>
     </header>

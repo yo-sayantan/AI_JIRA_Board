@@ -3,33 +3,26 @@ import { AnimatePresence, motion } from 'motion/react'
 
 import { shortReason, type MoveCheck } from '../../lib/moveRules'
 import { lift, tint } from '../../lib/tone'
-import { LAYOUT } from '../../lib/motion'
+import { EASE_OUT, LAYOUT } from '../../lib/motion'
 
 // Pieces every space on the board shares — a column, the On Hold space under Blocked, an empty
 // column's rail or drop zone — so they cannot drift apart in size or colour.
 
-/** A dashed drop box: faint at rest, lit while a card hovers it. */
+/** A drop box: invisible at rest (the cards sit straight on the paper), lit in the lane's colour while a card hovers it. */
 export function dropBoxStyle(accent: string, active: boolean): CSSProperties {
   return {
-    borderColor: tint(accent, active ? 0.72 : 0.26),
-    background: tint(accent, active ? 0.13 : 0.045),
-    boxShadow: active ? `0 0 0 3px ${tint(accent, 0.18)}, 0 12px 28px -16px ${tint(accent, 0.5)}` : undefined,
+    borderColor: active ? lift(accent) : 'transparent',
+    background: active ? tint(accent, 0.1) : 'transparent',
   }
 }
 
-export function CountPill({ accent, count }: { accent: string; count: number }) {
-  return (
-    <span
-      className="ml-auto min-w-[22px] rounded-full px-1.5 py-0.5 text-center text-[11px] font-bold tabular-nums"
-      style={{ color: lift(accent), background: tint(accent, 0.14) }}
-    >
-      {count}
-    </span>
-  )
+export function CountPill({ count }: { accent?: string; count: number }) {
+  return <span className="wf-count ml-auto text-[11px] tabular-nums">{count}</span>
 }
 
 /**
- * A space's header: icon chip, uppercase label, count. `folded` keeps only the icon (a rail). While a card is dragged, a
+ * A space's header, set like a platform sign: the status's square, its name in 800, its count, over a 2px ink rule.
+ * `folded` keeps only the square (a rail). While a card is dragged, a
  * space that will not take it says WHY from its header (`denied` → `DeniedChip`, a callout floating just below the title) —
  * never as a banner in the box below, which pushed every card down by its height the moment a drag started.
  */
@@ -59,9 +52,9 @@ export function SpaceHeader({
   active?: boolean
 }) {
   return (
-    <header className="relative mb-2 flex h-5 items-center gap-2 px-1">
-      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ background: tint(accent, 0.16) }} title={title}>
-        {icon}
+    <header className={`relative mb-2 flex h-6 items-center gap-2 px-1 ${folded ? '' : 'wf-lane-head'}`}>
+      <span className="inline-flex shrink-0 items-center" title={title} data-lane-icon={icon ? '' : undefined}>
+        <span aria-hidden className="wf-swatch" style={{ ['--sw' as string]: accent }} />
       </span>
       <AnimatePresence initial={false}>
         {!folded && (
@@ -73,10 +66,8 @@ export function SpaceHeader({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
           >
-            <h2 className="truncate text-[11px] font-bold uppercase tracking-wider" style={{ color: lift(accent) }}>
-              {label}
-            </h2>
-            {count !== undefined && <CountPill accent={accent} count={count} />}
+            <h2 className="truncate text-[12px]">{label}</h2>
+            {count !== undefined && <CountPill count={count} />}
           </motion.span>
         )}
       </AnimatePresence>
@@ -137,9 +128,9 @@ export function DeniedChip({ check, alt, active }: { check: MoveCheck; alt: bool
     <motion.span
       role="note"
       title={gate ? `${check.reason ?? ''} Hold ⌥ (Option) while dropping to move it anyway.`.trim() : (check.reason ?? undefined)}
-      initial={{ opacity: 0, y: -3 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.18 }}
+      initial={{ opacity: 0, transform: 'translateY(-3px)' }}
+      animate={{ opacity: 1, transform: 'translateY(0px)' }}
+      transition={{ duration: 0.18, ease: EASE_OUT }}
       className="jb-float pointer-events-none absolute inset-x-0 top-[calc(100%+4px)] z-30 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 rounded-lg border px-1.5 py-[3px] text-center text-[10.5px] font-bold leading-snug shadow-lg"
       style={{ borderColor: tint(color, 0.5), color: lift(color) }}
     >

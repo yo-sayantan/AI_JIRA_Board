@@ -3,7 +3,6 @@ import type { ArchiveScope } from '../../lib/runner'
 import { APP_CONFIG } from '../../lib/appConfig'
 import { TrophyIcon } from '../common/Icons'
 import { ScopeMenu, StopButton } from './ScopeMenu'
-import { EASE_IN_OUT, PRESSABLE } from '../../lib/motion'
 
 const GREEN = '#16a34a'
 
@@ -56,30 +55,14 @@ export function ArchiveMenu({ served, busy, blocked, done, total, pct, parallel,
       color={GREEN}
       trigger={(open, toggle) => (
         <motion.button
-          {...PRESSABLE}
           onClick={toggle}
           aria-label={busy ? 'Archive rebuild in progress — open options' : 'Rebuild the Completed archive'}
           aria-expanded={open}
+          aria-busy={busy || undefined}
           title={busy ? 'Rebuilding the Completed archive. Open for progress.' : 'Rebuild the Completed archive — all closed tickets, a date range, or one ticket'}
-          className={`jb-raise relative grid h-9 w-9 place-items-center overflow-hidden rounded-xl text-white card-shadow${busy ? ' jb-archive-busy' : ''}`}
-          style={{ ['--hue' as string]: GREEN, background: 'linear-gradient(135deg, #10d29a, #16a34a)', boxShadow: '0 6px 16px -8px rgba(16,185,129,0.75)' }}
+          className={`wf-cell relative${busy ? ' jb-archive-busy' : ''}`}
         >
-          {busy && (
-            <motion.span
-              aria-hidden
-              className="pointer-events-none absolute inset-[3px] rounded-lg"
-              animate={{ opacity: [0.25, 0.9, 0.25] }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: EASE_IN_OUT }}
-              style={{ boxShadow: 'inset 0 0 0 1.5px rgba(255,253,242,0.85)' }}
-            />
-          )}
-          <motion.span
-            className="relative inline-flex"
-            animate={busy ? { transform: ['translateY(0px)', 'translateY(-1.5px)', 'translateY(0px)'] } : { transform: 'translateY(0px)' }}
-            transition={busy ? { duration: 1.2, repeat: Infinity, ease: EASE_IN_OUT } : { duration: 0.2 }}
-          >
-            <TrophyIcon size={13} glint={busy} />
-          </motion.span>
+          <TrophyIcon size={14} />
         </motion.button>
       )}
       title={busy ? 'Rebuilding complete archive...' : 'Rebuild Completed archive'}
