@@ -23,6 +23,13 @@ function archivesInDays(t: Ticket, now: number): number | null {
 }
 
 const celebratedDone = new Set<string>()
+/**
+ * The `lastUpdate` the board last showed for each key. Module-level because a refresh that moves a ticket to another lane
+ * mounts a new card there; a card whose value differs from the one seen before is the one that just changed.
+ */
+const seenUpdate = new Map<string, string | null>()
+/** How long the "just updated" dot stays after a refresh changed the card. */
+export const LIVE_DOT_MS = 4000
 
 /** dataTransfer type carrying the dragged ticket key; columns accept only this. */
 /** How see-through the card is while it is carried: enough to read the drop zone through it. */
@@ -183,6 +190,21 @@ export const TicketCard = memo(function TicketCard({
   useEffect(() => {
     if (burst) celebratedDone.add(ticket.key)
   }, [burst, ticket.key])
+  // The card that just changed shows a dot in its column colour for a few seconds; never on the board's first load. The
+  // timestamp keys the dot, so a second change restarts its one ring.
+  const [changedAt, setChangedAt] = useState(0)
+  useEffect(() => {
+    const now = ticket.lastUpdate ?? null
+    const had = seenUpdate.has(ticket.key)
+    const was = seenUpdate.get(ticket.key)
+    seenUpdate.set(ticket.key, now)
+    if (had && was !== now) setChangedAt(Date.now())
+  }, [ticket.key, ticket.lastUpdate])
+  useEffect(() => {
+    if (!changedAt) return
+    const t = setTimeout(() => setChangedAt(0), LIVE_DOT_MS)
+    return () => clearTimeout(t)
+  }, [changedAt])
 
   const ring = [
     urgent ? `0 0 0 1px ${tint(prio.color, 0.3)}` : '',
@@ -317,6 +339,7 @@ export const TicketCard = memo(function TicketCard({
             )}
             <TypeIcon type={effectiveType(ticket)} color={lift(tm.color)} size={13} />
             <span className="whitespace-nowrap @max-[11rem]:text-[10px] @max-[11rem]:tracking-normal">{ticket.key}</span>
+            {changedAt > 0 && <span key={changedAt} className="jb-live" title="Updated in the last refresh" />}
           </span>
           <PointsTag points={ticket.storyPoints} />
         </span>
@@ -425,8 +448,8 @@ function DoneBurst() {
             key={i}
             className="absolute h-1.5 w-1.5 rounded-full"
             style={{ background: i % 2 ? '#f59e0b' : '#fde68a', boxShadow: '0 0 6px #f59e0b' }}
-            initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-            animate={{ opacity: 0, x: Math.cos(a) * 28, y: Math.sin(a) * 22, scale: 0.2 }}
+            initial={{ opacity: 1, transform: 'translate(0px, 0px) scale(1)' }}
+            animate={{ opacity: 0, transform: `translate(${Math.round(Math.cos(a) * 28)}px, ${Math.round(Math.sin(a) * 22)}px) scale(0.2)` }}
             transition={{ duration: 0.7, ease: EASE_OUT }}
           />
         )

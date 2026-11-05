@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 
 import { shortReason, type MoveCheck } from '../../lib/moveRules'
 import { lift, tint } from '../../lib/tone'
-import { LAYOUT } from '../../lib/motion'
+import { EASE_OUT, LAYOUT } from '../../lib/motion'
 
 // Pieces every space on the board shares — a column, the On Hold space under Blocked, an empty
 // column's rail or drop zone — so they cannot drift apart in size or colour.
@@ -137,9 +137,9 @@ export function DeniedChip({ check, alt, active }: { check: MoveCheck; alt: bool
     <motion.span
       role="note"
       title={gate ? `${check.reason ?? ''} Hold ⌥ (Option) while dropping to move it anyway.`.trim() : (check.reason ?? undefined)}
-      initial={{ opacity: 0, y: -3 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.18 }}
+      initial={{ opacity: 0, transform: 'translateY(-3px)' }}
+      animate={{ opacity: 1, transform: 'translateY(0px)' }}
+      transition={{ duration: 0.18, ease: EASE_OUT }}
       className="jb-float pointer-events-none absolute inset-x-0 top-[calc(100%+4px)] z-30 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 rounded-lg border px-1.5 py-[3px] text-center text-[10.5px] font-bold leading-snug shadow-lg"
       style={{ borderColor: tint(color, 0.5), color: lift(color) }}
     >

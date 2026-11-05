@@ -264,6 +264,36 @@ select.jb-field:disabled {
 .ticket-card-return {
   animation: ticket-card-return 0.22s var(--ease-out);
 }
+/* The card a refresh just changed (TicketCard): a dot in its column colour beside the key, with one soft ring as it
+   appears. The component removes it after LIVE_DOT_MS; under reduced motion the ring is gone and the dot still shows. */
+.jb-live {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--card-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--card-accent) 22%, transparent);
+}
+.jb-live::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--card-accent);
+  opacity: 0;
+  animation: jb-live-ring 0.9s var(--ease-out) 1;
+}
+@keyframes jb-live-ring {
+  from {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(3.2);
+  }
+}
 @keyframes ticket-card-return {
   from {
     opacity: 0;
