@@ -4,9 +4,8 @@ import { fixture } from '../fixtures'
 import { emptyDump, hugeDump, oneDump, worstCaseDump } from '../fixtures.worstCase'
 
 /**
- * `npm run dev` with demo mode on: swap the demo board for a fixture, chosen with `?data=` so a reload keeps it.
- * Unset = demo mode's own sample board; with demo mode off the selection is ignored (useBoardData). Production builds
- * never read the URL (import.meta.env.DEV is false there, and the fixtures are dropped with it).
+ * With demo mode on, swap the demo board for a fixture chosen with `?data=` so a reload keeps it.
+ * Unset = demo mode's own sample board; with demo mode off the selection is ignored by useBoardData.
  */
 export const DEV_DATASETS = [
   { id: 'demo', label: 'Dev sample' },
@@ -20,7 +19,6 @@ export type DevDataset = (typeof DEV_DATASETS)[number]['id']
 const CHANGE = 'jb-dev-data'
 
 function read(): DevDataset | null {
-  if (!import.meta.env.DEV) return null
   const v = new URLSearchParams(location.search).get('data')
   return DEV_DATASETS.find((d) => d.id === v)?.id ?? null
 }
@@ -47,8 +45,6 @@ export function setDevDataset(id: DevDataset | null): void {
 }
 
 export function devDump(id: DevDataset, now: number): JiraData | null {
-  // Constant-false in a production build, so the fixtures below are dropped from the bundle.
-  if (!import.meta.env.DEV) return null
   switch (id) {
     case 'demo':
       return fixture

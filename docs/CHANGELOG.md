@@ -9,10 +9,16 @@ code does now, so a reader can check them against the tree.
 - **Lanes wear their own colour.** Each lane title is a ribbon in that lane's colour with a filled gradient count, the lane washes in its colour from the top, and the sprint progress bar is a gradient. Glass, the gold Completed pill, card colours and the hover lift stay.
 - **Coloured labels clear AA in light and dark.** Coloured text goes through `readable()` — the colour mixed toward the ink just far enough in the light theme, unchanged in dark. A filled badge goes through `fillFor()`: a strong colour a touch deeper with white text, a bright one kept bright with near-black text. The muted grey is `#5f6b82`. Refresh and Save keep their colours a step deeper.
 
-- **Dev: the worst-case data switch is a demo-mode tool.** Under `npm run dev` the Demo board / Dev sample / Worst case /
+- **The data switch is a demo-mode tool.** The Demo board / Dev sample / Worst case /
   Empty / One / 400 cards switch shows only while Settings → Demo mode is on, and the board ignores a leftover `?data=`
   while demo mode is off (the switch that clears it is hidden then). "Demo board" is demo mode's own sample board; "Dev
-  sample" is `src/fixtures.ts`.
+  sample" is `src/fixtures.ts`. It is available in both the built app and `npm run dev`.
+- **Every build is tested, and every run leaves a report.** `npm run build` now enforces a matching test change, runs the
+  Python and Vitest suites, type-checks and bundles, then checks the shipped artifact. `npm run verify` adds coverage and
+  Chromium UI/flow/axe tests. CI runs the same gates before its Docker smoke build and uploads `test-results/` plus
+  coverage. The local HTML/JSON dashboard records totals, pass/fail/skip/flaky rate and duration for the current workspace
+  revision only; browser failures retain a trace, screenshot and video. Changed TypeScript files get hook-order/dependency
+  lint. The permanent Demo regression suites live under `src/tests/demo/`, `tests/production/` and `tests/e2e/`.
 
 - **Progress fills and spinners stay smooth while the board is busy.** The refresh button, the archive menu, the model
   download bar and a ticket's checklist bar animated `left` / `width`, which re-lays-out every frame — and the first two run
@@ -32,10 +38,9 @@ code does now, so a reader can check them against the tree.
   instead of running off a narrow window.
 - **Fewer decorative tells.** The board title and the Completed / Raised headings are solid colour, not gradient text;
   the empty states use the board's SVG icons instead of emoji; the error toast's icon is a plain glyph like the others.
-- **Dev: worst-case data behind a toggle.** `npm run dev` shows a Live / Demo data / Worst case / Empty / One / 400 cards
+- **Worst-case data behind a toggle.** Demo mode shows a Live / Demo data / Worst case / Empty / One / 400 cards
   switch at the bottom of the board (`?data=…`, `src/lib/devData.ts`, fixtures in `src/fixtures.worstCase.ts`). Each
-  fixture keeps its own in-memory archive set, so `jb-archived` is never touched. Production builds drop the switch and
-  the fixtures.
+  fixture keeps its own in-memory archive set, so `jb-archived` is never touched.
 
 - **Board shell: the colours stay, and Completed stays the large gold control.** Raised and Taken from you are a step smaller. Completed keeps the larger gold type and trophy, on a shorter pill, and its glow is no longer cut off along the lane titles. Hover lifts a control and draws a thin outline in that control's own colour; the gold pill also shows a reflection. Focus is a neutral ring, including inside the search boxes. On a Completed row the reason pill and the worked / never-worked pill share fixed widths, so they line up down the list. Settings sections sit closer together, with Tools (Reset, Export, Import, Help) above AI. Reset and Import change the draft; Save still commits it. Export downloads that draft as `jira-board-settings.json`. The summary tiles on Completed and Raised are one read-only strip. The header and footer sit closer to the window edge; the chips and lanes keep a little more inset.
 - **Taken from you: pills you can see, worked-on vs never-worked, and a pointer on the board.** Each taken row now carries two

@@ -70,6 +70,7 @@ export default function App() {
   const exitDemo = useCallback(() => setSettings((s) => ({ ...s, features: { ...s.features, demoMode: false } })), [setSettings])
   // Moves made on one board mean nothing on the other: entering or leaving Demo mode starts clean.
   const resetMoves = moves.reset
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `demo` is the transition trigger; the reset function does not consume its value.
   useEffect(() => resetMoves(), [demo, resetMoves])
 
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -237,7 +238,7 @@ export default function App() {
         />
         {keysDialog}
         <Footer />
-        {import.meta.env.DEV && demo && <DevDataToggle />}
+        {demo && <DevDataToggle />}
         <Toasts toasts={toasts} onDismiss={dismiss} onPause={pauseToasts} onResume={resumeToasts} />
       </div>
     )
@@ -335,7 +336,7 @@ export default function App() {
       </motion.main>
 
       <Footer />
-      {import.meta.env.DEV && demo && <DevDataToggle />}
+      {demo && <DevDataToggle />}
 
       {/* Shared backdrop behind the whole drawer stack; click it to dismiss everything. */}
       <AnimatePresence>

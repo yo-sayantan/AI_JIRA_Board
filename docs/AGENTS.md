@@ -39,8 +39,8 @@ AI agent to make a correct change without re-deriving the architecture.
 | `jira-intern/local-runner/` | Shell entrypoints the server invokes: `run-intern.sh`, `update-completed.sh`, `refresh-ticket.sh`, `refresh-raised.sh`, `pr-report.sh`; `runner-env.sh` (env, locks, timeouts), `config.mjs` (config merge → shellenv/prompts), `sync-datajs.mjs`. |
 | `server/` (entry: `server/serve.mjs`) | Zero-dependency Node server: static allowlist + the `/api/*` routes (jobs, reports, settings, API keys, AI proxy, status). `secrets.mjs` reads/writes `setup/.env` for the API keys dialog; `keycheck.mjs` is the dialog's Test button (`POST /api/keys/test`: one cheap authenticated call per service, redirects never followed); `health.mjs` reads/writes `jira-intern/.health/` (`GET /api/keys/health`). |
 | `docker/` | `Dockerfile` (build context is the repo root — `docker-compose.yml` sets `dockerfile: docker/Dockerfile`) and `docker-entrypoint.sh`. `docker-compose.yml` stays at the root on purpose. |
-| `scripts/` | `start-jira-board.sh` (host build + Docker deploy), `open-guide.sh` / `open-guide.bat` (open `help/00-start-here.html`, no server), `build-help-data.mjs` (writes `help/help-data.js`; `npm run build` runs it first) and `Open Board.html`. |
-| `tooling/` | `vite.config.ts`, `vitest.config.ts` — selected by `--config` in the npm scripts. `src/tsconfig.json` is the TypeScript config; `.claude/CLAUDE.md` is the agent entry point. |
+| `scripts/` | `start-jira-board.sh` (host build + Docker deploy), `open-guide.sh` / `open-guide.bat` (open `help/00-start-here.html`, no server), `build-help-data.mjs` (writes `help/help-data.js`), `check-test-change.mjs` (behavior change → matching test gate), `lint-changed-hooks.mjs` (incremental hook rules), `run-tests.mjs` + `test-report.mjs` (suite runner and HTML/JSON dashboard), and `Open Board.html`. |
+| `tooling/` | `vite.config.ts`, `vitest.config.ts`, `playwright.config.ts` — selected by `--config` in the npm scripts. `src/tsconfig.json` is the TypeScript config; `.claude/CLAUDE.md` is the agent entry point. |
 | `ai-intern/` | The AI worker container: `worker.py` (job queue + HTTP; Ollama local or Claude/Cursor/Gemini cloud), `brief.py` (the AI brief's facts, prompt and post-checks, incl. the Evidence section), `models.json` (local model catalog), `cloud-models.json` (THE cloud model list: models, efforts, costly line) + `cloud_config.py`, `cursor-prices.json` (Cursor's price table — reference data). |
 | `config/` | `jira-board.config.json` — tracked, **generic** project defaults (+ JSON schema). Personal values live OUTSIDE the repo in `~/.ai/config.json`. |
 | `setup/` | `api-keys.json` (tracked: THE list of API keys the board knows), the git-ignored `.env` the board's API keys dialog writes (the only secrets file the board reads), and templates (personal config, IDE MCP servers, Desktop launcher) — the guide is `docs/SETUP.md`. Shipped into the Docker image minus `.env` (docker-ignored); compose mounts `./setup` instead. |
@@ -48,7 +48,7 @@ AI agent to make a correct change without re-deriving the architecture.
 | `docs/` | **Developer documentation** (markdown, see index at the bottom). The only `.md` files outside are runtime inputs, not docs: `jira-intern/prompts/*.md` (LLM prompts read by scripts) and `.github/pull_request_template.md` (GitHub requires its location). |
 | `jira-intern/demo/` | Demo mode's sample board: `data.json` (the only source — tracked in git, unlike the real dump) and `README.md`. |
 | `src/demo/` | Demo mode's code: loads + re-dates `jira-intern/demo/data.json`, two canned PR reports, and a browser-side mirror of the move gates. Driven by the `demoMode` feature toggle; `runner.ts::setDemoMode` blocks every server call while it is on. |
-| `tests/` | Python unittests (`npm test`). |
+| `tests/` | Python unittests plus `production/` bundle contracts and `e2e/` Playwright flows. Cross-component UI regressions live in `src/tests/`; see `docs/TESTING.md`. |
 
 ## Golden rules (break these and the system corrupts)
 
@@ -71,8 +71,10 @@ AI agent to make a correct change without re-deriving the architecture.
    dialog; git-ignored, docker-ignored, never served), identity in `~/.ai/config.json`. The repo is public. Before every commit run the leak scan:
    `git diff --cached | grep -icE "<internal hostnames / ids / names>"` must print 0, stage files
    by name (never `git add -A`), and keep `config/jira-board.config.json` generic.
-6. **`npm run build` must pass before any commit** (`tsc --noEmit && vite build`), and
-   `npm test` runs the Python unittests.
+6. **`npm run verify` must pass before any commit.** `npm run build` itself enforces a matching
+   test change, regenerates help, runs Python + Vitest, type-checks/bundles and checks the production
+   artifact. `verify` adds coverage floors and Chromium UI/flow/axe tests. Inspect
+   `test-results/index.html`; see `docs/TESTING.md`.
 7. **Deploy packages the host-built dist.** `scripts/start-jira-board.sh` builds `dist/` on the host and
    passes `--build-arg DIST_SOURCE=prebuilt`; in-image `npm ci` over the Docker VM's slow network
    silently drops optional native binaries (TypeScript 7's platform packages) and the build dies.
@@ -243,8 +245,9 @@ ticket's branches, and that has its own status words):
 
 ```bash
 npm run dev          # Vite dev server with fixture data (src/fixtures.ts); in demo mode ?data=worst|empty|one|huge → src/fixtures.worstCase.ts
-npm run build        # tsc --noEmit && vite build → dist/index.html (single file)
-npm test             # python unittest under tests/
+npm run build        # test-change policy + Python/Vitest + typecheck/bundle + production contracts
+npm run verify       # full pre-commit gate: build + coverage floors + Chromium UI/flow/axe tests
+npm test             # Python + Vitest; writes test-results/index.html
 npm run serve        # zero-dependency local server on :4321
 bash scripts/start-jira-board.sh   # Docker deploy (host-builds dist, DIST_SOURCE=prebuilt)
 ```

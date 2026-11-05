@@ -10,9 +10,9 @@
 
 ## Checklist
 
-- [ ] `npm run typecheck` passes
-- [ ] `npm run build` succeeds (the single-file `dist/index.html`)
-- [ ] Tests pass (`npm test` — the Python suite and the vitest suite); new behaviour has a test
+- [ ] `npm run verify` passes (config, test-change policy, Python, Vitest, typecheck, production bundle/contracts and Playwright)
+- [ ] `test-results/index.html` is green; browser failures include a trace/screenshot/video
+- [ ] New or changed behaviour has a regression test at the right layer (unit/component, flow, production contract or E2E)
 - [ ] Docs updated for any behaviour change (`docs/`, `setup/`, `README.md`, `jira-intern/CONFIG.md`) and a line added to `docs/CHANGELOG.md`
 - [ ] The keep-in-sync contracts still agree (`src/types.ts` ↔ `intern-prompt.md`, `reportTypes.ts` ↔ `pr_report.py`, `columns.ts` ↔ `_jira.py`) — see `docs/CONTRIBUTING.md`
 - [ ] No secrets, tokens, real ticket content, company names, internal hostnames, tenant ids or project keys in the diff

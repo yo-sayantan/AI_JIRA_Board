@@ -559,6 +559,7 @@
     ['API.md', '🔗 HTTP API'],
     ['SECURITY.md', '🔒 Security'],
     ['CONTRIBUTING.md', '🛠️ Contributing'],
+    ['TESTING.md', '🧪 Testing & SDLC'],
     ['CHANGELOG.md', '📝 Changelog'],
   ];
   var VIEWER = 'developer-doc-viewer.html';
