@@ -2,26 +2,34 @@ import type { CSSProperties, ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 
 import { shortReason, type MoveCheck } from '../../lib/moveRules'
-import { lift, tint } from '../../lib/tone'
+import { lift, onFill, tint } from '../../lib/tone'
 import { EASE_OUT, LAYOUT } from '../../lib/motion'
 
 // Pieces every space on the board shares — a column, the On Hold space under Blocked, an empty
 // column's rail or drop zone — so they cannot drift apart in size or colour.
 
-/** A dashed drop box: faint at rest, lit while a card hovers it. */
+/**
+ * A dashed drop box. At rest the lane is washed in its own colour from the top, fading as it goes down (the board reads
+ * as a spectrum of lanes); lit flat while a card hovers it.
+ */
 export function dropBoxStyle(accent: string, active: boolean): CSSProperties {
   return {
     borderColor: tint(accent, active ? 0.72 : 0.26),
-    background: tint(accent, active ? 0.13 : 0.045),
+    background: active ? tint(accent, 0.13) : `linear-gradient(180deg, ${tint(accent, 0.11)} 0%, ${tint(accent, 0.035)} 46%, ${tint(accent, 0.015)} 100%)`,
     boxShadow: active ? `0 0 0 3px ${tint(accent, 0.18)}, 0 12px 28px -16px ${tint(accent, 0.5)}` : undefined,
   }
 }
 
+/** The lane's count: a filled badge in the lane's colour, a gradient like the board's other badges. */
 export function CountPill({ accent, count }: { accent: string; count: number }) {
   return (
     <span
       className="ml-auto min-w-[22px] rounded-full px-1.5 py-0.5 text-center text-[11px] font-bold tabular-nums"
-      style={{ color: lift(accent), background: tint(accent, 0.14) }}
+      style={{
+        color: onFill(accent),
+        background: `linear-gradient(135deg, ${accent}, color-mix(in srgb, ${accent} 72%, #ffffff))`,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.28), 0 2px 6px -2px ${tint(accent, 0.55)}`,
+      }}
     >
       {count}
     </span>
@@ -59,8 +67,16 @@ export function SpaceHeader({
   active?: boolean
 }) {
   return (
-    <header className="relative mb-2 flex h-5 items-center gap-2 px-1">
-      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md" style={{ background: tint(accent, 0.16) }} title={title}>
+    <header
+      className={`relative mb-2 flex h-7 items-center gap-2 rounded-lg ${folded ? 'justify-center px-0' : 'px-1'}`}
+      // A ribbon in the lane's colour, fading to the right: the lane title reads as part of its colour, not a label on grey.
+      style={folded ? undefined : { background: `linear-gradient(90deg, ${tint(accent, 0.2)} 0%, ${tint(accent, 0.07)} 55%, transparent 100%)` }}
+    >
+      <span
+        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md"
+        style={{ background: `linear-gradient(135deg, ${tint(accent, 0.34)}, ${tint(accent, 0.14)})` }}
+        title={title}
+      >
         {icon}
       </span>
       <AnimatePresence initial={false}>

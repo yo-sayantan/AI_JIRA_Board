@@ -266,7 +266,10 @@ export const Header = memo(function Header({
                 )}
                 {sp.pct != null && (
                   <span className="relative h-1 min-w-8 flex-1 overflow-hidden rounded-full" style={{ background: tint(sp.color, 0.18) }}>
-                    <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.round(sp.pct * 100)}%`, background: sp.color }} />
+                    <span
+                      className="absolute inset-0 origin-left rounded-full"
+                      style={{ transform: `scaleX(${sp.pct})`, background: `linear-gradient(90deg, ${tint(sp.color, 0.55)}, ${sp.color})` }}
+                    />
                   </span>
                 )}
               </span>
