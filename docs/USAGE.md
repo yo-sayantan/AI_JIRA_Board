@@ -135,7 +135,9 @@ shows **Add API keys first** on its empty screen. The button is hidden when the 
 
 Every card is a **fixed height**, full column width. Pills wrap inside a two-line cap so banners
 never grow the shell. Hover lifts with a light 3D tilt (off when motion is disabled). A **red
-border** means the ticket carried across more than one sprint. Done cards spark once on first
+border** means the ticket carried across more than one sprint. A **dot** in the column's colour
+appears beside the key of a card a refresh just changed, including one that moved lanes; it goes
+after 4 seconds and never shows on the first load. Done cards spark once on first
 paint after a page load. **Click a card** to open its full detail drawer. On a Done card, the
 trophy button retires it to Completed immediately (undo from the strip under the board).
 

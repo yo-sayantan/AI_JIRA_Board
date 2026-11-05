@@ -5,6 +5,10 @@ code does now, so a reader can check them against the tree.
 
 ## Unreleased — primary branch
 
+- **A refresh marks the card it just changed.** A dot in the card's column colour, with one soft ring, appears beside the key of a ticket whose update changed, including one that moved to another lane. It goes after 4 seconds and never shows on the first load.
+- **Lanes wear their own colour.** Each lane title is a ribbon in that lane's colour with a filled gradient count, the lane washes in its colour from the top, and the sprint progress bar is a gradient. Glass, the gold Completed pill, card colours and the hover lift stay.
+- **Coloured labels clear AA in light and dark.** Coloured text goes through `readable()` — the colour mixed toward the ink just far enough in the light theme, unchanged in dark. A filled badge goes through `fillFor()`: a strong colour a touch deeper with white text, a bright one kept bright with near-black text. The muted grey is `#5f6b82`. Refresh and Save keep their colours a step deeper.
+
 - **Dev: the worst-case data switch is a demo-mode tool.** Under `npm run dev` the Demo board / Dev sample / Worst case /
   Empty / One / 400 cards switch shows only while Settings → Demo mode is on, and the board ignores a leftover `?data=`
   while demo mode is off (the switch that clears it is hidden then). "Demo board" is demo mode's own sample board; "Dev
