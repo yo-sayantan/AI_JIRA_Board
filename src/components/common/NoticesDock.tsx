@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { WarningIcon } from './Icons'
-import { lift } from '../../lib/tone'
+import { lift, readable } from '../../lib/tone'
 import { PRESS, PRESS_SCALE, TOAST } from '../../lib/motion'
 
 const AMBER = '#f59e0b'
@@ -35,7 +35,7 @@ export function NoticesDock({ notes, seconds = 10 }: { notes: string[]; seconds?
           >
             <div className="flex items-center gap-2 px-3 py-2" style={{ background: 'rgba(245,158,11,0.1)' }}>
               <WarningIcon size={14} color={lift(AMBER)} />
-              <span className="text-[12px] font-bold" style={{ color: lift(AMBER) }}>
+              <span className="text-[12px] font-bold" style={{ color: readable(AMBER) }}>
                 {notes.length === 1 ? 'Run notice' : `Run notices (${notes.length})`}
               </span>
               <div className="ml-auto flex items-center gap-1">
@@ -50,7 +50,7 @@ export function NoticesDock({ notes, seconds = 10 }: { notes: string[]; seconds?
             <ul className="flex max-h-[40vh] flex-col gap-1.5 overflow-y-auto px-3 py-2.5">
               {notes.map((n, i) => (
                 <li key={i} className="flex gap-1.5 text-[12px] leading-relaxed text-[var(--ink-soft)]">
-                  <span className="shrink-0" style={{ color: lift(AMBER) }}>
+                  <span className="shrink-0" style={{ color: readable(AMBER) }}>
                     •
                   </span>
                   {n}
@@ -71,7 +71,7 @@ export function NoticesDock({ notes, seconds = 10 }: { notes: string[]; seconds?
               transition={PRESS}
               onClick={() => setOpen(true)}
               className="jb-float flex items-center gap-2 rounded-full border bg-[var(--surface-solid)] px-3 py-1.5 text-[12px] font-semibold card-shadow"
-              style={{ borderColor: 'rgba(245,158,11,0.5)', color: lift(AMBER) }}
+              style={{ borderColor: 'rgba(245,158,11,0.5)', color: readable(AMBER) }}
             >
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: AMBER }} />

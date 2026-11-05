@@ -5,7 +5,7 @@ import { COLUMN_META } from '../../lib/columns'
 import { priorityMeta, typeMeta, prMeta, branchStatusMeta } from '../../lib/format'
 import { APP_CONFIG } from '../../lib/appConfig'
 import { PriorityIcon, TypeIcon, PrStateIcon, CopyIcon, CheckIcon, ICON_SCALE } from './Icons'
-import { lift, onFill, tint } from '../../lib/tone'
+import { fillFor, lift, onFill, readable, tint } from '../../lib/tone'
 import { EASE_OUT, PRESS, PRESS_SCALE } from '../../lib/motion'
 
 export function Pill({
@@ -23,13 +23,15 @@ export function Pill({
 }) {
   const c = color ?? 'var(--muted)'
   const hex = c.startsWith('#')
-  // Modern badge: a gradient, not a flat fill. Solid ones run from the colour to a lighter, shifted
-  // tone with a faint inner highlight; tinted ones are a soft gradient wash with a colour border, and
-  // their text is the colour pulled toward --ink so it stays readable on a light OR dark board.
+  // Modern badge: a gradient, not a flat fill. Solid ones run between two tones of the colour (fillFor: a strong colour a
+  // touch deeper with white text, a bright one bright with near-black text, so the label clears AA in both themes) with a
+  // faint inner highlight; tinted ones are a soft gradient wash with a colour border, and their text is the colour pulled
+  // toward --ink so it stays readable on a light OR dark board.
+  const fill = fillFor(c)
   const style = filled
     ? {
-        background: `linear-gradient(135deg, ${c}, color-mix(in srgb, ${c} 72%, #ffffff))`,
-        color: onFill(c),
+        background: hex ? `linear-gradient(135deg, ${fill.from}, ${fill.to})` : `linear-gradient(135deg, ${c}, color-mix(in srgb, ${c} 72%, #ffffff))`,
+        color: hex ? fill.text : onFill(c),
         borderColor: 'transparent',
         boxShadow: `inset 0 1px 0 rgba(255,255,255,0.28), 0 1px 3px -1px ${tint(hex ? c : '#64748b', 0.55)}`,
       }
@@ -249,7 +251,7 @@ export function Approvals({ approvals }: { approvals?: number | null }) {
           <ApprovalDot key={i} filled={i < n} />
         ))}
       </span>
-      <span className="text-[9.5px] font-bold tabular-nums" style={{ color: full ? lift('#22c55e') : 'var(--muted)' }}>
+      <span className="text-[9.5px] font-bold tabular-nums" style={{ color: full ? readable('#22c55e') : 'var(--muted)' }}>
         {Math.min(n, REQUIRED_APPROVALS)}/{REQUIRED_APPROVALS}
         {n > REQUIRED_APPROVALS ? ` +${n - REQUIRED_APPROVALS}` : ''}
       </span>

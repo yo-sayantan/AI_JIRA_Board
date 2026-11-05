@@ -8,7 +8,7 @@ import { Pill, PriorityGlyph, PrBadge, Approvals, PointsTag } from '../common/ui
 import { TypeIcon, RefreshIcon, TrophyIcon } from '../common/Icons'
 import { BuildChip } from '../common/Builds'
 import { VulnChip } from '../common/VulnFixes'
-import { lift, tint } from '../../lib/tone'
+import { lift, readable, tint } from '../../lib/tone'
 import { EASE_OUT, LAYOUT, PRESS } from '../../lib/motion'
 
 /** Days until this Done card auto-retires from the board into the Completed archive. */
@@ -23,6 +23,13 @@ function archivesInDays(t: Ticket, now: number): number | null {
 }
 
 const celebratedDone = new Set<string>()
+/**
+ * The `lastUpdate` the board last showed for each key. Module-level because a refresh that moves a ticket to another lane
+ * mounts a new card there; a card whose value differs from the one seen before is the one that just changed.
+ */
+const seenUpdate = new Map<string, string | null>()
+/** How long the "just updated" dot stays after a refresh changed the card. */
+export const LIVE_DOT_MS = 4000
 
 /** dataTransfer type carrying the dragged ticket key; columns accept only this. */
 /** How see-through the card is while it is carried: enough to read the drop zone through it. */
@@ -183,6 +190,21 @@ export const TicketCard = memo(function TicketCard({
   useEffect(() => {
     if (burst) celebratedDone.add(ticket.key)
   }, [burst, ticket.key])
+  // The card that just changed shows a dot in its column colour for a few seconds; never on the board's first load. The
+  // timestamp keys the dot, so a second change restarts its one ring.
+  const [changedAt, setChangedAt] = useState(0)
+  useEffect(() => {
+    const now = ticket.lastUpdate ?? null
+    const had = seenUpdate.has(ticket.key)
+    const was = seenUpdate.get(ticket.key)
+    seenUpdate.set(ticket.key, now)
+    if (had && was !== now) setChangedAt(Date.now())
+  }, [ticket.key, ticket.lastUpdate])
+  useEffect(() => {
+    if (!changedAt) return
+    const t = setTimeout(() => setChangedAt(0), LIVE_DOT_MS)
+    return () => clearTimeout(t)
+  }, [changedAt])
 
   const ring = [
     urgent ? `0 0 0 1px ${tint(prio.color, 0.3)}` : '',
@@ -306,7 +328,7 @@ export const TicketCard = memo(function TicketCard({
       <div className="relative flex items-start justify-between gap-2">
         {/* A long key (10-letter project, 6-digit number) leaves no room for the points beside it in a slim
             column: the points tag wraps under the key instead of being clipped or painted over the age. */}
-        <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] font-bold tracking-wide" style={{ color: lift(accent) }}>
+        <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] font-bold tracking-wide" style={{ color: readable(accent) }}>
           {/* Keys never break or truncate. A slim card (zoomed in, or a narrow lane) can't fit a 17-character key at
               full size beside its icons, so there the key tightens and the Done trophy — the lane already says Done — yields. */}
           <span className="inline-flex shrink-0 items-center gap-1.5 @max-[11rem]:gap-1">
@@ -317,11 +339,12 @@ export const TicketCard = memo(function TicketCard({
             )}
             <TypeIcon type={effectiveType(ticket)} color={lift(tm.color)} size={13} />
             <span className="whitespace-nowrap @max-[11rem]:text-[10px] @max-[11rem]:tracking-normal">{ticket.key}</span>
+            {changedAt > 0 && <span key={changedAt} className="jb-live" title="Updated in the last refresh" />}
           </span>
           <PointsTag points={ticket.storyPoints} />
         </span>
         {moving ? (
-          <span className="inline-flex h-[18px] shrink-0 items-center gap-1 text-[10px] font-semibold" style={{ color: lift(accent) }} title="Updating status in Jira…">
+          <span className="inline-flex h-[18px] shrink-0 items-center gap-1 text-[10px] font-semibold" style={{ color: readable(accent) }} title="Updating status in Jira…">
             <motion.span className="inline-flex" animate={{ transform: ['rotate(0deg)', 'rotate(360deg)'] }} transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}>
               <RefreshIcon size={10} color="currentColor" />
             </motion.span>
@@ -400,7 +423,7 @@ function ReadinessDots({ rev, done }: { rev?: string | null; done?: string | nul
     const color = reason ? NOT_YET : READY
     const text = reason ?? `Ready for ${target}`
     return (
-      <span className="inline-flex items-center gap-[3px] text-[9.5px] font-bold uppercase tracking-wide" style={{ color: lift(color) }} title={text} aria-label={`${target}: ${text}`}>
+      <span className="inline-flex items-center gap-[3px] text-[9.5px] font-bold uppercase tracking-wide" style={{ color: readable(color) }} title={text} aria-label={`${target}: ${text}`}>
         <span aria-hidden className="h-[7px] w-[7px] rounded-full" style={{ background: reason ? 'transparent' : color, boxShadow: `inset 0 0 0 1.5px ${color}, 0 0 0 2px ${tint(color, 0.16)}` }} />
         {label}
       </span>
@@ -425,8 +448,8 @@ function DoneBurst() {
             key={i}
             className="absolute h-1.5 w-1.5 rounded-full"
             style={{ background: i % 2 ? '#f59e0b' : '#fde68a', boxShadow: '0 0 6px #f59e0b' }}
-            initial={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-            animate={{ opacity: 0, x: Math.cos(a) * 28, y: Math.sin(a) * 22, scale: 0.2 }}
+            initial={{ opacity: 1, transform: 'translate(0px, 0px) scale(1)' }}
+            animate={{ opacity: 0, transform: `translate(${Math.round(Math.cos(a) * 28)}px, ${Math.round(Math.sin(a) * 22)}px) scale(0.2)` }}
             transition={{ duration: 0.7, ease: EASE_OUT }}
           />
         )

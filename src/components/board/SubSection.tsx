@@ -3,7 +3,7 @@ import { AnimatePresence } from 'motion/react'
 import type { Ticket } from '../../types'
 import type { MoveCheck } from '../../lib/moveRules'
 import { LandingSlot, SpaceHeader, deniedOpacity, dropBoxStyle } from './boardParts'
-import { lift } from '../../lib/tone'
+import { readable } from '../../lib/tone'
 
 /**
  * A second, separate space under a column's own box, in the same column: On Hold under Blocked,
@@ -81,7 +81,7 @@ export const SubSection = memo(function SubSection({
         {groups.map((g, i) => (
           <div key={g.cap?.text ?? `g${i}`} className="flex flex-col gap-2">
             {g.cap && (
-              <div className="flex flex-wrap items-baseline gap-x-1.5 px-1 pt-0.5 text-[10.5px] font-semibold leading-tight" style={{ color: lift(accent) }}>
+              <div className="flex flex-wrap items-baseline gap-x-1.5 px-1 pt-0.5 text-[10.5px] font-semibold leading-tight" style={{ color: readable(accent) }}>
                 <span className="min-w-0 break-words">{g.cap.text}</span>
                 {g.cap.detail && <span className="font-medium text-[var(--muted)]">· {g.cap.detail}</span>}
               </div>
@@ -95,7 +95,7 @@ export const SubSection = memo(function SubSection({
         {/* Kept while the space refuses the card (its header says why): dropping it would collapse the box and move the
             cards below. */}
         {empty && !(droppable && over) && (
-          <div className="flex items-center justify-center py-2.5 text-center text-[11px] italic" style={{ color: droppable && dragging && !denied ? lift(accent) : 'var(--muted)' }}>
+          <div className="flex items-center justify-center py-2.5 text-center text-[11px] italic" style={{ color: droppable && dragging && !denied ? readable(accent) : 'var(--muted)' }}>
             {dragging && !denied ? texts.dragging : texts.idle}
           </div>
         )}

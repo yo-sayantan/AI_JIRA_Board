@@ -3,7 +3,7 @@ import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Ticket } from '../../types'
-import { DRAG_GHOST_OPACITY, DRAG_MIME, TicketCard } from './TicketCard'
+import { DRAG_GHOST_OPACITY, DRAG_MIME, LIVE_DOT_MS, TicketCard } from './TicketCard'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -26,6 +26,40 @@ describe('quiet card semantics', () => {
     act(() => root!.render(createElement(TicketCard, { ticket, now: Date.now(), onOpen: () => {} })))
     const card = host.querySelector('[role="button"]')!
     expect(card.querySelector('h3')?.textContent).toBe('A card')
+  })
+})
+
+describe('the dot on the card that just changed', () => {
+  const mount = (t: Ticket) => {
+    host = document.createElement('div')
+    document.body.appendChild(host)
+    root = createRoot(host)
+    act(() => root!.render(createElement(TicketCard, { ticket: t, now: Date.now(), onOpen: () => {} })))
+  }
+  const live = () => host!.querySelector('.jb-live')
+
+  it('is not shown on the first load', () => {
+    mount({ ...ticket, key: 'LIVE-1', lastUpdate: '2026-11-01T10:00:00Z' })
+    expect(live()).toBeNull()
+  })
+
+  it('shows when the same ticket arrives with a newer update, and goes after a few seconds', () => {
+    vi.useFakeTimers()
+    const t = { ...ticket, key: 'LIVE-2', lastUpdate: '2026-11-01T10:00:00Z' }
+    mount(t)
+    act(() => root!.render(createElement(TicketCard, { ticket: { ...t, lastUpdate: '2026-11-02T10:00:00Z' }, now: Date.now(), onOpen: () => {} })))
+    expect(live()).not.toBeNull()
+    act(() => vi.advanceTimersByTime(LIVE_DOT_MS + 10))
+    expect(live()).toBeNull()
+  })
+
+  it('survives the move to another lane, where the card mounts anew', () => {
+    const t = { ...ticket, key: 'LIVE-3', lastUpdate: '2026-11-01T10:00:00Z' }
+    mount(t)
+    act(() => root!.unmount())
+    host!.remove()
+    mount({ ...t, column: 'rev', status: 'Ready4Review', lastUpdate: '2026-11-02T10:00:00Z' })
+    expect(live()).not.toBeNull()
   })
 })
 

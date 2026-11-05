@@ -11,7 +11,7 @@ export function DevDataToggle() {
     <div
       role="radiogroup"
       aria-label="Dev data set"
-      className="fixed bottom-14 left-1/2 z-[60] flex -translate-x-1/2 gap-0.5 rounded-full bg-[#e5e7eb] p-0.5 font-sans text-[11px] text-[#374151] shadow-sm"
+      className="fixed bottom-14 left-1/2 z-[44] flex -translate-x-1/2 gap-0.5 rounded-full bg-[#e5e7eb] p-0.5 font-sans text-[11px] text-[#374151] shadow-sm"
     >
       {options.map((o) => {
         const on = current === o.id

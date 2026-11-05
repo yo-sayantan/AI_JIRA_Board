@@ -1,7 +1,7 @@
 import type { TakenFromMe } from '../../types'
 import { fmtDate } from '../../lib/format'
 import { NO_WORK_COLOR, WORK_COLOR, takenLine, takenMeta, whyLabel, workLabel, workedOn } from '../../lib/taken'
-import { lift, tint } from '../../lib/tone'
+import { lift, readable, tint } from '../../lib/tone'
 import { CheckIcon, CommentIcon, MoveIcon } from '../common/Icons'
 import { readableFill } from '../ticket/HeaderPills'
 
@@ -20,7 +20,7 @@ export function TakenPills({ taken }: { taken: TakenFromMe }) {
     <span className="flex shrink-0 items-center gap-1.5" data-taken-pills>
       <span
         className="inline-flex h-[22px] w-[112px] items-center justify-center gap-1 rounded-full border px-2 text-[10.5px] font-bold leading-none whitespace-nowrap"
-        style={{ borderColor: tint(meta.color, 0.5), color: `color-mix(in srgb, ${lift(meta.color)} 55%, var(--ink))`, background: tint(meta.color, 0.13) }}
+        style={{ borderColor: tint(meta.color, 0.5), color: readable(meta.color), background: tint(meta.color, 0.13) }}
         title={`${meta.label} — ${meta.hint}`}
         data-taken-reason={taken.reason}
       >
@@ -70,7 +70,7 @@ export function TakenBanner({ taken, compact = false }: { taken: TakenFromMe; co
         style={{ borderColor: tint(c, 0.22), background: `linear-gradient(90deg, ${tint(c, 0.09)}, transparent 70%)` }}
         title={meta.hint}
       >
-        <span className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-[1px] text-[10px] font-extrabold uppercase tracking-wide" style={{ color: lift(c), background: tint(c, 0.16) }}>
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-[1px] text-[10px] font-extrabold uppercase tracking-wide" style={{ color: readable(c), background: tint(c, 0.16) }}>
           <MoveIcon size={10} color={lift(c)} />
           {meta.short}
           {others.length > 0 && <span className="opacity-70">+{others.length}</span>}
@@ -94,13 +94,13 @@ export function TakenBanner({ taken, compact = false }: { taken: TakenFromMe; co
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--muted)]">Taken from you</span>
-            <span className="text-[13px] font-extrabold" style={{ color: lift(c) }}>
+            <span className="text-[13px] font-extrabold" style={{ color: readable(c) }}>
               {meta.label}
             </span>
             {others.map((r) => {
               const m = takenMeta(r)
               return (
-                <span key={r} className="rounded-full px-1.5 py-[1px] text-[10px] font-bold" style={{ color: lift(m.color), background: tint(m.color, 0.14) }} title={m.hint}>
+                <span key={r} className="rounded-full px-1.5 py-[1px] text-[10px] font-bold" style={{ color: readable(m.color), background: tint(m.color, 0.14) }} title={m.hint}>
                   {m.short}
                 </span>
               )

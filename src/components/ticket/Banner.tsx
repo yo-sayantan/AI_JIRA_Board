@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { lift, tint } from '../../lib/tone'
+import { readable, tint } from '../../lib/tone'
 
 /**
  * The drawer's banners (PR readiness, AI brief, "taken from you"…) share ONE anatomy and ONE colour code, so they read
@@ -47,7 +47,7 @@ export function BannerHead({ hue, label, title, chips }: { hue: string; label: s
     <span className="flex min-w-0 flex-col gap-0.5">
       <BannerLabel>{label}</BannerLabel>
       <span className="flex flex-wrap items-center gap-2">
-        <span className="text-[13px] font-extrabold leading-tight" style={{ color: lift(hue) }}>
+        <span className="text-[13px] font-extrabold leading-tight" style={{ color: readable(hue) }}>
           {title}
         </span>
         {chips}

@@ -8,7 +8,7 @@ import { ReportsMenu, type ReportsMenuProps } from './ReportsMenu'
 import { ArchiveMenu } from './ArchiveMenu'
 import { flushSync } from 'react-dom'
 import { switchTheme } from '../../lib/themeTransition'
-import { lift, tint } from '../../lib/tone'
+import { lift, readable, tint } from '../../lib/tone'
 import { FILL, HOVER_SCALE, PRESS, PRESSABLE, PRESS_SCALE } from '../../lib/motion'
 
 export type RunProgress = {
@@ -226,10 +226,10 @@ export const Header = memo(function Header({
                 {data.generatedAt ? (
                   <>
                     <span className="text-[var(--ink-soft)]">last run {fr.full}</span>
-                    <b style={{ color: lift(fr.color) }}>· {fr.label}</b>
+                    <b style={{ color: readable(fr.color) }}>· {fr.label}</b>
                   </>
                 ) : (
-                  <b style={{ color: lift(fr.color) }}>no intern run yet</b>
+                  <b style={{ color: readable(fr.color) }}>no intern run yet</b>
                 )}
               </span>
             </div>
@@ -254,7 +254,7 @@ export const Header = memo(function Header({
                     alone needs ~118px, so the old 110px cap clipped every one of them). 280px is a
                     backstop against a pathological name squeezing the search box, not a budget. */}
                 <span className="max-w-[280px] shrink-0 truncate whitespace-nowrap">{sprint.name}</span>
-                <b className="ml-auto shrink-0 whitespace-nowrap pl-1" style={{ color: lift(sp.color) }}>
+                <b className="ml-auto shrink-0 whitespace-nowrap pl-1" style={{ color: readable(sp.color) }}>
                   {sp.label}
                 </b>
               </span>
@@ -266,7 +266,10 @@ export const Header = memo(function Header({
                 )}
                 {sp.pct != null && (
                   <span className="relative h-1 min-w-8 flex-1 overflow-hidden rounded-full" style={{ background: tint(sp.color, 0.18) }}>
-                    <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.round(sp.pct * 100)}%`, background: sp.color }} />
+                    <span
+                      className="absolute inset-0 origin-left rounded-full"
+                      style={{ transform: `scaleX(${sp.pct})`, background: `linear-gradient(90deg, ${tint(sp.color, 0.55)}, ${sp.color})` }}
+                    />
                   </span>
                 )}
               </span>
@@ -305,8 +308,9 @@ export const Header = memo(function Header({
                 : `Reload the latest data dump from disk${shortcuts ? '  (r)' : ''}`
             }
             idleLabel={served ? 'Refresh board' : 'Reload'}
-            gradient="linear-gradient(135deg, #7c5cff, #2684ff)"
-            shadow="rgba(38,132,255,0.55)"
+            // The same violet-to-blue, a step deeper: white on it is 5.2 / 4.8:1 (was 4.4 / 3.6, under AA for the label).
+            gradient="linear-gradient(135deg, #6d4ff0, #1a6fe0)"
+            shadow="rgba(26,111,224,0.55)"
             idleIcon={<RefreshIcon size={15} color="#fff" />}
           />
 

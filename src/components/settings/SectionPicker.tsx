@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { lift, onFill, tint } from '../../lib/tone'
+import { lift, onFill, readable, tint } from '../../lib/tone'
 
 
 /**
@@ -129,7 +129,7 @@ export function SectionPicker({
               <span
                 key={o.key}
                 className="inline-flex items-center gap-1.5 rounded-full border py-0.5 pl-1.5 pr-2 text-[11px] font-bold"
-                style={{ borderColor: tint(o.color, 0.45), background: tint(o.color, 0.1), color: lift(o.color) }}
+                style={{ borderColor: tint(o.color, 0.45), background: tint(o.color, 0.1), color: readable(o.color) }}
               >
                 {o.icon(o.color)}
                 {o.chipLabel ?? o.label}

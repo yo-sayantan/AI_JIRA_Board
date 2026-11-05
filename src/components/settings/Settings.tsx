@@ -516,7 +516,8 @@ export function SettingsPanel({
                 onClick={save}
                 disabled={!dirty}
                 className="h-8 rounded-lg px-3.5 text-[12px] font-bold text-white transition-opacity disabled:cursor-default disabled:opacity-40"
-                style={{ background: AI }}
+                // The AI violet a step deeper, so the white label clears AA (5.4:1; the plain #a855f7 is 4.0).
+                style={{ background: 'linear-gradient(135deg, #9333ea, #7c3aed)' }}
                 title={dirty ? 'Save and close' : 'Nothing changed yet'}
               >
                 Save

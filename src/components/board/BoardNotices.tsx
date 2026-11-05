@@ -1,5 +1,5 @@
 import { FlaskIcon, EyeOffIcon, RefreshIcon, SearchIcon } from '../common/Icons'
-import { lift } from '../../lib/tone'
+import { lift, readable } from '../../lib/tone'
 
 export function NoMatches({ query, onClear }: { query: string; onClear: () => void }) {
   return (
@@ -43,7 +43,7 @@ export function DemoBanner({ onExit, onReset, changes }: { onExit: () => void; o
       className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border px-3.5 py-2"
       style={{ borderColor: `${DEMO}73`, background: `${DEMO}14` }}
     >
-      <span className="inline-flex items-center gap-1.5 text-[12px] font-bold" style={{ color: lift(DEMO) }}>
+      <span className="inline-flex items-center gap-1.5 text-[12px] font-bold" style={{ color: readable(DEMO) }}>
         <FlaskIcon size={14} color={lift(DEMO)} /> Demo mode
       </span>
       <span className="min-w-0 flex-1 text-[11.5px] text-[var(--ink-soft)]">
@@ -55,7 +55,7 @@ export function DemoBanner({ onExit, onReset, changes }: { onExit: () => void; o
         disabled={pristine}
         title={pristine ? 'Nothing to reset — the demo board is as it started' : 'Put every ticket back where the demo started'}
         className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11.5px] font-semibold transition-colors hover:bg-[var(--surface-2)] disabled:cursor-default disabled:opacity-45 disabled:hover:bg-transparent"
-        style={{ borderColor: `${DEMO}73`, color: lift(DEMO), background: pristine ? undefined : `${DEMO}12` }}
+        style={{ borderColor: `${DEMO}73`, color: readable(DEMO), background: pristine ? undefined : `${DEMO}12` }}
       >
         <RefreshIcon size={12} color={lift(DEMO)} />
         Reset demo{pristine ? '' : ` · ${changes} ${changes === 1 ? 'change' : 'changes'}`}
@@ -64,7 +64,7 @@ export function DemoBanner({ onExit, onReset, changes }: { onExit: () => void; o
         type="button"
         onClick={onExit}
         className="shrink-0 rounded-lg border px-2.5 py-1 text-[11.5px] font-semibold transition-colors hover:bg-[var(--surface-2)]"
-        style={{ borderColor: `${DEMO}73`, color: lift(DEMO) }}
+        style={{ borderColor: `${DEMO}73`, color: readable(DEMO) }}
       >
         Show my real board
       </button>

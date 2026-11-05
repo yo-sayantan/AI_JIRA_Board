@@ -6,7 +6,7 @@ import { matchRow, parseQuery } from '../../lib/search'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { Pill, PrBadge, BranchStatusPill, PointsTag, safeHref } from '../common/ui'
 import { BranchIcon, CheckIcon, ChevronIcon, CommentIcon, ExpandAllIcon, PersonIcon, PrStateIcon, SearchIcon, SparkleIcon, TrophyIcon, TypeIcon } from '../common/Icons'
-import { lift, selectedText, tint } from '../../lib/tone'
+import { lift, readable, selectedText, tint } from '../../lib/tone'
 import { COLLAPSE, DIALOG, SCRIM } from '../../lib/motion'
 import { COLUMN_META } from '../../lib/columns'
 import { NO_WORK_COLOR, TAKEN_COLOR, TAKEN_ORDER, WORK_COLOR, isTaken, matchesTaken, rowDate, takenCounts, takenMeta, type WorkFilter } from '../../lib/taken'
@@ -253,7 +253,7 @@ export function CompletedOverlay({
                   <TrophyIcon size={24} glint />
                 </span>
                 <div className="min-w-0">
-                  <h2 className="text-[24px] font-black leading-none tracking-tight" style={{ color: lift(DONE) }}>
+                  <h2 className="text-[24px] font-black leading-none tracking-tight" style={{ color: readable(DONE) }}>
                     Completed
                   </h2>
                   <p className="mt-1.5 truncate text-[12px] font-medium text-[var(--muted)]">
@@ -268,13 +268,13 @@ export function CompletedOverlay({
                         {taken.total > 0 && (
                           <span title="Tickets that were assigned to you and then un-assigned, given to someone else, called off, or had your PR declined. Listed with the reason; not counted as done.">
                             {' · '}
-                            <b style={{ color: lift(TAKEN_COLOR) }}>{taken.total}</b> taken from you
+                            <b style={{ color: readable(TAKEN_COLOR) }}>{taken.total}</b> taken from you
                           </span>
                         )}
                         {showContext && contextCount > 0 && (
                           <span title="Parent tickets owned by someone else, shown because you delivered a sub-ticket under them. Not counted in your totals — use “Mine only” to hide them.">
                             {' · '}
-                            <b style={{ color: lift(CONTEXT) }}>+{contextCount}</b> parent{contextCount === 1 ? '' : 's'} for context
+                            <b style={{ color: readable(CONTEXT) }}>+{contextCount}</b> parent{contextCount === 1 ? '' : 's'} for context
                           </span>
                         )}
                       </>
@@ -345,7 +345,7 @@ export function CompletedOverlay({
                       <div className="ml-auto flex items-center gap-2.5">
                         {filtering && (
                           <span className="text-[11.5px] font-semibold tabular-nums text-[var(--muted)]">
-                            <b style={{ color: lift(DONE) }}>{filtered.length}</b> of {items.length}
+                            <b style={{ color: readable(DONE) }}>{filtered.length}</b> of {items.length}
                           </span>
                         )}
                         {contextCount > 0 && (
@@ -361,7 +361,7 @@ export function CompletedOverlay({
                             style={
                               showContext
                                 ? { borderColor: 'var(--line)', background: 'var(--surface-solid)', color: 'var(--ink-soft)' }
-                                : { borderColor: tint(CONTEXT, 0.5), background: tint(CONTEXT, 0.08), color: lift(CONTEXT) }
+                                : { borderColor: tint(CONTEXT, 0.5), background: tint(CONTEXT, 0.08), color: readable(CONTEXT) }
                             }
                           >
                             <PersonIcon size={13} />
@@ -448,7 +448,7 @@ export function CompletedOverlay({
                         <div key={year}>
                           <div className="mb-3 flex items-center gap-3 px-1">
                             <span className="text-[19px] font-black tracking-tight text-[var(--ink)]">{year}</span>
-                            <span className="rounded-full px-2.5 py-[3px] text-[11px] font-extrabold tabular-nums" style={{ color: lift(DONE), background: tint(DONE, 0.14) }}>
+                            <span className="rounded-full px-2.5 py-[3px] text-[11px] font-extrabold tabular-nums" style={{ color: readable(DONE), background: tint(DONE, 0.14) }}>
                               {count}
                             </span>
                             <span className="h-px flex-1" style={{ background: `linear-gradient(90deg, ${tint(DONE, 0.35)}, transparent)` }} />
@@ -575,7 +575,7 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
           {it.parentKey && (
             <span
               className="hidden shrink-0 items-center gap-0.5 rounded-md border px-1.5 py-[2px] font-mono text-[10px] font-bold lg:inline-flex"
-              style={{ borderColor: tint(SUB, 0.35), color: lift(SUB), background: tint(SUB, 0.09) }}
+              style={{ borderColor: tint(SUB, 0.35), color: readable(SUB), background: tint(SUB, 0.09) }}
               title={`Sub-ticket of ${it.parentKey}${it.parentTitle ? ` — ${it.parentTitle}` : ''}`}
             >
               ↳ {it.parentKey}
@@ -584,7 +584,7 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
           {subs.length > 0 && (
             <span
               className="hidden shrink-0 rounded-md border px-1.5 py-[2px] text-[10px] font-bold lg:inline"
-              style={{ borderColor: tint(SUB, 0.35), color: lift(SUB), background: tint(SUB, 0.09) }}
+              style={{ borderColor: tint(SUB, 0.35), color: readable(SUB), background: tint(SUB, 0.09) }}
               title={`${subs.length} sub-ticket${subs.length === 1 ? '' : 's'} — expand to see owners and reviews`}
             >
               {subs.length} sub
@@ -593,7 +593,7 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
           {!mine && (
             <span
               className="hidden shrink-0 items-center gap-1 rounded-md border px-1.5 py-[2px] text-[10px] font-bold lg:inline-flex"
-              style={{ borderColor: tint(CONTEXT, 0.4), color: lift(CONTEXT), background: tint(CONTEXT, 0.1) }}
+              style={{ borderColor: tint(CONTEXT, 0.4), color: readable(CONTEXT), background: tint(CONTEXT, 0.1) }}
               title={`Parent ticket${it.assignee ? ` owned by ${it.assignee}` : ''} — shown because you delivered a sub-ticket under it`}
             >
               <PersonIcon size={9} color={lift(CONTEXT)} />
@@ -617,7 +617,7 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
           </span>
           <span className="flex justify-center" style={{ width: RAIL.env }}>
             {env && (
-              <span className="rounded-full border px-2 py-[2px] text-[10px] font-extrabold uppercase tracking-wide" style={{ borderColor: tint(env.color, 0.5), color: lift(env.color), background: tint(env.color, 0.12) }}>
+              <span className="rounded-full border px-2 py-[2px] text-[10px] font-extrabold uppercase tracking-wide" style={{ borderColor: tint(env.color, 0.5), color: readable(env.color), background: tint(env.color, 0.12) }}>
                 {env.label}
               </span>
             )}
@@ -626,7 +626,7 @@ function CompletedRow({ it, expanded, onToggle, onOpen, onOpenKey }: { it: Compl
             {prs.length > 0 && (
               <>
                 <PrStateIcon state={anyMerged ? 'merged' : undefined} color={lift(anyMerged ? PR_PURPLE : '#dc2626')} size={14} />
-                {prs.length > 1 && <b className="text-[10px] tabular-nums" style={{ color: lift(anyMerged ? PR_PURPLE : '#dc2626') }}>{prs.length}</b>}
+                {prs.length > 1 && <b className="text-[10px] tabular-nums" style={{ color: readable(anyMerged ? PR_PURPLE : '#dc2626') }}>{prs.length}</b>}
               </>
             )}
           </span>
@@ -756,7 +756,7 @@ function SubRow({ s, onOpen }: { s: Ticket; onOpen: () => void }) {
           {owner}
         </span>
       )}
-      <span className="shrink-0 text-[10.5px] font-bold" style={{ color: s.done ? lift(DONE) : 'var(--muted)' }}>
+      <span className="shrink-0 text-[10.5px] font-bold" style={{ color: s.done ? readable(DONE) : 'var(--muted)' }}>
         {s.status}
       </span>
       {prs.map((p, i) => (
@@ -803,7 +803,7 @@ function StatTile({ n, label, color, icon }: { n: number; label: string; color: 
     <div className="min-w-0 px-4 py-2 lg:border-l lg:border-[var(--line)] lg:first:border-l-0">
       <div className="flex items-center gap-1.5">
         <span className="inline-flex">{icon}</span>
-        <span className="text-[22px] font-black leading-none tabular-nums" style={{ color: lift(color) }}>
+        <span className="text-[22px] font-black leading-none tabular-nums" style={{ color: readable(color) }}>
           {n}
         </span>
       </div>

@@ -4,7 +4,7 @@ import type { PrState } from '../../types'
 import { branchStatusMeta } from '../../lib/format'
 import { copyText } from '../common/ui'
 import { BranchIcon, CheckIcon, CopyIcon } from '../common/Icons'
-import { lift, tint } from '../../lib/tone'
+import { lift, readable, tint } from '../../lib/tone'
 import { PRESS } from '../../lib/motion'
 
 /** A branch with no pull request of its own: a calm indigo, so a plain branch still has a colour of its own. */
@@ -63,7 +63,7 @@ function BranchCard({ name, state }: { name: string; state?: PrState | null }) {
         <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md" style={{ background: tint(color, 0.14), boxShadow: `inset 0 0 0 1px ${tint(color, 0.22)}` }} aria-hidden>
           <BranchIcon size={11} color={lift(color)} />
         </span>
-        <span className="truncate text-[10px] font-bold uppercase tracking-wide" style={{ color: lift(color) }}>
+        <span className="truncate text-[10px] font-bold uppercase tracking-wide" style={{ color: readable(color) }}>
           {label}
         </span>
         <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold" style={{ color: done ? lift('#16a34a') : failed ? lift('#ef4444') : 'var(--muted)' }} aria-live="polite">

@@ -34,7 +34,7 @@ import {
   TrophyIcon,
   FlaskIcon,
 } from '../common/Icons'
-import { lift, onFill, tint } from '../../lib/tone'
+import { lift, onFill, readable, tint } from '../../lib/tone'
 import { COLLAPSE, DRAWER, DRAWER_EXIT, DRAWER_RETURN, FILL, flickDismisses } from '../../lib/motion'
 
 /**
@@ -126,7 +126,7 @@ function PrReportButton({
             hue={c}
             label="PR readiness report"
             title={v?.label ?? 'Open the report'}
-            chips={typeof v?.score === 'number' ? <span className="rounded-full px-2 py-[2px] text-[10.5px] font-bold tabular-nums" style={{ color: lift(c), background: tint(c, 0.16) }}>{v.score}/100</span> : undefined}
+            chips={typeof v?.score === 'number' ? <span className="rounded-full px-2 py-[2px] text-[10.5px] font-bold tabular-nums" style={{ color: readable(c), background: tint(c, 0.16) }}>{v.score}/100</span> : undefined}
           />
           <BannerMeta>
             {report.enriched ? 'AI-enriched' : 'derived'}
@@ -139,7 +139,7 @@ function PrReportButton({
             type="button"
             onClick={() => onGenerate(ticketKey)}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-bold transition-colors hover:bg-[var(--surface-2)]"
-            style={{ borderColor: tint(ai, 0.45), color: lift(ai) }}
+            style={{ borderColor: tint(ai, 0.45), color: readable(ai) }}
             title="Rebuild this report from the latest Jira / Bitbucket state (runs in the background)"
           >
             <RefreshIcon size={12} color={lift(ai)} />
@@ -295,7 +295,7 @@ export function TicketDetail({
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="font-mono text-[12px] font-bold" style={{ color: lift(accent) }}>
+                <span className="font-mono text-[12px] font-bold" style={{ color: readable(accent) }}>
                   {ticket.key}
                 </span>
                 <PointsTag points={ticket.storyPoints} />
@@ -353,7 +353,7 @@ export function TicketDetail({
               <button
                 onClick={() => onArchive(ticket.key)}
                 className="glass-interactive inline-flex items-center gap-1.5 rounded-lg border bg-[var(--surface-solid)] px-2.5 py-1 text-[11px] font-bold"
-                style={{ ...glassChip('#f59e0b'), color: lift('#b45309') }}
+                style={{ ...glassChip('#f59e0b'), color: readable('#b45309') }}
                 title="Move this ticket to the Completed archive now (removes it from the board)"
               >
                 <TrophyIcon size={12} /> Move to Completed
@@ -505,7 +505,7 @@ export function TicketDetail({
           {(ticket.effortEstimate || ticket.estDays) && (
             <Section title="Effort estimate" icon={<ClockIcon color={lift(SECTION_HUE.effort)} size={14} />} accent={SECTION_HUE.effort} defaultOpen={false}>
               {ticket.estDays && (
-                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold" style={{ color: lift(accent), background: tint(accent, 0.12) }}>
+                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold" style={{ color: readable(accent), background: tint(accent, 0.12) }}>
                   <ClockIcon color={lift(accent)} size={12} /> {ticket.estDays}
                 </div>
               )}
@@ -519,7 +519,7 @@ export function TicketDetail({
               <ul className="flex flex-col gap-1.5">
                 {ticket.openQuestions.map((q, i) => (
                   <li key={i} className="flex gap-2 text-[13px] text-[var(--ink-soft)]">
-                    <span style={{ color: lift(accent) }}>•</span>
+                    <span style={{ color: readable(accent) }}>•</span>
                     {q}
                   </li>
                 ))}
@@ -612,7 +612,7 @@ function Section({
         <span className="inline-flex" aria-hidden>{icon}</span>
         <span className="text-[13px] font-bold text-[var(--ink)]">{title}</span>
         {typeof count === 'number' && (
-          <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ color: lift(accent), background: tint(accent, 0.14) }}>
+          <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ color: readable(accent), background: tint(accent, 0.14) }}>
             {count}
           </span>
         )}
@@ -664,7 +664,7 @@ function OverviewGrid({ ticket }: { ticket: Ticket }) {
               className="ml-2 text-[var(--muted)]"
               title={`${fmtDays(ct.progressDays)} in progress · ${fmtDays(ct.reviewDays)} in review`}
             >
-              · <span className="font-semibold" style={{ color: lift('#8b5cf6') }}>{fmtDays(ct.devDays)}</span> dev
+              · <span className="font-semibold" style={{ color: readable('#8b5cf6') }}>{fmtDays(ct.devDays)}</span> dev
               <span className="text-[11px]">
                 {' '}
                 ({fmtDays(ct.progressDays)} progress, {fmtDays(ct.reviewDays)} review)
@@ -794,7 +794,7 @@ function PrRow({ pr }: { pr: PullRequest }) {
         {pr.title && <span className="min-w-0 truncate text-[var(--muted)]">{pr.title}</span>}
         {!closed && <Approvals approvals={pr.approvals} />}
         {closed && typeof pr.approvals === 'number' && (
-          <span className="font-semibold text-[#22c55e] dark:text-[#4ade80]">✓ {pr.approvals} approval{pr.approvals === 1 ? '' : 's'}</span>
+          <span className="font-semibold" style={{ color: readable('#22c55e') }}>✓ {pr.approvals} approval{pr.approvals === 1 ? '' : 's'}</span>
         )}
         {cs && (
           <span className="text-[var(--muted)]">
@@ -990,7 +990,7 @@ function TreeRow({ node, onOpen, isRoot = false, user }: { node: Ticket; onOpen?
   const label = (
     <>
       <TypeIcon type={effectiveType(node)} color={lift(typeMeta(effectiveType(node)).color)} size={12} />
-      <span className="shrink-0 font-mono text-[11px] font-bold" style={{ color: lift(accent) }}>
+      <span className="shrink-0 font-mono text-[11px] font-bold" style={{ color: readable(accent) }}>
         {node.key}
       </span>
       <span className="min-w-0 flex-1 truncate text-[12.5px] text-[var(--ink)]">{node.title}</span>

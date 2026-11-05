@@ -3,7 +3,7 @@ import { BOARD_COLUMNS, HOLD_COLUMN, PIPELINE_COLUMNS, QA_IN_PROGRESS, isQaInPro
 import type { ColumnKey } from '../../types'
 
 import { ColumnIcon, PauseIcon } from '../common/Icons'
-import { lift, tint } from '../../lib/tone'
+import { lift, readable, tint } from '../../lib/tone'
 import { EASE_OUT } from '../../lib/motion'
 
 /**
@@ -35,7 +35,7 @@ export function Pipeline({ current, rawStatus }: { current: ColumnKey; rawStatus
               </div>
               <div
                 className="flex items-center gap-1 text-[10px] font-semibold"
-                style={{ color: reached ? lift(accent) : 'var(--muted)' }}
+                style={{ color: reached ? readable(accent) : 'var(--muted)' }}
               >
                 <ColumnIcon col={c.key} color={lift(reached ? accent : 'var(--muted)')} size={12} />
                 <span className={isCurrent ? '' : 'hidden sm:inline'}>
@@ -50,7 +50,7 @@ export function Pipeline({ current, rawStatus }: { current: ColumnKey; rawStatus
       {aside && (
         <div
           className="inline-flex items-center gap-1.5 self-start rounded-full px-2.5 py-1 text-[11px] font-semibold pulse-attention"
-          style={{ color: lift(aside.accent), background: tint(aside.accent, 0.14), ['--ring' as string]: aside.accent }}
+          style={{ color: readable(aside.accent), background: tint(aside.accent, 0.14), ['--ring' as string]: aside.accent }}
         >
           {aside.key === 'hold' ? <PauseIcon size={12} color={lift(aside.accent)} /> : <ColumnIcon col={aside.key} color={lift(aside.accent)} size={12} />}
           {aside.label}

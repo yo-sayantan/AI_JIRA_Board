@@ -5,7 +5,7 @@ import type { ColumnKey, Ticket } from '../../types'
 
 import { MegaphoneIcon, MoveIcon, TrophyIcon, TicketGlyph } from '../common/Icons'
 import { TAKEN_COLOR as TAKEN } from '../../lib/taken'
-import { lift, selectedText, tint } from '../../lib/tone'
+import { lift, readable, selectedText, tint } from '../../lib/tone'
 import { PRESS, PRESS_SCALE } from '../../lib/motion'
 
 // Identity of the Raised-by-me view — indigo, deliberately not a red/alarm family.
@@ -104,7 +104,7 @@ export const Stats = memo(function Stats({
           >
             <span className="inline-block h-2 w-2 rounded-full" style={{ background: c.accent }} />
             {c.label}
-            <b style={{ color: lift(c.accent) }}>
+            <b style={{ color: readable(c.accent) }}>
               <AnimatedNumber value={n} />
             </b>
           </motion.button>
@@ -125,7 +125,7 @@ export const Stats = memo(function Stats({
               onClick={onOpenRaised}
               title={`Tickets you raised (sub-tickets excluded) — ${raisedCount.open} of ${raisedCount.total} still open. See each one's status, who holds it now, and every hand-off.`}
               className="jb-raise inline-flex h-8 items-center gap-1.5 rounded-full border px-3.5 text-[11.5px] font-bold transition-colors"
-              style={{ ['--hue' as string]: RAISED, borderColor: tint(RAISED, 0.45), color: lift(RAISED), background: tint(RAISED, 0.07) }}
+              style={{ ['--hue' as string]: RAISED, borderColor: tint(RAISED, 0.45), color: readable(RAISED), background: tint(RAISED, 0.07) }}
             >
               <MegaphoneIcon size={13} color={lift(RAISED)} />
               Raised{' '}
