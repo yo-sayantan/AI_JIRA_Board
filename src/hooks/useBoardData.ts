@@ -13,7 +13,7 @@ export function useBoardData(served: boolean, onError?: (msg: string) => void, d
   // Demo mode keeps its own archive set in memory: writing to jb-archived would prune the keys
   // belonging to the user's real board, which is not this mode's to touch.
   const [archived, setArchived] = useState<ReadonlySet<string>>(() => (demo ? new Set() : loadArchivedKeys(injectedDump())))
-  // `npm run dev` fixtures (?data=…, lib/devData.ts) get an archive set of their own, never written to jb-archived.
+  // Demo fixtures (?data=…, lib/devData.ts) get an archive set of their own, never written to jb-archived.
   // They are a demo-mode tool: with demo mode off a leftover ?data= is ignored, since the switch that clears it is hidden.
   const requestedSet = useDevDataset()
   const devSet = demo ? requestedSet : null
@@ -27,6 +27,7 @@ export function useBoardData(served: boolean, onError?: (msg: string) => void, d
     wasDemo.current = demo
     setRaw(demo ? demoDump() : injectedDump())
     setArchived(demo ? new Set() : loadArchivedKeys(injectedDump()))
+    setDevArchived(new Set())
   }
   // Prefer the folder on disk — editing jira-intern/demo/data.json then reloading is the point of
   // keeping the sample tickets out there. The bundled copy is already on screen meanwhile.
@@ -82,8 +83,10 @@ export function useBoardData(served: boolean, onError?: (msg: string) => void, d
   // Demo mode → Reset. The sample dump itself is never changed by a demo session (moves are pins in
   // useTicketMoves), so putting the hand-archived cards back is all this half of a reset needs.
   const resetDemo = useCallback(() => {
-    if (demo) setArchived(new Set())
-  }, [demo])
+    if (!demo) return
+    if (devSet) setDevArchived(new Set())
+    else setArchived(new Set())
+  }, [demo, devSet])
 
   return { ...view, source: demo ? ('demo' as const) : view.source, reload, archive, restoreArchived, resetDemo }
 }

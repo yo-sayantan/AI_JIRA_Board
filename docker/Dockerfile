@@ -39,9 +39,11 @@ WORKDIR /app
 # fsevents, an optional macOS-only package that is skipped on Linux anyway).
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
-# Bring in the source and produce dist/index.html (tsc --noEmit && vite build).
+# Bring in the source and produce dist/index.html. The host/CI `npm run build` already ran every
+# test gate; this Node-only stage has no Python, Git history or test context, so it uses the
+# bundle-only command. CI still proves this exact stage in its final Docker smoke build.
 COPY . .
-RUN npm run build
+RUN npm run build:app
 
 # ── Stage 1b: take the host-built board as-is ──────────────────────────────────
 FROM node:26-bookworm-slim AS dist-prebuilt

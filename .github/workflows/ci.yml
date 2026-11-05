@@ -1,8 +1,8 @@
 name: CI
 
-# Lint the shell layer, validate config, run the Python tests, type-check and build the
-# board, then prove the Docker image still builds. The build step is exactly what the
-# image's build stage runs, so a green check means the image will build.
+# Validate shell/config, enforce change-with-test and changed-hook policy, run logic/component/
+# production contracts, coverage and browser flows, then prove the Node-only Docker bundle stage.
+# Reports and failure artifacts are uploaded for review.
 on:
   push:
     branches: [main]
@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
@@ -42,14 +44,27 @@ jobs:
       - name: Validate project config
         run: npm run config:validate
 
-      - name: Python tests
-        run: npm test
-
-      - name: Type-check
-        run: npm run typecheck
-
-      - name: Build (single-file dist/index.html)
+      - name: Build and test (logic, component, flow, production contract)
         run: npm run build
+
+      - name: Code coverage
+        run: npm run test:coverage
+
+      - name: Install browser for UI tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Production UI and flow tests
+        run: npm run test:e2e:built
+
+      - name: Upload test reports and browser failure artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: |
+            test-results/
+            coverage/
+          if-no-files-found: warn
 
       - name: Upload built board
         uses: actions/upload-artifact@v7

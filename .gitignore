@@ -24,6 +24,9 @@ mcp-secrets.env
 
 # Build output (rebuild with: npm run build)
 dist/
+# Test dashboards, browser traces/screenshots/video, and coverage are generated on every run.
+test-results/
+coverage/
 
 # Superseded legacy fetcher, kept locally but never published: it predates the
 # config.json indirection and still has hardcoded identity/endpoints inside it.

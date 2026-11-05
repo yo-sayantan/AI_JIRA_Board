@@ -14,11 +14,14 @@ npm run dev              # Vite on localhost:5173 with the SAMPLE fixture (src/f
                          #   with Settings → Demo mode on, ?data=demo|worst|empty|one|huge swaps in a fixture
                          #   (toggle at the bottom; src/lib/devData.ts)
 npm run serve            # the real server on 4321 against jira-intern/data.json (run a fetch first)
+                         #   Demo mode shows the same fixture toggle in this built app
 npm run typecheck        # tsc --noEmit
-npm run build            # tsc --noEmit && vite build → dist/index.html
-npm test                 # Python suite (tests/) + vitest suite
-npm run test:py          # python3 -m unittest discover -s tests -p 'test_*.py'
-npm run test:js          # vitest run
+npm run build            # change/test gate + all logic tests + typecheck + bundle + production contracts
+npm test                 # Python + Vitest; refreshes test-results/index.html
+npm run test:coverage    # Vitest coverage → coverage/index.html + unified test report
+npm run test:e2e         # Chromium UI/flow/accessibility suite against the production build
+npm run lint:hooks       # hook order/dependencies in changed production TypeScript files
+npm run verify           # the full pre-commit gate: config + tested build + E2E
 npm run config:validate  # schema-check config/jira-board.config.json (+ your ~/.ai/config.json)
 bash -n jira-intern/local-runner/*.sh docker/docker-entrypoint.sh scripts/start-jira-board.sh scripts/open-guide.sh   # shell syntax
 python3 -m py_compile jira-intern/*.py ai-intern/worker.py                       # Python syntax
@@ -32,9 +35,9 @@ runs the fast path alone and prints a JSON summary. To test the worker without D
 (needs Ollama on the host) and `AI_INTERN_URL=http://127.0.0.1:4322 npm run serve`.
 
 CI (`.github/workflows/ci.yml`) runs, on Node 26 / Python 3.11: shellcheck (`-S error`) over the
-entrypoint, launchers and runner scripts; `config:validate`; `npm test`; `typecheck`; `build`
-(uploads `dist/index.html`); and `docker build` as a smoke test. Reproduce locally with the
-commands above.
+entrypoint, launchers and runner scripts; `config:validate`; changed-hook lint; the tested production
+build; coverage; Chromium UI/flow/accessibility tests; and `docker build` as a smoke test. It uploads `dist/index.html` and
+`test-results/`, even on test failure. Reproduce the merge gate locally with `npm run verify`.
 
 ## Tests
 
@@ -49,7 +52,11 @@ commands above.
   helpers (`src/lib/*`) are the sweet spot — `columns.ts`, `format.ts`, `search.ts`,
   `settings.ts parseSettings`, `boardView.ts`, `apiKeys.ts`. Server modules get `*.test.mjs` beside them
   under `server/` (e.g. `secrets.test.mjs`; `tooling/vitest.config.ts` includes `server/**/*.test.mjs`).
-- A behaviour change in the pipeline, the server or a contract needs a test in the matching suite.
+- **Cross-component regressions** live under `src/tests/<capability>/`; production bundle contracts
+  under `tests/production/`; browser journeys under `tests/e2e/`.
+- A behaviour change in the pipeline, server or UI needs a test in the matching suite.
+  `npm run test:changed` enforces this before every build. See [`TESTING.md`](TESTING.md) for the
+  complete test architecture, report and SDLC.
 
 ## The three keep-in-sync contracts
 
