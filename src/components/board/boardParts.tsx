@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 
 import { shortReason, type MoveCheck } from '../../lib/moveRules'
-import { lift, onFill, tint } from '../../lib/tone'
+import { fillFor, readable, tint } from '../../lib/tone'
 import { EASE_OUT, LAYOUT } from '../../lib/motion'
 
 // Pieces every space on the board shares — a column, the On Hold space under Blocked, an empty
@@ -26,8 +26,8 @@ export function CountPill({ accent, count }: { accent: string; count: number }) 
     <span
       className="ml-auto min-w-[22px] rounded-full px-1.5 py-0.5 text-center text-[11px] font-bold tabular-nums"
       style={{
-        color: onFill(accent),
-        background: `linear-gradient(135deg, ${accent}, color-mix(in srgb, ${accent} 72%, #ffffff))`,
+        color: fillFor(accent).text,
+        background: `linear-gradient(135deg, ${fillFor(accent).from}, ${fillFor(accent).to})`,
         boxShadow: `inset 0 1px 0 rgba(255,255,255,0.28), 0 2px 6px -2px ${tint(accent, 0.55)}`,
       }}
     >
@@ -89,7 +89,7 @@ export function SpaceHeader({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
           >
-            <h2 className="truncate text-[11px] font-bold uppercase tracking-wider" style={{ color: lift(accent) }}>
+            <h2 className="truncate text-[11px] font-bold uppercase tracking-wider" style={{ color: readable(accent) }}>
               {label}
             </h2>
             {count !== undefined && <CountPill accent={accent} count={count} />}
@@ -114,7 +114,7 @@ export function LandingSlot({ accent, show, label }: { accent: string; show: boo
           exit={{ opacity: 0, height: 0 }}
           transition={LAYOUT}
           className="flex items-center justify-center overflow-hidden rounded-xl border-2 border-dashed text-[11px] font-semibold"
-          style={{ borderColor: tint(accent, 0.55), background: tint(accent, 0.1), color: lift(accent) }}
+          style={{ borderColor: tint(accent, 0.55), background: tint(accent, 0.1), color: readable(accent) }}
         >
           {label}
         </motion.div>
@@ -157,7 +157,7 @@ export function DeniedChip({ check, alt, active }: { check: MoveCheck; alt: bool
       animate={{ opacity: 1, transform: 'translateY(0px)' }}
       transition={{ duration: 0.18, ease: EASE_OUT }}
       className="jb-float pointer-events-none absolute inset-x-0 top-[calc(100%+4px)] z-30 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 rounded-lg border px-1.5 py-[3px] text-center text-[10.5px] font-bold leading-snug shadow-lg"
-      style={{ borderColor: tint(color, 0.5), color: lift(color) }}
+      style={{ borderColor: tint(color, 0.5), color: readable(color) }}
     >
       <span className="[overflow-wrap:anywhere]">{armed ? 'Release to move anyway' : shortReason(check)}</span>
       {/* The instruction goes only where the pointer is: on every lane it would double the note's height. */}
@@ -190,7 +190,7 @@ export function DeniedNote({ check, alt, active, inline = false }: { check: Move
     <div
       role="note"
       className={`${inline ? '' : 'mb-1'} flex flex-col items-center gap-0.5 rounded-lg border px-2 py-1 text-center leading-tight`}
-      style={{ borderColor: tint(color, 0.4), background: tint(color, 0.08), color: lift(color) }}
+      style={{ borderColor: tint(color, 0.4), background: tint(color, 0.08), color: readable(color) }}
     >
       <span className="text-[10.5px] font-bold">{gate && active && alt ? 'Release to move anyway' : shortReason(check)}</span>
       {gate && !(active && alt) && <AnywayHint color={color} />}

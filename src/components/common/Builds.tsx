@@ -2,7 +2,7 @@ import { motion } from 'motion/react'
 import type { JenkinsBuild } from '../../types'
 import { buildMeta, buildTestsText, buildTooltip, consoleTailLines, envLabel, fmtDateTime, fmtDuration, pipelineKindMeta, relTime } from '../../lib/format'
 import { Pill, safeHref } from './ui'
-import { lift, tint } from '../../lib/tone'
+import { lift, readable, tint } from '../../lib/tone'
 
 /** The result mark: ✓ ✗ ! ⦸ ○, and a turning ring while the build is still running. */
 export function BuildGlyph({ result, color, size = 10 }: { result: JenkinsBuild['result']; color: string; size?: number }) {
@@ -36,7 +36,7 @@ export function BuildChip({ build, now, total = 1 }: { build: JenkinsBuild; now:
     <span
       className="inline-flex shrink-0 items-center gap-[3px] whitespace-nowrap rounded-md border px-1.5 text-[10px] font-bold leading-[16px]"
       style={{
-        color: m.color === '#94a3b8' ? 'var(--muted)' : `color-mix(in srgb, ${lift(m.color)} 82%, var(--ink))`,
+        color: m.color === '#94a3b8' ? 'var(--muted)' : readable(m.color),
         borderColor: tint(m.color, 0.45),
         background: tint(m.color, 0.07),
       }}
@@ -95,7 +95,7 @@ export function BuildRow({ build, now, timeZone }: { build: JenkinsBuild; now: n
         </Pill>
         <span
           className="rounded-md border px-1.5 py-0.5 text-[10.5px] font-bold"
-          style={{ color: `color-mix(in srgb, ${lift(m.color)} 80%, var(--ink))`, borderColor: tint(m.color, 0.45), background: tint(m.color, 0.07) }}
+          style={{ color: readable(m.color), borderColor: tint(m.color, 0.45), background: tint(m.color, 0.07) }}
           title="Environment (jenkins.jobs, or labelled from the pipeline's names)"
         >
           {envLabel(build.env)}
@@ -143,7 +143,7 @@ export function BuildRow({ build, now, timeZone }: { build: JenkinsBuild; now: n
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
           {tests && <span className="text-[var(--muted)]">Tests: <b className="text-[var(--ink-soft)]">{tests}</b></span>}
           {build.failedStage && (
-            <span className="font-semibold" style={{ color: lift(m.color) }}>
+            <span className="font-semibold" style={{ color: readable(m.color) }}>
               Failed at stage “{build.failedStage}”
             </span>
           )}

@@ -99,6 +99,105 @@ export function lift(color: string): string {
   return `color-mix(in srgb, ${color}, white calc(var(--tone-lift, 0) * ${Math.round(t * 100)}%))`
 }
 
+/** The palest surface a coloured label sits on in the light theme: a faint wash of its own colour over the page. */
+const LIGHT_WASH = '#eceef3'
+/** Light-theme text target: AA (4.5) with room for a wash under it (a tinted pill on a tinted row is darker than the page). */
+const LIGHT_TARGET = 5.3
+/** The light theme's ink (`--ink`), the colour a too-pale label is mixed toward. */
+const LIGHT_INK = '#131722'
+const darkCache = new Map<string, number>()
+
+/** `rgb` mixed toward `to` by `t` — the maths `color-mix(in srgb, rgb, to t%)` does. */
+function toward([r, g, b]: Rgb, [tr, tg, tb]: Rgb, t: number): Rgb {
+  return [r + (tr - r) * t, g + (tg - g) * t, b + (tb - b) * t]
+}
+
+/**
+ * How far toward the ink (0–1, in whole percents) a hex colour must go to read as TEXT on the light board; 0 when it
+ * already does. Not a hex colour → 0.
+ */
+export function darkenAmount(hex: string): number {
+  const hit = darkCache.get(hex)
+  if (hit !== undefined) return hit
+  const rgb = parseHex(hex)
+  const bg = parseHex(LIGHT_WASH)
+  const ink = parseHex(LIGHT_INK)
+  let out = 0
+  if (rgb && bg && ink) {
+    const ratio = (c: Rgb) => {
+      const [hi, lo] = [luminance(c), luminance(bg)].sort((x, y) => y - x)
+      return (hi + 0.05) / (lo + 0.05)
+    }
+    if (ratio(rgb) < LIGHT_TARGET) {
+      let lo = 0
+      let hi = 100
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1
+        if (ratio(toward(rgb, ink, mid / 100)) >= LIGHT_TARGET) hi = mid
+        else lo = mid + 1
+      }
+      out = lo / 100
+    }
+  }
+  darkCache.set(hex, out)
+  return out
+}
+
+/**
+ * A colour for a coloured LABEL on the page or on a faint wash of itself (a status word, a banner title). Light theme: the
+ * colour mixed toward the ink just enough to clear AA, so amber and green labels stay their hue but stop vanishing on
+ * white. Dark theme: exactly `lift()`. Not a plain hex → `lift()` (which leaves it alone).
+ */
+export function readable(color: string): string {
+  const t = darkenAmount(color)
+  if (t <= 0) return lift(color)
+  return `color-mix(in srgb, ${lift(color)}, var(--ink) calc((1 - var(--tone-lift, 0)) * ${Math.round(t * 100)}%))`
+}
+
+/** The text on a filled badge or button: white, or the board's near-black on a fill too bright for white. */
+const FILL_INK = '#0b0c0f'
+/** White on the deep end of a fill's gradient, and on its light end (both clear AA, 4.5, with room). */
+const FILL_DEEP = 5.2
+const FILL_LIGHT = 4.6
+/** The most a fill may deepen toward black to carry white text; past this its colour would turn muddy (green → forest). */
+const FILL_MAX_DEEPEN = 0.25
+const fillCache = new Map<string, { from: string; to: string; text: string }>()
+
+const toHex = (c: Rgb) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`
+
+/**
+ * A SOLID fill for `color` and the text on it, readable in both themes (a filled pill, a count badge, a primary button).
+ * A strong colour (blue, rose, violet, red) deepens a little so white text clears AA, as a two-stop gradient; a bright one
+ * (green, orange, amber, teal, grey) keeps its bright fill — from the colour to a lighter tone — and takes near-black text.
+ * Not a plain hex → the colour flat, white text.
+ */
+export function fillFor(color: string): { from: string; to: string; text: string } {
+  const hit = fillCache.get(color)
+  if (hit) return hit
+  const rgb = parseHex(color)
+  const white: Rgb = [255, 255, 255]
+  const black = parseHex(FILL_INK)!
+  let out = { from: color, to: color, text: '#fff' }
+  if (rgb) {
+    const onWhite = (c: Rgb) => (luminance(white) + 0.05) / (luminance(c) + 0.05)
+    const need = (target: number) => {
+      let lo = 0
+      let hi = 100
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1
+        if (onWhite(toward(rgb, black, mid / 100)) >= target) hi = mid
+        else lo = mid + 1
+      }
+      return lo / 100
+    }
+    const light = need(FILL_LIGHT)
+    if (light <= FILL_MAX_DEEPEN) out = { from: toHex(toward(rgb, black, need(FILL_DEEP))), to: toHex(toward(rgb, black, light)), text: '#fff' }
+    else out = { from: color, to: toHex(towardWhite(rgb, 0.28)), text: FILL_INK }
+  }
+  fillCache.set(color, out)
+  return out
+}
+
 /** In dark mode a see-through wash needs a little more body than on white, or a selected chip is barely there. */
 const DARK_WASH_BOOST = 0.4
 /** Past this alpha the colour is already a strong edge / fill; boosting it would only clip. */
@@ -160,6 +259,9 @@ export function selectedStyle(color: string, o: { fill?: number; edge?: number }
 /** The label colour of a selected option: the colour itself in light mode, near-white tinted with it in dark mode. */
 export function selectedText(color: string): string {
   if (!parseHex(color)) return color
-  return `color-mix(in srgb, ${color}, white calc(var(--tone-lift, 0) * ${Math.round(SELECTED_TEXT_LIFT * 100)}%))`
+  // Light theme: the colour mixed toward the ink as far as `readable` would (a bright one on its own wash is under AA).
+  const t = darkenAmount(color)
+  const base = t > 0 ? `color-mix(in srgb, ${color}, var(--ink) calc((1 - var(--tone-lift, 0)) * ${Math.round(t * 100)}%))` : color
+  return `color-mix(in srgb, ${base}, white calc(var(--tone-lift, 0) * ${Math.round(SELECTED_TEXT_LIFT * 100)}%))`
 }
 

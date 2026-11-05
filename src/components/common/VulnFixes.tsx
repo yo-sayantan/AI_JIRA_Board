@@ -2,7 +2,7 @@ import type { ProofNote, VulnFixes, VulnFixItem } from '../../types'
 import { vulnKindLabel, vulnStatusMeta, vulnSummary, vulnTooltip } from '../../lib/format'
 import { ShieldIcon } from './Icons'
 import { Pill } from './ui'
-import { lift, tint } from '../../lib/tone'
+import { lift, readable, tint } from '../../lib/tone'
 
 /**
  * Card chip: "🛡 2/3 fixed" — how many of the vulnerabilities the ticket names Checkmarx shows as fixed on its
@@ -14,7 +14,7 @@ export function VulnChip({ vf }: { vf: VulnFixes }) {
   return (
     <span
       className="inline-flex shrink-0 items-center gap-[3px] whitespace-nowrap rounded-md border px-1.5 text-[10px] font-bold leading-[16px]"
-      style={{ color: `color-mix(in srgb, ${lift(s.color)} 82%, var(--ink))`, borderColor: tint(s.color, 0.45), background: tint(s.color, 0.07) }}
+      style={{ color: readable(s.color), borderColor: tint(s.color, 0.45), background: tint(s.color, 0.07) }}
       title={vulnTooltip(vf)}
       aria-label={`Checkmarx: ${s.fixed} of ${s.total} vulnerabilities fixed`}
     >
@@ -36,7 +36,7 @@ export function VulnRow({ item }: { item: VulnFixItem }) {
         </Pill>
         <span
           className="rounded-md border px-1.5 py-0.5 text-[10.5px] font-bold"
-          style={{ color: `color-mix(in srgb, ${lift(m.color)} 80%, var(--ink))`, borderColor: tint(m.color, 0.45), background: tint(m.color, 0.07) }}
+          style={{ color: readable(m.color), borderColor: tint(m.color, 0.45), background: tint(m.color, 0.07) }}
           title="What the ticket names"
         >
           {vulnKindLabel(item.kind)}
@@ -75,7 +75,7 @@ export function ProofNoteLine({ note, carriedFrom, carriedWhat = 'results' }: { 
       data-proof-note
       data-state={note.state}
       className="flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] font-semibold"
-      style={{ color: `color-mix(in srgb, ${lift(color)} 78%, var(--ink))`, borderColor: tint(color, 0.4), background: tint(color, 0.07) }}
+      style={{ color: readable(color), borderColor: tint(color, 0.4), background: tint(color, 0.07) }}
     >
       <span aria-hidden className="shrink-0">
         {note.state === 'not-configured' ? 'ⓘ' : '⚠'}

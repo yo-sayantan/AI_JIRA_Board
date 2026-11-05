@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contrastRatio, lift, liftAmount, onFill, selectedStyle, selectedText, tint } from './tone'
+import { contrastRatio, darkenAmount, fillFor, lift, liftAmount, onFill, readable, selectedStyle, selectedText, tint } from './tone'
 import { hexToRgba } from './format'
 
 /** The `color-mix` the helper writes, evaluated in the dark theme (--tone-lift: 1) — what the browser would paint. */
@@ -149,7 +149,12 @@ describe('selectedStyle / selectedText', () => {
   })
 
   it('in dark mode moves the colour off the label (near-white) and onto a strong ring', () => {
-    expect(selectedText('#a855f7')).toBe('color-mix(in srgb, #a855f7, white calc(var(--tone-lift, 0) * 86%))')
+    // Dark: the colour (0% ink), then 86% white. Light: the colour mixed toward the ink as `readable` would, no white.
+    const ink = Math.round(darkenAmount('#a855f7') * 100)
+    expect(selectedText('#a855f7')).toBe(
+      `color-mix(in srgb, color-mix(in srgb, #a855f7, var(--ink) calc((1 - var(--tone-lift, 0)) * ${ink}%)), white calc(var(--tone-lift, 0) * 86%))`,
+    )
+    expect(selectedText('#1e3a8a')).toBe('color-mix(in srgb, #1e3a8a, white calc(var(--tone-lift, 0) * 86%))')
     expect(selectedStyle('#a855f7').boxShadow).toContain('calc(45% + 45% * var(--tone-lift, 0))')
   })
 
@@ -168,5 +173,50 @@ describe('selectedStyle / selectedText', () => {
 
   it('leaves a non-hex colour alone', () => {
     expect(selectedStyle('var(--ink)')).toEqual({ color: 'var(--ink)' })
+  })
+})
+
+describe('fillFor (a filled badge or button)', () => {
+  it('puts text that clears AA on both stops of the fill, for every palette colour', () => {
+    for (const c of PALETTE) {
+      const f = fillFor(c)
+      expect(contrastRatio(f.text === '#fff' ? '#ffffff' : f.text, f.from), `${c} from`).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(f.text === '#fff' ? '#ffffff' : f.text, f.to), `${c} to`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('keeps a bright colour bright (near-black text) instead of turning it muddy', () => {
+    expect(fillFor('#2fcf6f')).toEqual({ from: '#2fcf6f', to: expect.any(String), text: '#0b0c0f' })
+    expect(fillFor('#2f86ff').text).toBe('#fff')
+  })
+})
+
+describe('readable (a coloured label on the light board)', () => {
+  // What the browser paints in the light theme: the colour mixed toward the light ink by the helper's percent.
+  const lightResult = (hex: string) => {
+    const t = darkenAmount(hex)
+    const ink = [0x13, 0x17, 0x22]
+    const n = parseInt(hex.slice(1), 16)
+    const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v, i) => Math.round(v + (ink[i] - v) * t))
+    return `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`
+  }
+
+  it('clears AA on the page and on a faint wash for every palette colour', () => {
+    for (const c of PALETTE) {
+      expect(contrastRatio(lightResult(c), '#f4f5f8'), c).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(lightResult(c), '#eceef3'), c).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('keeps the hue: only as much ink as the colour needs, none for one that already reads', () => {
+    expect(darkenAmount('#1e3a8a')).toBe(0)
+    expect(darkenAmount('#f59e0b')).toBeGreaterThan(darkenAmount('#dc2626'))
+    expect(darkenAmount('#f59e0b')).toBeLessThan(0.6)
+  })
+
+  it('is exactly lift() in the dark theme, and leaves a non-hex colour to lift()', () => {
+    expect(readable('#f59e0b')).toContain('calc((1 - var(--tone-lift, 0)) *')
+    expect(readable('#1e3a8a')).toBe(lift('#1e3a8a'))
+    expect(readable('var(--ink)')).toBe('var(--ink)')
   })
 })

@@ -7,7 +7,7 @@ import { matchRow, parseQuery } from '../../lib/search'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
 import { PriorityGlyph, SafeHtml } from '../common/ui'
 import { ChevronIcon, CheckIcon, ClockIcon, DocIcon, ExpandAllIcon, LinkIcon, MegaphoneIcon, PersonIcon, QuestionIcon, RefreshIcon, SearchIcon, SparkleIcon, TypeIcon } from '../common/Icons'
-import { lift, selectedText, tint } from '../../lib/tone'
+import { lift, readable, selectedText, tint } from '../../lib/tone'
 import { COLLAPSE, DIALOG, PRESS, PRESS_SCALE, SCRIM } from '../../lib/motion'
 
 // The Raised view's own palette — indigo identity (deliberately apart from the Completed
@@ -237,7 +237,7 @@ export function RaisedOverlay({
                   <MegaphoneIcon size={24} color={lift(RAISED)} />
                 </span>
                 <div className="min-w-0">
-                  <h2 className="text-[24px] font-black leading-none tracking-tight" style={{ color: lift(RAISED) }}>
+                  <h2 className="text-[24px] font-black leading-none tracking-tight" style={{ color: readable(RAISED) }}>
                     Raised by me
                   </h2>
                   <p className="mt-1.5 truncate text-[12px] font-medium text-[var(--muted)]">
@@ -252,7 +252,7 @@ export function RaisedOverlay({
                         {stats.open > 0 && (
                           <span title="Raised tickets that are not Done yet — the ones still waiting on a fix.">
                             {' · '}
-                            <b style={{ color: lift(OPEN) }}>{stats.open}</b> still open
+                            <b style={{ color: readable(OPEN) }}>{stats.open}</b> still open
                           </span>
                         )}
                       </>
@@ -277,7 +277,7 @@ export function RaisedOverlay({
                         className="inline-flex h-10 items-center gap-1.5 rounded-xl border px-3.5 text-[12px] font-bold transition-colors"
                         style={{
                           borderColor: tint(RAISED, 0.45),
-                          color: lift(RAISED),
+                          color: readable(RAISED),
                           background: tint(RAISED, refreshing ? 0.14 : 0.07),
                           opacity: refreshing ? 0.85 : 1,
                         }}
@@ -356,7 +356,7 @@ export function RaisedOverlay({
                       <div className="ml-auto flex items-center gap-2.5">
                         {filtering && (
                           <span className="text-[11.5px] font-semibold tabular-nums text-[var(--muted)]">
-                            <b style={{ color: lift(RAISED) }}>{filtered.length}</b> of {items.length}
+                            <b style={{ color: readable(RAISED) }}>{filtered.length}</b> of {items.length}
                           </span>
                         )}
                         <button
@@ -430,7 +430,7 @@ export function RaisedOverlay({
                         <div key={year}>
                           <div className="mb-3 flex items-center gap-3 px-1">
                             <span className="text-[19px] font-black tracking-tight text-[var(--ink)]">{year}</span>
-                            <span className="rounded-full px-2.5 py-[3px] text-[11px] font-extrabold tabular-nums" style={{ color: lift(RAISED), background: tint(RAISED, 0.12) }}>
+                            <span className="rounded-full px-2.5 py-[3px] text-[11px] font-extrabold tabular-nums" style={{ color: readable(RAISED), background: tint(RAISED, 0.12) }}>
                               {count}
                             </span>
                             <span className="h-px flex-1" style={{ background: `linear-gradient(90deg, ${tint(RAISED, 0.35)}, transparent)` }} />
@@ -546,7 +546,7 @@ function RaisedRow({ it, user, briefsEnabled, expanded, onToggle, onOpen }: { it
           {links.length > 0 && (
             <span
               className="hidden shrink-0 items-center gap-1 rounded-md border px-1.5 py-[2px] font-mono text-[10px] font-bold lg:inline-flex"
-              style={{ borderColor: tint(HANDOFF, 0.35), color: lift(HANDOFF), background: tint(HANDOFF, 0.09) }}
+              style={{ borderColor: tint(HANDOFF, 0.35), color: readable(HANDOFF), background: tint(HANDOFF, 0.09) }}
               title={links.map((l) => `${l.relation || 'linked'}: ${l.key}${l.summary ? ` — ${l.summary}` : ''}`).join('\n')}
             >
               ⇄ {links[0].key}
@@ -559,14 +559,14 @@ function RaisedRow({ it, user, briefsEnabled, expanded, onToggle, onOpen }: { it
         <span className="hidden shrink-0 items-center sm:flex">
           <span className="flex items-center justify-center" style={{ width: RAIL.hands }} title={handoffTitle(hops)}>
             {hops.length > 0 && (
-              <span className="inline-flex items-center gap-0.5 text-[11px] font-extrabold tabular-nums" style={{ color: lift(OPEN) }}>
+              <span className="inline-flex items-center gap-0.5 text-[11px] font-extrabold tabular-nums" style={{ color: readable(OPEN) }}>
                 ↻ {hops.length}
               </span>
             )}
           </span>
           <span className="flex items-center gap-1 overflow-hidden pl-2" style={{ width: RAIL.assignee }} title={who === 'none' ? 'Nobody assigned yet' : `Currently with ${shortName(it.assignee)}${who === 'me' ? ' (you)' : ''}`}>
             <PersonIcon size={10} color={lift(holderColor)} />
-            <span className={`truncate text-[11.5px] font-semibold ${who === 'none' ? 'italic' : ''}`} style={{ color: lift(holderColor) }}>
+            <span className={`truncate text-[11.5px] font-semibold ${who === 'none' ? 'italic' : ''}`} style={{ color: readable(holderColor) }}>
               {who === 'me' ? 'me' : holder}
             </span>
           </span>
@@ -575,7 +575,7 @@ function RaisedRow({ it, user, briefsEnabled, expanded, onToggle, onOpen }: { it
           <span className="flex justify-center overflow-hidden px-1" style={{ width: RAIL.status }} title={`Status: ${it.status || COLUMN_META[col]?.label || '—'}`}>
             <span
               className="inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-[3px] text-[10.5px] font-bold leading-none"
-              style={{ borderColor: tint(accent, 0.45), color: lift(accent), background: tint(accent, 0.12) }}
+              style={{ borderColor: tint(accent, 0.45), color: readable(accent), background: tint(accent, 0.12) }}
             >
               <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: accent }} />
               <span className="truncate">{it.status || COLUMN_META[col]?.label || '—'}</span>
@@ -596,7 +596,7 @@ function RaisedRow({ it, user, briefsEnabled, expanded, onToggle, onOpen }: { it
                   "what is this and where does it stand" without opening the full page. */}
               {briefsEnabled && it.aiSummary && (
                 <div className="mb-3.5 overflow-hidden rounded-xl border" style={{ borderColor: tint(RAISED, 0.3), background: tint(RAISED, 0.05) }}>
-                  <div className="flex items-center gap-1.5 border-b px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.07em]" style={{ borderColor: tint(RAISED, 0.18), color: lift(RAISED) }}>
+                  <div className="flex items-center gap-1.5 border-b px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.07em]" style={{ borderColor: tint(RAISED, 0.18), color: readable(RAISED) }}>
                     <SparkleIcon size={12} color={lift(RAISED)} />
                     AI brief
                     {it.aiSummaryAt && (
@@ -690,7 +690,7 @@ function HolderPill({ name, color, when }: { name: string; color: string; when?:
   return (
     <span
       className="inline-flex items-center gap-1 rounded-full border px-2 py-[2px] text-[10.5px] font-bold leading-none"
-      style={{ borderColor: tint(color, 0.4), color: lift(color), background: tint(color, 0.1) }}
+      style={{ borderColor: tint(color, 0.4), color: readable(color), background: tint(color, 0.1) }}
       title={when ? fmtDate(when) : undefined}
     >
       {name}
@@ -724,7 +724,7 @@ function StatTile({ n, label, color, icon }: { n: number; label: string; color: 
     <div className="min-w-0 px-4 py-2 lg:border-l lg:border-[var(--line)] lg:first:border-l-0">
       <div className="flex items-center gap-1.5">
         <span className="inline-flex">{icon}</span>
-        <span className="text-[22px] font-black leading-none tabular-nums" style={{ color: lift(color) }}>
+        <span className="text-[22px] font-black leading-none tabular-nums" style={{ color: readable(color) }}>
           {n}
         </span>
       </div>

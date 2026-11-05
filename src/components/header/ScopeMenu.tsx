@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { currentYear, dateInputDaysAgo } from '../../lib/format'
 import { APP_CONFIG } from '../../lib/appConfig'
-import { onFill, tint } from '../../lib/tone'
+import { fillFor, readable, tint } from '../../lib/tone'
 import { FILL, POPOVER, PRESS } from '../../lib/motion'
 
 export type MenuScope = { scope: 'all' } | { scope: 'year'; year: number } | { scope: 'since'; since: string } | { scope: 'key'; key: string }
@@ -114,7 +114,7 @@ export function ScopeMenu({ color, trigger, title, subtitle, progress, served, o
                 />
               )}
               <div className="relative">
-                <div className="text-[12px] font-extrabold" style={{ color }}>
+                <div className="text-[12px] font-extrabold" style={{ color: readable(color) }}>
                   {title}
                 </div>
                 <div className="mt-0.5 text-[11px] text-[var(--muted)]">{subtitle}</div>
@@ -251,7 +251,7 @@ function InputRow({
           onClick={onSubmit}
           disabled={!canSubmit}
           className="shrink-0 rounded-lg px-2.5 py-1 text-[11.5px] font-bold disabled:opacity-50"
-          style={{ background: color, color: onFill(color) }}
+          style={{ background: `linear-gradient(135deg, ${fillFor(color).from}, ${fillFor(color).to})`, color: fillFor(color).text }}
         >
           Run
         </button>

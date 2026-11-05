@@ -32,7 +32,8 @@
   --surface-2: rgba(255, 255, 255, 0.55);
   --ink: #131722;
   --ink-soft: #43506a;
-  --muted: #74809a;
+  /* 4.9:1 on the page and 5.4:1 on a white panel (was #74809a: 3.6 / 4.0, under AA for the names, dates and hints). */
+  --muted: #5f6b82;
   --line: rgba(20, 28, 48, 0.1);
   --line-strong: rgba(20, 28, 48, 0.16);
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 8px 24px rgba(16, 24, 40, 0.08);

@@ -5,7 +5,7 @@ import type { ColumnKey, Ticket } from '../../types'
 
 import { MegaphoneIcon, MoveIcon, TrophyIcon, TicketGlyph } from '../common/Icons'
 import { TAKEN_COLOR as TAKEN } from '../../lib/taken'
-import { lift, selectedText, tint } from '../../lib/tone'
+import { lift, readable, selectedText, tint } from '../../lib/tone'
 import { PRESS, PRESS_SCALE } from '../../lib/motion'
 
 // Identity of the Raised-by-me view — indigo, deliberately not a red/alarm family.
@@ -104,7 +104,7 @@ export const Stats = memo(function Stats({
           >
             <span className="inline-block h-2 w-2 rounded-full" style={{ background: c.accent }} />
             {c.label}
-            <b style={{ color: lift(c.accent) }}>
+            <b style={{ color: readable(c.accent) }}>
               <AnimatedNumber value={n} />
             </b>
           </motion.button>
@@ -125,7 +125,7 @@ export const Stats = memo(function Stats({
               onClick={onOpenRaised}
               title={`Tickets you raised (sub-tickets excluded) — ${raisedCount.open} of ${raisedCount.total} still open. See each one's status, who holds it now, and every hand-off.`}
               className="jb-raise inline-flex h-8 items-center gap-1.5 rounded-full border px-3.5 text-[11.5px] font-bold transition-colors"
-              style={{ ['--hue' as string]: RAISED, borderColor: tint(RAISED, 0.45), color: lift(RAISED), background: tint(RAISED, 0.07) }}
+              style={{ ['--hue' as string]: RAISED, borderColor: tint(RAISED, 0.45), color: readable(RAISED), background: tint(RAISED, 0.07) }}
             >
               <MegaphoneIcon size={13} color={lift(RAISED)} />
               Raised{' '}
@@ -174,39 +174,6 @@ export const Stats = memo(function Stats({
           )}
         </div>
       )}
-
-      <Spectrum tickets={tickets} hideBlocked={hideBlocked} counts={counts} />
     </div>
   )
 })
-
-/**
- * The board as one bar: a segment per column in its own colour, sized by how many tickets sit there — where the work is,
- * at a glance. Built from the chips' own counts (On Hold inside Blocked), so it adds up to All.
- */
-function Spectrum({ tickets, hideBlocked, counts }: { tickets: Ticket[]; hideBlocked: boolean; counts: (k: ColumnKey) => number }) {
-  if (tickets.length === 0) return null
-  const parts = BOARD_COLUMNS.filter((c) => !(hideBlocked && c.key === 'blocked'))
-    .map((c) => ({ c, n: counts(c.key) }))
-    .filter((p) => p.n > 0)
-  const total = parts.reduce((s, p) => s + p.n, 0)
-  if (total === 0) return null
-  const summary = parts.map((p) => `${p.c.label} ${p.n}`).join(', ')
-  return (
-    <div role="img" aria-label={`Where the work is: ${summary}`} className="flex h-1.5 basis-full gap-[3px] overflow-hidden rounded-full" data-spectrum>
-      {parts.map(({ c, n }) => (
-        <span
-          key={c.key}
-          title={`${c.label}: ${n} of ${total}`}
-          className="h-full min-w-[6px] rounded-full"
-          style={{
-            flexGrow: n,
-            flexBasis: 0,
-            background: `linear-gradient(90deg, ${c.accent}, color-mix(in srgb, ${c.accent} 70%, #ffffff))`,
-            boxShadow: `0 1px 4px -1px ${tint(c.accent, 0.6)}`,
-          }}
-        />
-      ))}
-    </div>
-  )
-}

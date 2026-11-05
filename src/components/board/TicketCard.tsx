@@ -8,7 +8,7 @@ import { Pill, PriorityGlyph, PrBadge, Approvals, PointsTag } from '../common/ui
 import { TypeIcon, RefreshIcon, TrophyIcon } from '../common/Icons'
 import { BuildChip } from '../common/Builds'
 import { VulnChip } from '../common/VulnFixes'
-import { lift, tint } from '../../lib/tone'
+import { lift, readable, tint } from '../../lib/tone'
 import { EASE_OUT, LAYOUT, PRESS } from '../../lib/motion'
 
 /** Days until this Done card auto-retires from the board into the Completed archive. */
@@ -328,7 +328,7 @@ export const TicketCard = memo(function TicketCard({
       <div className="relative flex items-start justify-between gap-2">
         {/* A long key (10-letter project, 6-digit number) leaves no room for the points beside it in a slim
             column: the points tag wraps under the key instead of being clipped or painted over the age. */}
-        <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] font-bold tracking-wide" style={{ color: lift(accent) }}>
+        <span className="inline-flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] font-bold tracking-wide" style={{ color: readable(accent) }}>
           {/* Keys never break or truncate. A slim card (zoomed in, or a narrow lane) can't fit a 17-character key at
               full size beside its icons, so there the key tightens and the Done trophy — the lane already says Done — yields. */}
           <span className="inline-flex shrink-0 items-center gap-1.5 @max-[11rem]:gap-1">
@@ -344,7 +344,7 @@ export const TicketCard = memo(function TicketCard({
           <PointsTag points={ticket.storyPoints} />
         </span>
         {moving ? (
-          <span className="inline-flex h-[18px] shrink-0 items-center gap-1 text-[10px] font-semibold" style={{ color: lift(accent) }} title="Updating status in Jira…">
+          <span className="inline-flex h-[18px] shrink-0 items-center gap-1 text-[10px] font-semibold" style={{ color: readable(accent) }} title="Updating status in Jira…">
             <motion.span className="inline-flex" animate={{ transform: ['rotate(0deg)', 'rotate(360deg)'] }} transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}>
               <RefreshIcon size={10} color="currentColor" />
             </motion.span>
@@ -423,7 +423,7 @@ function ReadinessDots({ rev, done }: { rev?: string | null; done?: string | nul
     const color = reason ? NOT_YET : READY
     const text = reason ?? `Ready for ${target}`
     return (
-      <span className="inline-flex items-center gap-[3px] text-[9.5px] font-bold uppercase tracking-wide" style={{ color: lift(color) }} title={text} aria-label={`${target}: ${text}`}>
+      <span className="inline-flex items-center gap-[3px] text-[9.5px] font-bold uppercase tracking-wide" style={{ color: readable(color) }} title={text} aria-label={`${target}: ${text}`}>
         <span aria-hidden className="h-[7px] w-[7px] rounded-full" style={{ background: reason ? 'transparent' : color, boxShadow: `inset 0 0 0 1.5px ${color}, 0 0 0 2px ${tint(color, 0.16)}` }} />
         {label}
       </span>
